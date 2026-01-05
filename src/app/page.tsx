@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User } from 'lucide-react';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -110,22 +111,9 @@ export default function Home() {
     };
     setMessages(prev => [...prev, tempUserMsg]);
     setIsLoading(true);
-    setStreamingMessage('');
 
     try {
-      // Add placeholder for streaming message
-      const streamMsgId = `stream-${Date.now()}`;
-      const streamMsg: Message = {
-        id: streamMsgId,
-        conversationId: currentConversation?.id || 'new',
-        role: 'assistant',
-        content: '',
-        sequenceNumber: messages.length + 1,
-        createdAt: new Date(),
-      };
-      setMessages(prev => [...prev, streamMsg]);
-
-      // Simulate streaming by calling API and then displaying character by character
+      // Call API to get full response
       const response = await aiAPI.generate({
         prompt: userMessage,
         conversationId: currentConversation?.id,
@@ -137,53 +125,69 @@ export default function Home() {
         webSearch: webSearchEnabled,
       });
 
-      // Stream the response character by character
+      // Create streaming message placeholder
+      const streamMsgId = `stream-${Date.now()}`;
       const fullResponse = response.response;
+      
+      // Add empty assistant message
+      setMessages(prev => [...prev, {
+        id: streamMsgId,
+        conversationId: response.conversationId,
+        role: 'assistant',
+        content: '',
+        sequenceNumber: messages.length + 1,
+        createdAt: new Date(),
+      }]);
+
+      // Stream the response character by character
       let currentIndex = 0;
-      const streamInterval = setInterval(async () => {
+      const streamInterval = setInterval(() => {
         if (currentIndex < fullResponse.length) {
           const chunkSize = Math.min(5, fullResponse.length - currentIndex);
           currentIndex += chunkSize;
           const partialText = fullResponse.substring(0, currentIndex);
           
+          // Update only the streaming message content
           setMessages(prev => 
             prev.map(msg => 
-              msg.id === streamMsgId 
+              msg.id === streamMsgId
                 ? { ...msg, content: partialText }
                 : msg
             )
           );
         } else {
+          // Streaming complete
           clearInterval(streamInterval);
           setIsLoading(false);
           
           // Update with final message data
           setMessages(prev => 
             prev.map(msg => 
-              msg.id === streamMsgId 
+              msg.id === streamMsgId
                 ? {
                     ...msg,
                     id: response.messageId,
-                    conversationId: response.conversationId,
                     content: fullResponse,
                     tokensUsed: response.tokensUsed,
                   }
                 : msg
             )
           );
-
-          // If new conversation, reload conversation list
-          if (!currentConversation) {
-            await loadConversations();
-            const newConv = await aiAPI.getConversation(response.conversationId);
-            setCurrentConversation(newConv);
-          }
         }
       }, 30);
+
+      // If new conversation, reload conversation list (after streaming starts)
+      if (!currentConversation) {
+        loadConversations().then(() => {
+          aiAPI.getConversation(response.conversationId).then(newConv => {
+            setCurrentConversation(newConv);
+          });
+        });
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Remove temporary messages on error
-      setMessages(prev => prev.filter(m => !m.id.startsWith('stream-')));
+      // Remove temporary message on error
+      setMessages(prev => prev.slice(0, -1));
       alert('Failed to send message. Please try again.');
       setIsLoading(false);
     }
@@ -404,23 +408,37 @@ export default function Home() {
               {messages.map((msg, idx) => (
                 <div
                   key={msg.id}
-                  className={`mb-4 md:mb-8 flex gap-2 md:gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
+                  className={`mb-4 md:mb-6 flex gap-2 md:gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <span className="text-xs font-semibold">AI</span>
                     </div>
                   )}
                   
                   <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[85%] md:max-w-2xl' : ''}`}>
+                    {/* Sender name in gray */}
+                    {msg.role === 'assistant' && (
+                      <div className="text-xs text-gray-500 mb-1 ml-1">Assistant</div>
+                    )}
+                    {msg.role === 'user' && (
+                      <div className="text-xs text-gray-500 mb-1 mr-1 text-right">You</div>
+                    )}
+                    
                     <div className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 ${
                       msg.role === 'user'
                         ? 'bg-white text-black ml-auto'
-                        : 'bg-white/5'
+                        : 'bg-transparent text-white'
                     }`}>
-                      <div className="whitespace-pre-wrap break-words text-sm md:text-base">
-                        {msg.content}
-                      </div>
+                      {msg.role === 'assistant' ? (
+                        <div className="text-sm md:text-base markdown-content">
+                          <MarkdownRenderer content={msg.content} />
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap break-words text-sm md:text-base">
+                          {msg.content}
+                        </div>
+                      )}
                     </div>
                     {msg.tokensUsed && (
                       <div className="text-xs text-white/40 mt-1 ml-2 md:ml-4">
@@ -430,7 +448,7 @@ export default function Home() {
                   </div>
 
                   {msg.role === 'user' && user?.user?.avatarUrl && (
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0">
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0 mt-1">
                       <img src={user.user.avatarUrl} alt="You" className="w-full h-full object-cover" />
                     </div>
                   )}
