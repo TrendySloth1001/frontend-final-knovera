@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -16,13 +16,14 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Hidden by default on mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Open by default
   const [searchQuery, setSearchQuery] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
@@ -42,21 +43,38 @@ export default function Home() {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  // Load conversations
+  // Load conversations on mount
   useEffect(() => {
     if (user?.user?.id) {
       loadConversations();
     }
   }, [user]);
 
+  // Restore conversation from URL on mount
+  useEffect(() => {
+    const chatId = searchParams.get('chat');
+    if (chatId && user?.user?.id && conversations.length > 0) {
+      // Check if conversation exists in loaded conversations
+      const conv = conversations.find(c => c.id === chatId);
+      if (conv) {
+        setCurrentConversation(conv);
+      } else {
+        // Try to load conversation directly
+        aiAPI.getConversation(chatId).then(conv => {
+          setCurrentConversation(conv);
+        }).catch(err => {
+          console.error('Failed to load conversation from URL:', err);
+          // Clear invalid chat ID from URL
+          router.push('/', { scroll: false });
+        });
+      }
+    }
+  }, [conversations, searchParams, user]);
+
   // Load messages when conversation changes
   useEffect(() => {
     if (currentConversation?.id) {
       loadMessages(currentConversation.id);
-      // Update URL to include conversation ID
-      router.push(`/?chat=${currentConversation.id}`, { scroll: false });
-    } else {
-      router.push('/', { scroll: false });
     }
   }, [currentConversation]);
 
@@ -100,6 +118,7 @@ export default function Home() {
     setCurrentConversation(null);
     setMessages([]);
     setInputMessage('');
+    router.push('/', { scroll: false });
     inputRef.current?.focus();
   };
 

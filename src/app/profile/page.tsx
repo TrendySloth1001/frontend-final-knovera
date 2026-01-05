@@ -150,11 +150,11 @@ export default function ProfilePage() {
         <div className="border-b border-white/10 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
             <div className="grid grid-cols-2 gap-6">
-              <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="text-center p-4 bg-black rounded-xl border border-white/10">
                 <div className="text-3xl font-bold text-white mb-1">{teacherProfile.followersCount}</div>
                 <div className="text-sm text-white/60 font-medium">Followers</div>
               </div>
-              <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="text-center p-4 bg-black rounded-xl border border-white/10">
                 <div className="text-3xl font-bold text-white mb-1">{teacherProfile.contentCount}</div>
                 <div className="text-sm text-white/60 font-medium">Content</div>
               </div>
@@ -166,7 +166,7 @@ export default function ProfilePage() {
       {!isTeacher && studentProfile && (
         <div className="border-b border-white/10 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-            <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+            <div className="text-center p-4 bg-black rounded-xl border border-white/10">
               <div className="text-3xl font-bold text-white mb-1">{studentProfile.followingCount}</div>
               <div className="text-sm text-white/60 font-medium">Following</div>
             </div>
@@ -179,7 +179,7 @@ export default function ProfilePage() {
         
         {/* Bio/About Section */}
         {teacherProfile?.bio && (
-          <section className="mb-10 p-6 bg-white/5 rounded-2xl border border-white/10">
+          <section className="mb-10 p-6 bg-black rounded-2xl border border-white/10">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <BookOpen size={20} className="text-blue-400" />
               About
@@ -189,7 +189,7 @@ export default function ProfilePage() {
         )}
 
         {studentProfile?.interests && (
-          <section className="mb-10 p-6 bg-white/5 rounded-2xl border border-white/10">
+          <section className="mb-10 p-6 bg-black rounded-2xl border border-white/10">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <BookOpen size={20} className="text-blue-400" />
               Interests
@@ -211,7 +211,7 @@ export default function ProfilePage() {
         )}
 
         {/* Details Section */}
-        <section className="p-6 bg-white/5 rounded-2xl border border-white/10">
+        <section className="p-6 bg-black rounded-2xl border border-white/10">
           <h2 className="text-lg font-semibold text-white mb-6">Profile Details</h2>
           
           <div className="space-y-5">
