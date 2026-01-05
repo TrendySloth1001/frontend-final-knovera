@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
-import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User } from 'lucide-react';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 export default function Home() {
@@ -26,6 +26,7 @@ export default function Home() {
   const [streamingMessage, setStreamingMessage] = useState('');
   const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [expandedEmbedding, setExpandedEmbedding] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -48,6 +49,10 @@ export default function Home() {
   useEffect(() => {
     if (currentConversation?.id) {
       loadMessages(currentConversation.id);
+      // Update URL to include conversation ID
+      router.push(`/?chat=${currentConversation.id}`, { scroll: false });
+    } else {
+      router.push('/', { scroll: false });
     }
   }, [currentConversation]);
 
@@ -116,7 +121,7 @@ export default function Home() {
       // Call API to get full response
       const response = await aiAPI.generate({
         prompt: userMessage,
-        conversationId: currentConversation?.id,
+        conversationId: currentConversation?.id, // Use existing conversation ID if available
         userId: user.user.id,
         teacherId: user.user.role === 'TEACHER' ? user.user.id : undefined,
         studentId: user.user.role === 'STUDENT' ? user.user.id : undefined,
@@ -124,6 +129,13 @@ export default function Home() {
         sessionType: 'chat',
         webSearch: webSearchEnabled,
       });
+
+      // If this is a new conversation, update current conversation
+      if (!currentConversation) {
+        const newConv = await aiAPI.getConversation(response.conversationId);
+        setCurrentConversation(newConv);
+        await loadConversations();
+      }
 
       // Create streaming message placeholder
       const streamMsgId = `stream-${Date.now()}`;
@@ -156,34 +168,17 @@ export default function Home() {
             )
           );
         } else {
-          // Streaming complete
+          // Streaming complete - reload messages to get embeddings
           clearInterval(streamInterval);
           setIsLoading(false);
           
-          // Update with final message data
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === streamMsgId
-                ? {
-                    ...msg,
-                    id: response.messageId,
-                    content: fullResponse,
-                    tokensUsed: response.tokensUsed,
-                  }
-                : msg
-            )
-          );
+          // Reload messages from server to get full data including embeddings
+          if (currentConversation || response.conversationId) {
+            loadMessages(response.conversationId);
+          }
         }
       }, 30);
 
-      // If new conversation, reload conversation list (after streaming starts)
-      if (!currentConversation) {
-        loadConversations().then(() => {
-          aiAPI.getConversation(response.conversationId).then(newConv => {
-            setCurrentConversation(newConv);
-          });
-        });
-      }
     } catch (error) {
       console.error('Failed to send message:', error);
       // Remove temporary message on error
@@ -442,32 +437,57 @@ export default function Home() {
                       </div>
                       
                       {/* Metadata section with tokens and vector embeddings */}
-                      <div className="flex items-center gap-2 mt-1 ml-2 md:ml-4 text-xs text-white/40">
-                        {msg.tokensUsed && (
-                          <span>{msg.tokensUsed} tokens</span>
-                        )}
-                        {msg.tokensUsed && (
-                          <span className="text-white/20">|</span>
-                        )}
-                        {msg.embedding ? (
-                          <button
-                            onClick={() => {
+                      <div className="mt-2 ml-2 md:ml-4 space-y-1">
+                        <div className="flex items-center gap-3 text-xs text-white/40">
+                          {msg.tokensUsed && (
+                            <div className="flex items-center gap-1">
+                              <Coins className="w-3 h-3" />
+                              <span>{msg.tokensUsed} tokens</span>
+                            </div>
+                          )}
+                          {msg.embedding && (
+                            <button
+                              onClick={() => {
+                                setExpandedEmbedding(
+                                  expandedEmbedding === msg.id ? null : msg.id
+                                );
+                              }}
+                              className="flex items-center gap-1 hover:text-white/60 transition-colors cursor-pointer"
+                            >
+                              <Database className="w-3 h-3" />
+                              <span>{expandedEmbedding === msg.id ? 'hide' : 'show'} vector</span>
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Show embedding when expanded */}
+                        {expandedEmbedding === msg.id && msg.embedding && (
+                          <div className="bg-black/30 rounded-lg p-2 md:p-3 text-xs font-mono text-white/60 max-h-40 overflow-y-auto scrollbar-hide">
+                            {(() => {
                               try {
-                                const embedding = JSON.parse(msg.embedding!);
-                                const embedStr = Array.isArray(embedding) 
-                                  ? `[${embedding.slice(0, 5).map((n: number) => n.toFixed(4)).join(', ')}...] (${embedding.length} dimensions)`
-                                  : 'Invalid embedding format';
-                                alert(`Vector Embedding:\n\n${embedStr}`);
+                                const embedding = JSON.parse(msg.embedding);
+                                if (Array.isArray(embedding)) {
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="text-white/80 mb-2">
+                                        Vector Embedding ({embedding.length} dimensions):
+                                      </div>
+                                      <div className="break-all">
+                                        [{embedding.map((n: number, i: number) => 
+                                          <span key={i}>
+                                            {n.toFixed(4)}{i < embedding.length - 1 ? ', ' : ''}
+                                          </span>
+                                        )}]
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return 'Invalid embedding format';
                               } catch (error) {
-                                alert('Error parsing embedding');
+                                return 'Error parsing embedding';
                               }
-                            }}
-                            className="hover:text-white/60 underline cursor-pointer transition-colors"
-                          >
-                            vector
-                          </button>
-                        ) : (
-                          <span className="text-white/20">vector (loading...)</span>
+                            })()}
+                          </div>
                         )}
                       </div>
                     </div>
