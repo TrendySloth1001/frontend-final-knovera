@@ -13,7 +13,7 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 
 export default function Home() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -98,6 +98,15 @@ export default function Home() {
     setMessages([]);
     setInputMessage('');
     inputRef.current?.focus();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -355,6 +364,18 @@ export default function Home() {
                     onClick={() => {
                       router.push('/settings');
                       setShowProfileMenu(false);
+                  <><div className="h-px bg-white/10"></div><button
+                        onClick={() => {
+                          handleLogout();
+                          setShowProfileMenu(false);
+                        } }
+                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </button></>
                     }}
                     className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors flex items-center gap-2"
                   >

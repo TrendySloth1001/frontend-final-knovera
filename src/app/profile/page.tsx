@@ -9,10 +9,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import type { TeacherProfile, StudentProfile } from '@/types/auth';
-import { Mail, Calendar, Users, BookOpen, Award, GraduationCap, Building } from 'lucide-react';
+import { Mail, Calendar, Users, BookOpen, Award, GraduationCap, Building, ArrowLeft, LogOut, Edit } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -33,6 +33,15 @@ export default function ProfilePage() {
     return null;
   }
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   const isTeacher = user.user.role === 'TEACHER';
   const profile = user.profile;
   const teacherProfile = isTeacher ? (profile as TeacherProfile) : null;
@@ -40,61 +49,86 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Top Navigation Bar */}
+      <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-sm border-b border-white/10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+          >
+            <LogOut size={16} />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+        </div>
+      </div>
+
       {/* Header Section */}
-      <div className="border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-6 py-12">
-          <div className="flex items-start gap-8">
+      <div className="border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
             {/* Avatar */}
-            <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-white/20 flex-shrink-0">
-              {user.user.avatarUrl ? (
-                <img 
-                  src={user.user.avatarUrl} 
-                  alt={user.user.displayName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                  <span className="text-5xl text-white font-semibold">
-                    {user.user.displayName.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+            <div className="relative group">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/20 flex-shrink-0 shadow-xl">
+                {user.user.avatarUrl ? (
+                  <img 
+                    src={user.user.avatarUrl} 
+                    alt={user.user.displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                    <span className="text-4xl sm:text-5xl text-white font-bold">
+                      {user.user.displayName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Header Info */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-3xl font-bold text-white mb-2">
+            <div className="flex-1 min-w-0 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">
                 {user.user.displayName}
               </h1>
               
-              <div className="flex items-center gap-3 mb-4">
-                <span className="px-3 py-1 bg-white/10 text-white text-sm rounded-full">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-4">
+                <span className="px-4 py-1.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-white text-sm rounded-full font-medium">
                   {user.user.role}
                 </span>
                 {user.user.isActive && (
-                  <span className="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full">
+                  <span className="px-4 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 text-sm rounded-full font-medium flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                     Active
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 text-white/60 mb-3">
-                <Mail size={16} />
-                <span className="text-sm">{user.user.email}</span>
-              </div>
-
-              {user.user.lastLoginAt && (
-                <div className="flex items-center gap-2 text-white/40">
-                  <Calendar size={16} />
-                  <span className="text-sm">
-                    Last active {new Date(user.user.lastLoginAt).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })}
-                  </span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-white/70">
+                  <Mail size={16} className="flex-shrink-0" />
+                  <span className="text-sm truncate">{user.user.email}</span>
                 </div>
-              )}
+
+                {user.user.lastLoginAt && (
+                  <div className="flex items-center justify-center sm:justify-start gap-2 text-white/50">
+                    <Calendar size={16} className="flex-shrink-0" />
+                    <span className="text-sm">
+                      Last active {new Date(user.user.lastLoginAt).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -102,16 +136,16 @@ export default function ProfilePage() {
 
       {/* Stats Section */}
       {isTeacher && teacherProfile && (
-        <div className="border-b border-white/10">
-          <div className="max-w-4xl mx-auto px-6 py-6">
-            <div className="flex gap-8">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">{teacherProfile.followersCount}</div>
-                <div className="text-sm text-white/60">Followers</div>
+        <div className="border-b border-white/10 bg-white/[0.02]">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="text-3xl font-bold text-white mb-1">{teacherProfile.followersCount}</div>
+                <div className="text-sm text-white/60 font-medium">Followers</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">{teacherProfile.contentCount}</div>
-                <div className="text-sm text-white/60">Content</div>
+              <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="text-3xl font-bold text-white mb-1">{teacherProfile.contentCount}</div>
+                <div className="text-sm text-white/60 font-medium">Content</div>
               </div>
             </div>
           </div>
@@ -119,49 +153,53 @@ export default function ProfilePage() {
       )}
 
       {!isTeacher && studentProfile && (
-        <div className="border-b border-white/10">
-          <div className="max-w-4xl mx-auto px-6 py-6">
-            <div className="flex gap-8">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white">{studentProfile.followingCount}</div>
-                <div className="text-sm text-white/60">Following</div>
-              </div>
+        <div className="border-b border-white/10 bg-white/[0.02]">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+            <div className="text-center p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="text-3xl font-bold text-white mb-1">{studentProfile.followingCount}</div>
+              <div className="text-sm text-white/60 font-medium">Following</div>
             </div>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         
         {/* Bio/About Section */}
         {teacherProfile?.bio && (
-          <section className="mb-12">
-            <h2 className="text-xl font-semibold text-white mb-4">About</h2>
+          <section className="mb-10 p-6 bg-white/5 rounded-2xl border border-white/10">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <BookOpen size={20} className="text-blue-400" />
+              About
+            </h2>
             <p className="text-white/80 leading-relaxed">{teacherProfile.bio}</p>
           </section>
         )}
 
         {studentProfile?.interests && (
-          <section className="mb-12">
-            <h2 className="text-xl font-semibold text-white mb-4">Interests</h2>
+          <section className="mb-10 p-6 bg-white/5 rounded-2xl border border-white/10">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <BookOpen size={20} className="text-blue-400" />
+              Interests
+            </h2>
             <p className="text-white/80 leading-relaxed">{studentProfile.interests}</p>
           </section>
         )}
 
         {/* Details Section */}
-        <section>
-          <h2 className="text-xl font-semibold text-white mb-6">Details</h2>
+        <section className="p-6 bg-white/5 rounded-2xl border border-white/10">
+          <h2 className="text-lg font-semibold text-white mb-6">Profile Details</h2>
           
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Full Name */}
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                <Award size={18} className="text-white/60" />
+            <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                <Award size={18} className="text-blue-400" />
               </div>
-              <div>
-                <div className="text-sm text-white/40 mb-1">Full Name</div>
-                <div className="text-white">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Full Name</div>
+                <div className="text-white font-medium">
                   {teacherProfile ? `${teacherProfile.firstName} ${teacherProfile.lastName}` : 
                    studentProfile ? `${studentProfile.firstName} ${studentProfile.lastName}` : 'N/A'}
                 </div>
@@ -170,74 +208,74 @@ export default function ProfilePage() {
 
             {/* Teacher Specific Fields */}
             {teacherProfile?.specialization && (
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                  <BookOpen size={18} className="text-white/60" />
+              <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={18} className="text-green-400" />
                 </div>
-                <div>
-                  <div className="text-sm text-white/40 mb-1">Specialization</div>
-                  <div className="text-white">{teacherProfile.specialization}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Specialization</div>
+                  <div className="text-white font-medium">{teacherProfile.specialization}</div>
                 </div>
               </div>
             )}
 
             {teacherProfile?.qualification && (
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                  <GraduationCap size={18} className="text-white/60" />
+              <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <GraduationCap size={18} className="text-purple-400" />
                 </div>
-                <div>
-                  <div className="text-sm text-white/40 mb-1">Qualification</div>
-                  <div className="text-white">{teacherProfile.qualification}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Qualification</div>
+                  <div className="text-white font-medium">{teacherProfile.qualification}</div>
                 </div>
               </div>
             )}
 
             {teacherProfile?.experience && (
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                  <Calendar size={18} className="text-white/60" />
+              <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <Calendar size={18} className="text-orange-400" />
                 </div>
-                <div>
-                  <div className="text-sm text-white/40 mb-1">Experience</div>
-                  <div className="text-white">{teacherProfile.experience} years</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Experience</div>
+                  <div className="text-white font-medium">{teacherProfile.experience} years</div>
                 </div>
               </div>
             )}
 
             {/* Student Specific Fields */}
             {studentProfile?.grade && (
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                  <GraduationCap size={18} className="text-white/60" />
+              <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <GraduationCap size={18} className="text-purple-400" />
                 </div>
-                <div>
-                  <div className="text-sm text-white/40 mb-1">Grade</div>
-                  <div className="text-white">{studentProfile.grade}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Grade</div>
+                  <div className="text-white font-medium">{studentProfile.grade}</div>
                 </div>
               </div>
             )}
 
             {studentProfile?.institution && (
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                  <Building size={18} className="text-white/60" />
+              <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <Building size={18} className="text-cyan-400" />
                 </div>
-                <div>
-                  <div className="text-sm text-white/40 mb-1">Institution</div>
-                  <div className="text-white">{studentProfile.institution}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Institution</div>
+                  <div className="text-white font-medium">{studentProfile.institution}</div>
                 </div>
               </div>
             )}
 
             {/* Account Created */}
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                <Calendar size={18} className="text-white/60" />
+            <div className="flex items-start gap-4 p-4 bg-black/30 rounded-xl hover:bg-black/40 transition-colors">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 border border-white/10 flex items-center justify-center flex-shrink-0">
+                <Calendar size={18} className="text-pink-400" />
               </div>
-              <div>
-                <div className="text-sm text-white/40 mb-1">Member Since</div>
-                <div className="text-white">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Member Since</div>
+                <div className="text-white font-medium">
                   {new Date(user.user.createdAt).toLocaleDateString('en-US', { 
                     month: 'long', 
                     year: 'numeric' 
