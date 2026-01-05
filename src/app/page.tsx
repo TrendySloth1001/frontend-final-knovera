@@ -486,7 +486,7 @@ export default function Home() {
                       </div>
                     )}
                     
-                    <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[85%] md:max-w-2xl' : ''}`}>
+                    <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[70%] md:max-w-xl' : ''}`}>
                       {/* Sender name in gray */}
                       {msg.role === 'assistant' && (
                         <div className="text-xs text-gray-500 mb-1 ml-1">Assistant</div>
@@ -511,30 +511,72 @@ export default function Home() {
                         )}
                       </div>
                       
-                      {/* Metadata section with tokens and vector embeddings */}
-                      <div className="mt-2 ml-2 md:ml-4 space-y-2">
-                        <div className="flex items-center gap-3 text-xs text-white/40">
-                          {msg.tokensUsed && (
-                            <div className="flex items-center gap-1">
-                              <Coins className="w-3 h-3" />
-                              <span>{msg.tokensUsed} tokens</span>
+                      {/* Metadata section with tokens, tags, and vector embeddings - all on same line */}
+                      {msg.role === 'assistant' && (
+                        <div className="mt-3 ml-2 md:ml-4">
+                          <div className="flex items-center gap-3 text-xs flex-wrap">
+                            {/* Always show tokens section, display count or placeholder */}
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300">
+                              <Coins className="w-3.5 h-3.5" />
+                              <span className="font-medium">{msg.tokensUsed || 0} tokens</span>
                             </div>
-                          )}
-                          {msg.embedding && (
-                            <button
-                              onClick={() => {
-                                setExpandedEmbedding(expandedEmbedding === msg.id ? null : msg.id);
-                              }}
-                              className="flex items-center gap-1 hover:text-white/60 transition-colors cursor-pointer"
-                            >
-                              <Database className="w-3 h-3" />
-                              <span>{expandedEmbedding === msg.id ? 'hide' : 'show'} vector</span>
-                            </button>
-                          )}
+                            
+                            {/* Thought Tags - always show if available */}
+                            {msg.thoughtTags && msg.thoughtTags.trim() && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-white/50 text-[11px] font-medium">context:</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {msg.thoughtTags.split(',').filter(t => t.trim()).map((tag, tagIdx) => {
+                                    // Color mapping for tags
+                                    const colors = [
+                                      'bg-blue-500/20 border-blue-500/50 text-blue-200',
+                                      'bg-purple-500/20 border-purple-500/50 text-purple-200',
+                                      'bg-green-500/20 border-green-500/50 text-green-200',
+                                      'bg-orange-500/20 border-orange-500/50 text-orange-200',
+                                      'bg-pink-500/20 border-pink-500/50 text-pink-200',
+                                      'bg-cyan-500/20 border-cyan-500/50 text-cyan-200',
+                                    ];
+                                    const colorClass = colors[tagIdx % colors.length];
+                                    
+                                    return (
+                                      <span
+                                        key={tagIdx}
+                                        className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${colorClass}`}
+                                        title="AI thought context"
+                                      >
+                                        {tag.trim()}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Vector visualization button */}
+                            {msg.embedding && (
+                              <button
+                                onClick={() => {
+                                  setExpandedEmbedding(expandedEmbedding === msg.id ? null : msg.id);
+                                }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-colors"
+                              >
+                                <Database className="w-3.5 h-3.5" />
+                                <span className="font-medium">{expandedEmbedding === msg.id ? 'hide' : 'show'} vector</span>
+                              </button>
+                            )}
+                            
+                            {/* Debug info - remove this after testing */}
+                            <div className="text-[10px] text-white/30">
+                              (tokens: {msg.tokensUsed ? '✓' : '✗'}, tags: {msg.thoughtTags ? '✓' : '✗'}, embed: {msg.embedding ? '✓' : '✗'})
+                            </div>
+                          </div>
                         </div>
-                        
-                        {/* Inline Vector Visualization */}
-                        {expandedEmbedding === msg.id && msg.embedding && (() => {
+                      )}
+                      
+                      {/* Inline Vector Visualization */}
+                      {msg.role === 'assistant' && expandedEmbedding === msg.id && msg.embedding && (
+                        <div className="mt-2 ml-2 md:ml-4">
+                          {(() => {
                           try {
                             const embedding = JSON.parse(msg.embedding);
                             if (!Array.isArray(embedding)) return null;
@@ -567,7 +609,8 @@ export default function Home() {
                             );
                           }
                         })()}
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {msg.role === 'user' && user?.user?.avatarUrl && (

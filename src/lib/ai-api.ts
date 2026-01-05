@@ -10,6 +10,7 @@ export interface Message {
   role: 'system' | 'user' | 'assistant';
   content: string;
   retrievedDocs?: any;
+  thoughtTags?: string; // Comma-separated thought tags
   tokensUsed?: number;
   embedding?: string; // JSON stringified embedding array
   sequenceNumber: number;
@@ -103,5 +104,35 @@ export const aiAPI = {
   async searchConversations(userId: string, query: string): Promise<Conversation[]> {
     const response = await apiClient.get<ApiResponse<Conversation[]>>(`/api/ai/conversations/search?userId=${userId}&query=${query}`);
     return response.data;
+  },
+
+  // Authless form helper (rate limited: 10 requests/hour per IP)
+  async helpFormField(request: {
+    fieldType: 'bio' | 'description' | 'interests' | 'specialization' | string;
+    context?: string;
+    maxLength?: number;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      fieldType: string;
+      suggestion: string;
+      characterCount: number;
+    };
+  }> {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/helper/form`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    
+    return response.json();
   },
 };

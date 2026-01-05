@@ -14,6 +14,7 @@ import { TeacherSignupInput, Visibility } from '@/types/auth';
 import { GraduationCap, Loader2, CheckCircle, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { SPECIALIZATIONS, QUALIFICATIONS } from '@/lib/education-data';
 import { useNotification } from '@/contexts/NotificationContext';
+import { AIFormHelper } from '@/components/AIFormHelper';
 
 const TAG_COLORS = [
   'bg-blue-500/20 border-blue-500/40 text-blue-300',
@@ -210,9 +211,20 @@ export default function TeacherSignupPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-white/60 mb-2">
-                  Bio
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm text-white/60">
+                    Bio
+                  </label>
+                  <AIFormHelper
+                    fieldType="bio"
+                    context={`${formData.firstName} ${formData.lastName}, teacher with ${formData.experience || 0} years experience`}
+                    maxLength={150}
+                    onSuggestion={(suggestion) => {
+                      setFormData(prev => ({ ...prev, bio: suggestion }));
+                    }}
+                    label="AI help"
+                  />
+                </div>
                 <textarea
                   name="bio"
                   value={formData.bio}

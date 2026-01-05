@@ -14,6 +14,7 @@ import { StudentSignupInput } from '@/types/auth';
 import { BookOpen, Loader2, CheckCircle, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { INTERESTS } from '@/lib/education-data';
 import { useNotification } from '@/contexts/NotificationContext';
+import { AIFormHelper } from '@/components/AIFormHelper';
 
 const TAG_COLORS = [
   'bg-blue-500/20 border-blue-500/40 text-blue-300',
@@ -202,9 +203,20 @@ export default function StudentSignupPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-white/60 mb-2">
-                    School/Institution
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-white/60">
+                      School/Institution
+                    </label>
+                    <AIFormHelper
+                      fieldType="description"
+                      context={`student in ${formData.grade || 'school'}`}
+                      maxLength={100}
+                      onSuggestion={(suggestion) => {
+                        setFormData(prev => ({ ...prev, institution: suggestion }));
+                      }}
+                      label="✨ AI help"
+                    />
+                  </div>
                   <input
                     type="text"
                     name="institution"
