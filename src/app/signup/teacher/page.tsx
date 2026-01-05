@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TeacherSignupInput, Visibility } from '@/types/auth';
 import { GraduationCap, Loader2, CheckCircle, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { SPECIALIZATIONS, QUALIFICATIONS } from '@/lib/education-data';
+import { useNotification } from '@/contexts/NotificationContext';
 
 const TAG_COLORS = [
   'bg-blue-500/20 border-blue-500/40 text-blue-300',
@@ -28,6 +29,7 @@ const TAG_COLORS = [
 export default function TeacherSignupPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { showNotification } = useNotification();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
@@ -124,6 +126,9 @@ export default function TeacherSignupPage() {
       
       // Clear temp token
       clearTempToken();
+      
+      // Show success notification
+      showNotification('success', 'Onboarding completed successfully');
       
       // Redirect to home
       router.push('/');

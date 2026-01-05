@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { JWTPayload, UserProfileResponse } from '@/types/auth';
 import { authAPI, getAuthToken, getTempToken, clearAllTokens } from '@/lib/api';
 import { decodeToken, isTokenValid } from '@/lib/token';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface AuthContextType {
   user: UserProfileResponse | null;
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokenPayload, setTokenPayload] = useState<JWTPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const { showNotification } = useNotification();
 
   const refreshUser = useCallback(async () => {
     // Check for both regular token and temp token
@@ -64,12 +66,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokenPayload(payload);
     } catch (error) {
       console.error('Failed to fetch user:', error);
+      // Handle 404 or any error - user is logged out
+      if (error instanceof Error && error.message.includes('404')) {
+        showNotification('warning', 'You have been logged out');
+      } else {
+        showNotification('error', 'Session expired. Please log in again');
+      }
       clearAllTokens();
       setUser(null);
       setToken(null);
       setTokenPayload(null);
     }
-  }, []); // Empty deps - only depends on imported functions
+  }, [showNotification]);
 
   const login = async (newToken: string) => {
     setToken(newToken);
@@ -90,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await authAPI.logout();
+      showNotification('info', 'Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

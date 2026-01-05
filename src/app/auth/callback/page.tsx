@@ -10,12 +10,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { setAuthToken, setTempToken } from '@/lib/api';
 import { decodeToken, isTempToken } from '@/lib/token';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export default function CallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
+  const { showNotification } = useNotification();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing authentication...');
 
@@ -56,23 +58,19 @@ export default function CallbackPage() {
         // Check if it's a temporary token
         if (isTempToken(authToken)) {
           setTempToken(authToken);
-          setStatus('success');
-          setMessage('Please complete your profile...');
           
-          // Redirect to role selection
-          setTimeout(() => {
-            router.push('/signup/select-role');
-          }, 1500);
+          // Redirect to role selection immediately
+          router.push('/signup/select-role');
         } else {
           // Full token - user is authenticated
           setAuthToken(authToken);
           await refreshUser();
-          setStatus('success');
-          setMessage('Authentication successful!');
-          
-          setTimeout(() => {
-            router.push('/');
-          }, 1500);
+
+          // Show success notification
+          showNotification('success', 'Logged in successfully');
+
+          // Redirect to home immediately
+          router.push('/');
         }
       } catch (error) {
         console.error('Callback error:', error);
