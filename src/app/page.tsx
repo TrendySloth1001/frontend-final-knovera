@@ -11,6 +11,7 @@ import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -28,6 +29,8 @@ export default function Home() {
   const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [expandedEmbedding, setExpandedEmbedding] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -101,11 +104,28 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
+    setShowProfileMenu(false);
     try {
       await logout();
       router.push('/login');
     } catch (error) {
       console.error('Logout failed:', error);
+    }
+  };
+
+  const confirmDeleteConversation = async () => {
+    if (!deleteConversationId) return;
+
+    try {
+      await aiAPI.deleteConversation(deleteConversationId);
+      setConversations(prev => prev.filter(c => c.id !== deleteConversationId));
+      if (currentConversation?.id === deleteConversationId) {
+        startNewChat();
+      }
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    } finally {
+      setDeleteConversationId(null);
     }
   };
 
@@ -202,19 +222,9 @@ export default function Home() {
     }
   };
 
-  const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
+  const handleDeleteConversation = (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Delete this conversation?')) return;
-
-    try {
-      await aiAPI.deleteConversation(convId);
-      setConversations(prev => prev.filter(c => c.id !== convId));
-      if (currentConversation?.id === convId) {
-        startNewChat();
-      }
-    } catch (error) {
-      console.error('Failed to delete conversation:', error);
-    }
+    setDeleteConversationId(convId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -384,6 +394,19 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     Settings
+                  </button>
+                  <div className="h-px bg-white/10"></div>
+                  <button
+                    onClick={() => {
+                      setShowLogoutConfirm(true);
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
                   </button>
                 </div>
               )}
@@ -613,6 +636,29 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout? You'll need to sign in again to access your chats."
+        confirmText="Logout"
+        cancelText="Stay"
+        variant="danger"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConversationId !== null}
+        title="Delete Conversation"
+        message="Are you sure you want to delete this conversation? This action cannot be undone and all messages will be permanently removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={confirmDeleteConversation}
+        onCancel={() => setDeleteConversationId(null)}
+      />
     </div>
   );
 }
