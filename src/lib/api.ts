@@ -1,0 +1,149 @@
+/**
+ * API Utility Functions
+ * HTTP client with token management
+ */
+
+import Cookies from 'js-cookie';
+import { 
+  AuthResponse, 
+  TempTokenResponse, 
+  UserProfileResponse,
+  TeacherSignupInput,
+  StudentSignupInput
+} from '@/types/auth';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+// Token management
+export const TOKEN_KEY = 'auth_token';
+export const TEMP_TOKEN_KEY = 'temp_token';
+
+export function setAuthToken(token: string): void {
+  Cookies.set(TOKEN_KEY, token, { expires: 7 }); // 7 days
+}
+
+export function setTempToken(token: string): void {
+  Cookies.set(TEMP_TOKEN_KEY, token, { expires: 1 / 24 }); // 1 hour
+}
+
+export function getAuthToken(): string | undefined {
+  return Cookies.get(TOKEN_KEY);
+}
+
+export function getTempToken(): string | undefined {
+  return Cookies.get(TEMP_TOKEN_KEY);
+}
+
+export function clearAuthToken(): void {
+  Cookies.remove(TOKEN_KEY);
+}
+
+export function clearTempToken(): void {
+  Cookies.remove(TEMP_TOKEN_KEY);
+}
+
+export function clearAllTokens(): void {
+  clearAuthToken();
+  clearTempToken();
+}
+
+// HTTP client
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = getAuthToken() || getTempToken();
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Merge with any existing headers
+  if (options.headers) {
+    const existingHeaders = options.headers as Record<string, string>;
+    Object.assign(headers, existingHeaders);
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// Auth API endpoints
+export const authAPI = {
+  // Initiate Google OAuth
+  googleLogin: (): string => {
+    return `${API_BASE_URL}/api/auth/google`;
+  },
+
+  // Get current user profile
+  getMe: async (): Promise<UserProfileResponse> => {
+    const response = await apiRequest<{ success: boolean; data: UserProfileResponse }>('/api/auth/me');
+    return response.data;
+  },
+
+  // Logout
+  logout: async (): Promise<void> => {
+    await apiRequest('/api/auth/logout', { method: 'DELETE' });
+    clearAllTokens();
+  },
+
+  // Deactivate account
+  deactivate: async (): Promise<void> => {
+    await apiRequest('/api/auth/deactivate', { method: 'PATCH' });
+    clearAllTokens();
+  },
+};
+
+// Signup API endpoints
+export const signupAPI = {
+  // Complete teacher signup
+  teacher: async (data: TeacherSignupInput): Promise<AuthResponse> => {
+    const response = await apiRequest<{ success: boolean; data: AuthResponse }>(
+      '/api/signup/teacher',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    
+    // Save the full token after signup
+    if (response.data.token) {
+      clearTempToken();
+      setAuthToken(response.data.token);
+    }
+    
+    return response.data;
+  },
+
+  // Complete student signup
+  student: async (data: StudentSignupInput): Promise<AuthResponse> => {
+    const response = await apiRequest<{ success: boolean; data: AuthResponse }>(
+      '/api/signup/student',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
+    
+    // Save the full token after signup
+    if (response.data.token) {
+      clearTempToken();
+      setAuthToken(response.data.token);
+    }
+    
+    return response.data;
+  },
+};
