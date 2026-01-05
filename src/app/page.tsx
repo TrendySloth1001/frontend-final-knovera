@@ -1,87 +1,510 @@
 /**
- * Home Page
- * Displays authentication status and token information
+ * Home Page - AI Chat Interface
  */
 
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import TokenDisplay from '@/components/TokenDisplay';
-import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User } from 'lucide-react';
 
 export default function Home() {
-  const { user, token, tokenPayload, isAuthenticated, hasTempToken, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Hidden by default on mobile
+  const [searchQuery, setSearchQuery] = useState('');
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState('');
+  const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Redirect if not authenticated
   useEffect(() => {
-    if (!isLoading) {
-      if (hasTempToken) {
-        router.push('/signup/select-role');
-      } else if (!isAuthenticated) {
-        router.push('/login');
-      }
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
     }
-  }, [isLoading, isAuthenticated, hasTempToken, router]);
+  }, [authLoading, isAuthenticated, router]);
 
-  if (isLoading || !isAuthenticated) {
+  // Load conversations
+  useEffect(() => {
+    if (user?.user?.id) {
+      loadConversations();
+    }
+  }, [user]);
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (currentConversation?.id) {
+      loadMessages(currentConversation.id);
+    }
+  }, [currentConversation]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showProfileMenu) {
+        setShowProfileMenu(false);
+      }
+    };
+    if (showProfileMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showProfileMenu]);
+
+  const loadConversations = async () => {
+    try {
+      const convs = await aiAPI.getConversations(user!.user.id);
+      setConversations(convs);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    }
+  };
+
+  const loadMessages = async (conversationId: string) => {
+    try {
+      const msgs = await aiAPI.getMessages(conversationId);
+      setMessages(msgs);
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+    }
+  };
+
+  const startNewChat = () => {
+    setCurrentConversation(null);
+    setMessages([]);
+    setInputMessage('');
+    inputRef.current?.focus();
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading || !user) return;
+
+    const userMessage = inputMessage.trim();
+    setInputMessage('');
+    
+    // Add user message to UI immediately
+    const tempUserMsg: Message = {
+      id: `temp-${Date.now()}`,
+      conversationId: currentConversation?.id || 'new',
+      role: 'user',
+      content: userMessage,
+      sequenceNumber: messages.length,
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, tempUserMsg]);
+    setIsLoading(true);
+    setStreamingMessage('');
+
+    try {
+      // Add placeholder for streaming message
+      const streamMsgId = `stream-${Date.now()}`;
+      const streamMsg: Message = {
+        id: streamMsgId,
+        conversationId: currentConversation?.id || 'new',
+        role: 'assistant',
+        content: '',
+        sequenceNumber: messages.length + 1,
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, streamMsg]);
+
+      // Simulate streaming by calling API and then displaying character by character
+      const response = await aiAPI.generate({
+        prompt: userMessage,
+        conversationId: currentConversation?.id,
+        userId: user.user.id,
+        teacherId: user.user.role === 'TEACHER' ? user.user.id : undefined,
+        studentId: user.user.role === 'STUDENT' ? user.user.id : undefined,
+        useRAG: true,
+        sessionType: 'chat',
+        webSearch: webSearchEnabled,
+      });
+
+      // Stream the response character by character
+      const fullResponse = response.response;
+      let currentIndex = 0;
+      const streamInterval = setInterval(async () => {
+        if (currentIndex < fullResponse.length) {
+          const chunkSize = Math.min(5, fullResponse.length - currentIndex);
+          currentIndex += chunkSize;
+          const partialText = fullResponse.substring(0, currentIndex);
+          
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === streamMsgId 
+                ? { ...msg, content: partialText }
+                : msg
+            )
+          );
+        } else {
+          clearInterval(streamInterval);
+          setIsLoading(false);
+          
+          // Update with final message data
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === streamMsgId 
+                ? {
+                    ...msg,
+                    id: response.messageId,
+                    conversationId: response.conversationId,
+                    content: fullResponse,
+                    tokensUsed: response.tokensUsed,
+                  }
+                : msg
+            )
+          );
+
+          // If new conversation, reload conversation list
+          if (!currentConversation) {
+            await loadConversations();
+            const newConv = await aiAPI.getConversation(response.conversationId);
+            setCurrentConversation(newConv);
+          }
+        }
+      }, 30);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Remove temporary messages on error
+      setMessages(prev => prev.filter(m => !m.id.startsWith('stream-')));
+      alert('Failed to send message. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Delete this conversation?')) return;
+
+    try {
+      await aiAPI.deleteConversation(convId);
+      setConversations(prev => prev.filter(c => c.id !== convId));
+      if (currentConversation?.id === convId) {
+        startNewChat();
+      }
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const filteredConversations = searchQuery
+    ? conversations.filter(c => 
+        c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.topic?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : conversations;
+
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 mx-auto mb-4 text-white" />
-          <p className="text-gray-400">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <Loader2 className="w-8 h-8 text-white animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Welcome Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 text-white">
-          Welcome back, {user?.user.displayName}! 👋
-        </h1>
-        <p className="text-gray-400 text-lg">
-          You're signed in as a <span className="font-semibold text-white">{user?.user.role}</span>
-        </p>
+    <div className="flex h-screen bg-black text-white overflow-hidden">
+      {/* Sidebar - Mobile overlay or desktop fixed */}
+      <div className={`
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        ${isSidebarOpen ? 'md:w-80' : 'w-0 md:w-0'}
+        fixed md:relative z-30 h-full w-80
+        transition-all duration-300 
+        border-r border-white/10 bg-black
+        flex flex-col overflow-hidden
+      `}>
+        <div className="p-4 border-b border-white/10">
+          <h2 className="font-semibold">Conversations</h2>
+        </div>
+
+        {/* Search */}
+        <div className="p-3 border-b border-white/10">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-white/40" size={14} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-white/30 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Conversation List */}
+        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
+          <style jsx>{`
+            .scrollbar-hide::-webkit-scrollbar {
+              display: none;
+            }
+            .scrollbar-hide {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+          `}</style>
+          {filteredConversations.length === 0 ? (
+            <div className="p-8 text-center text-white/40 text-sm">
+              {searchQuery ? 'No conversations found' : 'No conversations yet'}
+            </div>
+          ) : (
+            filteredConversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`w-full p-4 hover:bg-white/5 transition-colors border-b border-white/5 flex items-start gap-3 group ${
+                  currentConversation?.id === conv.id ? 'bg-white/10' : ''
+                }`}
+              >
+                <MessageSquare size={18} className="text-white/60 flex-shrink-0 mt-1" />
+                <div
+                  onClick={() => setCurrentConversation(conv)}
+                  className="flex-1 min-w-0 cursor-pointer"
+                >
+                  <div className="font-medium text-sm truncate">
+                    {conv.title || conv.topic || 'New conversation'}
+                  </div>
+                  <div className="text-xs text-white/40 mt-1">
+                    {new Date(conv.lastActiveAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <div
+                  onClick={(e) => handleDeleteConversation(conv.id, e)}
+                  className="p-1 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  title="Delete"
+                >
+                  <Trash2 size={14} className="text-red-400" />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* User Profile & Server Status */}
+        <div className="border-t border-white/10 relative">
+          {user && (
+            <div className="p-3">
+              <div
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 mb-2 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                  {user.user.avatarUrl ? (
+                    <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-xs text-white font-semibold">
+                        {user.user.displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-white truncate">{user.user.displayName}</div>
+                  <div className="text-xs text-white/40">{user.user.role}</div>
+                </div>
+              </div>
+              
+              {/* Profile Menu Popup */}
+              {showProfileMenu && (
+                <div className="absolute bottom-full left-3 right-3 mb-2 bg-black border border-white/20 rounded-lg shadow-xl overflow-hidden z-40">
+                  <button
+                    onClick={() => {
+                      router.push('/profile');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                  >
+                    <User size={16} />
+                    Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      router.push('/settings');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Settings
+                  </button>
+                </div>
+              )}
+              
+              <div className="h-px bg-white/10 mb-2"></div>
+              <div className="flex items-center gap-2 text-xs px-2">
+                <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-white/60">Server {serverStatus}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Token Information */}
-      <TokenDisplay token={token} tokenPayload={tokenPayload} user={user} />
+      {/* Overlay for mobile when sidebar is open */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
-      {/* API Endpoints Reference */}
-      <div className="mt-8 bg-gray-900 border-2 border-gray-700 rounded-lg p-6">
-        <h2 className="text-xl font-bold mb-4 text-white">Available API Endpoints</h2>
-        <div className="space-y-3 font-mono text-sm text-gray-300">
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-xs">GET</span>
-            <span>/api/auth/google</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-xs">GET</span>
-            <span>/api/auth/google/callback</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold text-xs">GET</span>
-            <span>/api/auth/me</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-red-100 text-red-800 rounded font-semibold text-xs">DELETE</span>
-            <span>/api/auth/logout</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-semibold text-xs">PATCH</span>
-            <span>/api/auth/deactivate</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-xs">POST</span>
-            <span>/api/signup/teacher</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded font-semibold text-xs">POST</span>
-            <span>/api/signup/student</span>
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col w-full md:w-auto">
+        {/* Header */}
+        <div className="h-12 border-b border-white/10 flex items-center px-3 gap-2">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="flex-1"></div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center p-4 md:p-8 text-center">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center mb-3 md:mb-4">
+                <MessageSquare size={24} className="text-white/40 md:w-8 md:h-8" />
+              </div>
+              <h2 className="text-xl md:text-2xl font-semibold mb-2">Start a conversation</h2>
+              <p className="text-white/60 text-sm md:text-base max-w-md px-4">
+                Ask me anything! I can help you with your studies, answer questions, or just chat.
+              </p>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto px-3 md:px-6 py-4 md:py-8">
+              {messages.map((msg, idx) => (
+                <div
+                  key={msg.id}
+                  className={`mb-4 md:mb-8 flex gap-2 md:gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-semibold">AI</span>
+                    </div>
+                  )}
+                  
+                  <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[85%] md:max-w-2xl' : ''}`}>
+                    <div className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-white text-black ml-auto'
+                        : 'bg-white/5'
+                    }`}>
+                      <div className="whitespace-pre-wrap break-words text-sm md:text-base">
+                        {msg.content}
+                      </div>
+                    </div>
+                    {msg.tokensUsed && (
+                      <div className="text-xs text-white/40 mt-1 ml-2 md:ml-4">
+                        {msg.tokensUsed} tokens
+                      </div>
+                    )}
+                  </div>
+
+                  {msg.role === 'user' && user?.user?.avatarUrl && (
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0">
+                      <img src={user.user.avatarUrl} alt="You" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="mb-4 md:mb-8 flex gap-2 md:gap-4">
+                  <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-semibold">AI</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="bg-white/5 rounded-2xl px-3 py-2 md:px-4 md:py-3">
+                      <div className="flex gap-2">
+                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t border-white/10 p-2 md:p-3 safe-area-bottom">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex gap-2 items-end">
+              <button
+                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
+                  webSearchEnabled 
+                    ? 'bg-white text-black hover:bg-white/90' 
+                    : 'bg-white/5 text-white hover:bg-white/10'
+                }`}
+                title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
+              >
+                <Search size={16} />
+              </button>
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={inputMessage}
+                  onChange={(e) => {
+                    setInputMessage(e.target.value);
+                    // Auto-resize textarea
+                    if (inputRef.current) {
+                      inputRef.current.style.height = '38px';
+                      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+                    }
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your message..."
+                  rows={1}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-white/30 transition-colors scrollbar-hide"
+                  style={{ minHeight: '38px', maxHeight: '120px', overflow: 'hidden' }}
+                />
+              </div>
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="w-9 h-9 bg-white text-black rounded-full flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Send size={16} />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

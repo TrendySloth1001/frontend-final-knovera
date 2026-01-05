@@ -81,6 +81,38 @@ async function apiRequest<T>(
   return response.json();
 }
 
+// Generic API client for other features
+export const apiClient = {
+  get: async <T>(endpoint: string): Promise<T> => {
+    return apiRequest<T>(endpoint, { method: 'GET' });
+  },
+  
+  post: async <T>(endpoint: string, data?: any): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+  
+  put: async <T>(endpoint: string, data?: any): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+  
+  delete: async <T>(endpoint: string): Promise<T> => {
+    return apiRequest<T>(endpoint, { method: 'DELETE' });
+  },
+  
+  patch: async <T>(endpoint: string, data?: any): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+};
+
 // Auth API endpoints
 export const authAPI = {
   // Initiate Google OAuth
@@ -147,3 +179,4 @@ export const signupAPI = {
     return response.data;
   },
 };
+
