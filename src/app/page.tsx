@@ -202,6 +202,9 @@ export default function Home() {
         createdAt: new Date(),
       }]);
 
+      // Hide loading indicator once streaming starts
+      setIsLoading(false);
+
       // Stream the response character by character
       let currentIndex = 0;
       const streamInterval = setInterval(() => {
@@ -631,11 +634,11 @@ export default function Home() {
                     <span className="text-xs font-semibold">AI</span>
                   </div>
                   <div className="flex-1">
-                    <div className="bg-white/5 rounded-2xl px-3 py-2 md:px-4 md:py-3">
+                    <div className="bg-black rounded-2xl px-3 py-2 md:px-4 md:py-3">
                       <div className="flex gap-2">
-                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-blue-500/60 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-purple-500/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-pink-500/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
                   </div>
