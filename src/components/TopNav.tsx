@@ -18,10 +18,34 @@ export default function TopNav() {
     <nav className="bg-black text-white border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="text-xl font-bold hover:text-gray-300 transition-colors">
-            Knovera
-          </Link>
+          {/* Left Side: Profile Avatar + Logo */}
+          <div className="flex items-center gap-4">
+            {/* Profile Avatar - Only shown when authenticated */}
+            {!isLoading && isAuthenticated && user?.user && (
+              <Link href="/profile" className="group">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white hover:border-gray-300 transition-all shadow-md hover:shadow-lg hover:scale-105 transform">
+                  {user.user.avatarUrl ? (
+                    <img 
+                      src={user.user.avatarUrl} 
+                      alt={user.user.displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center">
+                      <span className="text-lg text-white font-bold">
+                        {user.user.displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            )}
+            
+            {/* Logo */}
+            <Link href="/" className="text-xl font-bold hover:text-gray-300 transition-colors">
+              Knovera
+            </Link>
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
@@ -30,7 +54,6 @@ export default function TopNav() {
                 {isAuthenticated && user?.user ? (
                   <>
                     <div className="flex items-center gap-2 text-gray-400">
-                      <User size={18} />
                       <span>{user.user.displayName}</span>
                       <span className="text-xs px-2 py-1 bg-gray-800 rounded">
                         {user.user.role}
