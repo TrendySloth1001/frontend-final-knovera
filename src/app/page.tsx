@@ -489,7 +489,7 @@ export default function Home() {
                     <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[70%] md:max-w-xl' : ''}`}>
                       {/* Sender name in gray */}
                       {msg.role === 'assistant' && (
-                        <div className="text-xs text-gray-500 mb-1 ml-1">Assistant</div>
+                        <div className="text-xs text-gray-500 mb-1 ml-1">Kai</div>
                       )}
                       {msg.role === 'user' && (
                         <div className="text-xs text-gray-500 mb-1 mr-1 text-right">You</div>
@@ -497,7 +497,7 @@ export default function Home() {
                       
                       <div className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 ${
                         msg.role === 'user'
-                          ? 'bg-gray-700 text-white ml-auto'
+                          ? 'bg-black border border-white text-white ml-auto'
                           : 'bg-transparent text-white'
                       }`}>
                         {msg.role === 'assistant' ? (
