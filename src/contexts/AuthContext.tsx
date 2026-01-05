@@ -66,9 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTokenPayload(payload);
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      // Handle 404 or any error - user is logged out
-      if (error instanceof Error && error.message.includes('404')) {
-        showNotification('warning', 'You have been logged out');
+      // Handle any error - user is logged out
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage.includes('404') || errorMessage.includes('HTTP 404')) {
+        showNotification('warning', 'Session not found. Please log in again');
       } else {
         showNotification('error', 'Session expired. Please log in again');
       }
