@@ -524,7 +524,7 @@ export default function Home() {
                             {/* Thought Tags - always show if available */}
                             {msg.thoughtTags && msg.thoughtTags.trim() && (
                               <div className="flex items-center gap-2">
-                                <span className="text-white/50 text-[11px] font-medium">context:</span>
+                                <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/20 text-white/50 text-[11px] font-medium">context:</span>
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {msg.thoughtTags.split(',').filter(t => t.trim()).map((tag, tagIdx) => {
                                     // Color mapping for tags
@@ -566,9 +566,7 @@ export default function Home() {
                             )}
                             
                             {/* Debug info - remove this after testing */}
-                            <div className="text-[10px] text-white/30">
-                              (tokens: {msg.tokensUsed ? '✓' : '✗'}, tags: {msg.thoughtTags ? '✓' : '✗'}, embed: {msg.embedding ? '✓' : '✗'})
-                            </div>
+
                           </div>
                         </div>
                       )}
