@@ -1,6 +1,6 @@
 /**
  * Teacher Signup Page
- * Complete teacher profile after OAuth
+ * Complete teacher profile after OAuth - Multi-step form
  */
 
 'use client';
@@ -11,13 +11,26 @@ import { getTempToken, signupAPI, clearTempToken } from '@/lib/api';
 import { isTempToken } from '@/lib/token';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeacherSignupInput, Visibility } from '@/types/auth';
-import { GraduationCap, Loader2, CheckCircle } from 'lucide-react';
+import { GraduationCap, Loader2, CheckCircle, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { SPECIALIZATIONS, QUALIFICATIONS } from '@/lib/education-data';
+
+const TAG_COLORS = [
+  'bg-blue-500/20 border-blue-500/40 text-blue-300',
+  'bg-purple-500/20 border-purple-500/40 text-purple-300',
+  'bg-green-500/20 border-green-500/40 text-green-300',
+  'bg-orange-500/20 border-orange-500/40 text-orange-300',
+  'bg-pink-500/20 border-pink-500/40 text-pink-300',
+  'bg-cyan-500/20 border-cyan-500/40 text-cyan-300',
+  'bg-yellow-500/20 border-yellow-500/40 text-yellow-300',
+  'bg-red-500/20 border-red-500/40 text-red-300',
+];
 
 export default function TeacherSignupPage() {
   const router = useRouter();
-  const { login, refreshUser } = useAuth();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<TeacherSignupInput>({
     firstName: '',
     lastName: '',
@@ -29,6 +42,8 @@ export default function TeacherSignupPage() {
     defaultContentMode: 'PUBLIC' as Visibility,
     allowFollowers: true,
   });
+  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
+  const [selectedQualifications, setSelectedQualifications] = useState<string[]>([]);
 
   useEffect(() => {
     const token = getTempToken();
@@ -51,6 +66,41 @@ export default function TeacherSignupPage() {
     }
   };
 
+  const toggleSpecialization = (tag: string) => {
+    if (selectedSpecializations.includes(tag)) {
+      setSelectedSpecializations(prev => prev.filter(t => t !== tag));
+    } else {
+      setSelectedSpecializations(prev => [...prev, tag]);
+    }
+  };
+
+  const toggleQualification = (tag: string) => {
+    if (selectedQualifications.includes(tag)) {
+      setSelectedQualifications(prev => prev.filter(t => t !== tag));
+    } else {
+      setSelectedQualifications(prev => [...prev, tag]);
+    }
+  };
+
+  const canProceed = () => {
+    if (currentStep === 1) {
+      return formData.firstName.trim() && formData.lastName.trim();
+    }
+    return true;
+  };
+
+  const nextStep = () => {
+    if (canProceed() && currentStep < 4) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -61,7 +111,13 @@ export default function TeacherSignupPage() {
         throw new Error('First name and last name are required');
       }
 
-      const response = await signupAPI.teacher(formData);
+      const submitData = {
+        ...formData,
+        specialization: selectedSpecializations.join(', ') || undefined,
+        qualification: selectedQualifications.join(', ') || undefined,
+      };
+
+      const response = await signupAPI.teacher(submitData);
       
       // Login with the new token
       await login(response.token);
@@ -78,139 +134,197 @@ export default function TeacherSignupPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-8">
-      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-8">
+    <div className="min-h-screen bg-black text-white">
+      <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="bg-white text-black p-3 rounded-full">
+          <div className="bg-white text-black p-3 rounded-lg">
             <GraduationCap size={28} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Complete Teacher Profile</h1>
-            <p className="text-gray-400">Tell us more about yourself</p>
+            <h1 className="text-2xl font-bold">Teacher Profile</h1>
+            <p className="text-white/60 text-sm">Step {currentStep} of 4</p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map(step => (
+              <div
+                key={step}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  step <= currentStep ? 'bg-white' : 'bg-white/10'
+                }`}
+              />
+            ))}
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-900/50 border-2 border-red-600 rounded text-red-400">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Required Fields */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-semibold mb-2 text-gray-300">
-                First Name *
-              </label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
-                placeholder="John"
-              />
-            </div>
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-semibold mb-2 text-gray-300">
-                Last Name *
-              </label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
-                placeholder="Doe"
-              />
-            </div>
-          </div>
+        <form onSubmit={handleSubmit}>
+          {/* Step 1: Basic Info */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-6">Basic Information</h2>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
+                    placeholder="John"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
 
-          {/* Bio */}
-          <div>
-            <label htmlFor="bio" className="block text-sm font-semibold mb-2 text-gray-300">
-              Bio
-            </label>
-            <textarea
-              id="bio"
-              name="bio"
-              value={formData.bio}
-              onChange={handleChange}
-              rows={4}
-              className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
-              placeholder="Tell students about yourself..."
-            />
-          </div>
-
-          {/* Professional Info */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="specialization" className="block text-sm font-semibold mb-2 text-gray-300">
-                Specialization
-              </label>
-              <input
-                type="text"
-                id="specialization"
-                name="specialization"
-                value={formData.specialization}
-                onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
-                placeholder="e.g., Mathematics"
-              />
-            </div>
-            <div>
-              <label htmlFor="qualification" className="block text-sm font-semibold mb-2 text-gray-300">
-                Qualification
-              </label>
-              <input
-                type="text"
-                id="qualification"
-                name="qualification"
-                value={formData.qualification}
-                onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
-                placeholder="e.g., M.Ed, Ph.D"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="experience" className="block text-sm font-semibold mb-2 text-gray-300">
-              Years of Experience
-            </label>
-            <input
-              type="number"
-              id="experience"
-              name="experience"
-              value={formData.experience || ''}
-              onChange={handleChange}
-              min="0"
-              className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
-              placeholder="0"
-            />
-          </div>
-
-          {/* Privacy Settings */}
-          <div className="border-t-2 border-gray-700 pt-6">
-            <h3 className="font-bold mb-4 text-white">Privacy Settings</h3>
-            
-            <div className="space-y-4">
               <div>
-                <label htmlFor="profileVisibility" className="block text-sm font-semibold mb-2 text-gray-300">
+                <label className="block text-sm text-white/60 mb-2">
+                  Bio
+                </label>
+                <textarea
+                  name="bio"
+                  value={formData.bio}
+                  onChange={handleChange}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-white/30 transition-colors resize-none"
+                  placeholder="Tell students about yourself..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/60 mb-2">
+                  Years of Experience
+                </label>
+                <input
+                  type="number"
+                  name="experience"
+                  value={formData.experience || ''}
+                  onChange={handleChange}
+                  min="0"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Specializations */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold">Select Specializations</h2>
+                <p className="text-white/60 text-sm mt-1">Choose as many as you like</p>
+                <p className="text-white/40 text-xs mt-2">
+                  {selectedSpecializations.length} selected
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {SPECIALIZATIONS.map((tag, index) => {
+                  const isSelected = selectedSpecializations.includes(tag);
+                  const colorClass = TAG_COLORS[index % TAG_COLORS.length];
+                  
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleSpecialization(tag)}
+                      className={`px-4 py-2 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'bg-white text-black border-white'
+                          : `${colorClass} hover:scale-105`
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {isSelected && <Check className="w-4 h-4" />}
+                        {tag}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Qualifications */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold">Select Qualifications</h2>
+                <p className="text-white/60 text-sm mt-1">Choose as many as you like</p>
+                <p className="text-white/40 text-xs mt-2">
+                  {selectedQualifications.length} selected
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {QUALIFICATIONS.map((tag, index) => {
+                  const isSelected = selectedQualifications.includes(tag);
+                  const colorClass = TAG_COLORS[index % TAG_COLORS.length];
+                  
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleQualification(tag)}
+                      className={`px-4 py-2 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'bg-white text-black border-white'
+                          : `${colorClass} hover:scale-105`
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {isSelected && <Check className="w-4 h-4" />}
+                        {tag}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Privacy Settings */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-6">Privacy Settings</h2>
+              
+              <div>
+                <label className="block text-sm text-white/60 mb-2">
                   Profile Visibility
                 </label>
                 <select
-                  id="profileVisibility"
                   name="profileVisibility"
                   value={formData.profileVisibility}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
                 >
                   <option value="PUBLIC">Public</option>
                   <option value="FOLLOWERS_ONLY">Followers Only</option>
@@ -219,15 +333,14 @@ export default function TeacherSignupPage() {
               </div>
 
               <div>
-                <label htmlFor="defaultContentMode" className="block text-sm font-semibold mb-2 text-gray-300">
+                <label className="block text-sm text-white/60 mb-2">
                   Default Content Visibility
                 </label>
                 <select
-                  id="defaultContentMode"
                   name="defaultContentMode"
                   value={formData.defaultContentMode}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-white/30 transition-colors"
                 >
                   <option value="PUBLIC">Public</option>
                   <option value="FOLLOWERS_ONLY">Followers Only</option>
@@ -235,40 +348,64 @@ export default function TeacherSignupPage() {
                 </select>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/10">
                 <input
                   type="checkbox"
                   id="allowFollowers"
                   name="allowFollowers"
                   checked={formData.allowFollowers}
                   onChange={handleChange}
-                  className="w-5 h-5 border-2 border-gray-300 rounded focus:ring-2 focus:ring-white"
+                  className="w-5 h-5"
                 />
-                <label htmlFor="allowFollowers" className="text-sm font-semibold">
+                <label htmlFor="allowFollowers" className="text-sm">
                   Allow students to follow me
                 </label>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-white text-black rounded font-semibold hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Creating Profile...
-              </>
+          {/* Navigation Buttons */}
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/10">
+            <button
+              type="button"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              className="px-6 py-3 border border-white/10 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+
+            {currentStep < 4 ? (
+              <button
+                type="button"
+                onClick={nextStep}
+                disabled={!canProceed()}
+                className="px-6 py-3 bg-white text-black rounded-lg hover:bg-white/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Next
+                <ArrowRight className="w-4 h-4" />
+              </button>
             ) : (
-              <>
-                <CheckCircle size={20} />
-                Complete Signup
-              </>
+              <button
+                type="submit"
+                disabled={loading || !canProceed()}
+                className="px-6 py-3 bg-white text-black rounded-lg hover:bg-white/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin w-4 h-4" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Complete
+                  </>
+                )}
+              </button>
             )}
-          </button>
+          </div>
         </form>
       </div>
     </div>

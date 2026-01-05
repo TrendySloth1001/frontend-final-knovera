@@ -11,6 +11,17 @@ import { useEffect } from 'react';
 import type { TeacherProfile, StudentProfile } from '@/types/auth';
 import { Mail, Calendar, Users, BookOpen, Award, GraduationCap, Building, ArrowLeft, LogOut, Edit } from 'lucide-react';
 
+const TAG_COLORS = [
+  'bg-blue-500/20 border-blue-500/40 text-blue-300',
+  'bg-purple-500/20 border-purple-500/40 text-purple-300',
+  'bg-green-500/20 border-green-500/40 text-green-300',
+  'bg-orange-500/20 border-orange-500/40 text-orange-300',
+  'bg-pink-500/20 border-pink-500/40 text-pink-300',
+  'bg-cyan-500/20 border-cyan-500/40 text-cyan-300',
+  'bg-yellow-500/20 border-yellow-500/40 text-yellow-300',
+  'bg-red-500/20 border-red-500/40 text-red-300',
+];
+
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
@@ -183,7 +194,19 @@ export default function ProfilePage() {
               <BookOpen size={20} className="text-blue-400" />
               Interests
             </h2>
-            <p className="text-white/80 leading-relaxed">{studentProfile.interests}</p>
+            <div className="flex flex-wrap gap-2">
+              {studentProfile.interests.split(',').map((interest, index) => {
+                const colorClass = TAG_COLORS[index % TAG_COLORS.length];
+                return (
+                  <span 
+                    key={index}
+                    className={`px-3 py-1.5 rounded-lg border ${colorClass}`}
+                  >
+                    {interest.trim()}
+                  </span>
+                );
+              })}
+            </div>
           </section>
         )}
 
@@ -213,8 +236,20 @@ export default function ProfilePage() {
                   <BookOpen size={18} className="text-green-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Specialization</div>
-                  <div className="text-white font-medium">{teacherProfile.specialization}</div>
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Specializations</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {teacherProfile.specialization.split(',').map((spec, index) => {
+                      const colorClass = TAG_COLORS[index % TAG_COLORS.length];
+                      return (
+                        <span 
+                          key={index}
+                          className={`px-3 py-1.5 rounded-lg border ${colorClass}`}
+                        >
+                          {spec.trim()}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -225,8 +260,20 @@ export default function ProfilePage() {
                   <GraduationCap size={18} className="text-purple-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Qualification</div>
-                  <div className="text-white font-medium">{teacherProfile.qualification}</div>
+                  <div className="text-xs text-white/40 mb-1 uppercase tracking-wide">Qualifications</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {teacherProfile.qualification.split(',').map((qual, index) => {
+                      const colorClass = TAG_COLORS[index % TAG_COLORS.length];
+                      return (
+                        <span 
+                          key={index}
+                          className={`px-3 py-1.5 rounded-lg border ${colorClass}`}
+                        >
+                          {qual.trim()}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
