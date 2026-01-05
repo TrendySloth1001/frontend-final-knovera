@@ -11,6 +11,7 @@ export interface Message {
   content: string;
   retrievedDocs?: any;
   tokensUsed?: number;
+  embedding?: string; // JSON stringified embedding array
   sequenceNumber: number;
   createdAt: Date;
 }

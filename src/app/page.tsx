@@ -406,51 +406,82 @@ export default function Home() {
           ) : (
             <div className="w-full px-3 md:px-6 lg:px-12 py-4 md:py-6">
               {messages.map((msg, idx) => (
-                <div
-                  key={msg.id}
-                  className={`mb-4 md:mb-6 flex gap-2 md:gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-xs font-semibold">AI</span>
-                    </div>
-                  )}
-                  
-                  <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[85%] md:max-w-2xl' : ''}`}>
-                    {/* Sender name in gray */}
+                <div key={msg.id}>
+                  <div
+                    className={`mb-4 md:mb-6 flex gap-2 md:gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
+                  >
                     {msg.role === 'assistant' && (
-                      <div className="text-xs text-gray-500 mb-1 ml-1">Assistant</div>
-                    )}
-                    {msg.role === 'user' && (
-                      <div className="text-xs text-gray-500 mb-1 mr-1 text-right">You</div>
+                      <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <span className="text-xs font-semibold">AI</span>
+                      </div>
                     )}
                     
-                    <div className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 ${
-                      msg.role === 'user'
-                        ? 'bg-white text-black ml-auto'
-                        : 'bg-transparent text-white'
-                    }`}>
-                      {msg.role === 'assistant' ? (
-                        <div className="text-sm md:text-base markdown-content">
-                          <MarkdownRenderer content={msg.content} />
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap break-words text-sm md:text-base">
-                          {msg.content}
-                        </div>
+                    <div className={`flex-1 ${msg.role === 'user' ? 'max-w-[85%] md:max-w-2xl' : ''}`}>
+                      {/* Sender name in gray */}
+                      {msg.role === 'assistant' && (
+                        <div className="text-xs text-gray-500 mb-1 ml-1">Assistant</div>
                       )}
+                      {msg.role === 'user' && (
+                        <div className="text-xs text-gray-500 mb-1 mr-1 text-right">You</div>
+                      )}
+                      
+                      <div className={`rounded-2xl px-3 py-2 md:px-4 md:py-3 ${
+                        msg.role === 'user'
+                          ? 'bg-gray-700 text-white ml-auto'
+                          : 'bg-transparent text-white'
+                      }`}>
+                        {msg.role === 'assistant' ? (
+                          <div className="text-sm md:text-base markdown-content">
+                            <MarkdownRenderer content={msg.content} />
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap break-words text-sm md:text-base">
+                            {msg.content}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Metadata section with tokens and vector embeddings */}
+                      <div className="flex items-center gap-2 mt-1 ml-2 md:ml-4 text-xs text-white/40">
+                        {msg.tokensUsed && (
+                          <span>{msg.tokensUsed} tokens</span>
+                        )}
+                        {msg.tokensUsed && (
+                          <span className="text-white/20">|</span>
+                        )}
+                        {msg.embedding ? (
+                          <button
+                            onClick={() => {
+                              try {
+                                const embedding = JSON.parse(msg.embedding!);
+                                const embedStr = Array.isArray(embedding) 
+                                  ? `[${embedding.slice(0, 5).map((n: number) => n.toFixed(4)).join(', ')}...] (${embedding.length} dimensions)`
+                                  : 'Invalid embedding format';
+                                alert(`Vector Embedding:\n\n${embedStr}`);
+                              } catch (error) {
+                                alert('Error parsing embedding');
+                              }
+                            }}
+                            className="hover:text-white/60 underline cursor-pointer transition-colors"
+                          >
+                            vector
+                          </button>
+                        ) : (
+                          <span className="text-white/20">vector (loading...)</span>
+                        )}
+                      </div>
                     </div>
-                    {msg.tokensUsed && (
-                      <div className="text-xs text-white/40 mt-1 ml-2 md:ml-4">
-                        {msg.tokensUsed} tokens
+
+                    {msg.role === 'user' && user?.user?.avatarUrl && (
+                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0 mt-1">
+                        <img src={user.user.avatarUrl} alt="You" className="w-full h-full object-cover" />
                       </div>
                     )}
                   </div>
-
-                  {msg.role === 'user' && user?.user?.avatarUrl && (
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden flex-shrink-0 mt-1">
-                      <img src={user.user.avatarUrl} alt="You" className="w-full h-full object-cover" />
-                    </div>
+                  
+                  {/* Divider between messages */}
+                  {idx < messages.length - 1 && (
+                    <div className="border-t border-white/10 my-4 md:my-6"></div>
                   )}
                 </div>
               ))}

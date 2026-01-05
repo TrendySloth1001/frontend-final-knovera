@@ -25,27 +25,35 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         code({ node, inline, className, children, ...props }) {
           const match = /language-(\w+)/.exec(className || '');
           return !inline && match ? (
-            <div className="my-4">
-              <div className="bg-white/5 rounded-t-lg px-4 py-2 text-xs text-white/60 border-b border-white/10">
+            <div className="my-3 md:my-4 max-w-full">
+              <div className="bg-white/5 rounded-t-lg px-3 md:px-4 py-1.5 md:py-2 text-xs text-white/60 border-b border-white/10">
                 {match[1]}
               </div>
-              <pre className="bg-black/30 rounded-b-lg p-4 overflow-x-auto scrollbar-hide">
+              <pre className="bg-black/30 rounded-b-lg p-3 md:p-4 overflow-x-auto scrollbar-hide text-xs md:text-sm max-w-full">
                 <code className={className} {...props}>
                   {children}
                 </code>
               </pre>
             </div>
           ) : (
-            <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+            <code className="bg-white/10 px-1.5 py-0.5 rounded text-xs md:text-sm font-mono break-all" {...props}>
               {children}
             </code>
+          );
+        },
+        // Plain pre blocks (code without language)
+        pre({ children, ...props }) {
+          return (
+            <pre className="bg-black/30 rounded-lg p-3 md:p-4 overflow-x-auto scrollbar-hide text-xs md:text-sm my-3 md:my-4 max-w-full" {...props}>
+              {children}
+            </pre>
           );
         },
         // Tables
         table({ children, ...props }) {
           return (
-            <div className="my-4 overflow-x-auto scrollbar-hide">
-              <table className="min-w-full border-collapse border border-white/20 rounded-lg overflow-hidden" {...props}>
+            <div className="my-3 md:my-4 overflow-x-auto scrollbar-hide max-w-full">
+              <table className="min-w-full border-collapse border border-white/20 rounded-lg overflow-hidden text-xs md:text-sm" {...props}>
                 {children}
               </table>
             </div>
@@ -60,14 +68,14 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         },
         th({ children, ...props }) {
           return (
-            <th className="border border-white/20 px-4 py-2 text-left font-semibold" {...props}>
+            <th className="border border-white/20 px-2 md:px-4 py-1.5 md:py-2 text-left font-semibold" {...props}>
               {children}
             </th>
           );
         },
         td({ children, ...props }) {
           return (
-            <td className="border border-white/20 px-4 py-2" {...props}>
+            <td className="border border-white/20 px-2 md:px-4 py-1.5 md:py-2" {...props}>
               {children}
             </td>
           );
@@ -101,16 +109,23 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         // Lists
         ul({ children, ...props }) {
           return (
-            <ul className="list-disc list-inside my-3 space-y-1" {...props}>
+            <ul className="list-disc list-outside ml-5 my-3 space-y-1.5" {...props}>
               {children}
             </ul>
           );
         },
         ol({ children, ...props }) {
           return (
-            <ol className="list-decimal list-inside my-3 space-y-1" {...props}>
+            <ol className="list-decimal list-outside ml-5 my-3 space-y-1.5" {...props}>
               {children}
             </ol>
+          );
+        },
+        li({ children, ...props }) {
+          return (
+            <li className="leading-relaxed" {...props}>
+              {children}
+            </li>
           );
         },
         // Blockquotes
