@@ -1,0 +1,81 @@
+.vector-visualizer {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
+}
+
+.viz-canvas-container {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.vector-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.vector-legend {
+    display: flex;
+    gap: 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.dot.negative {
+    background-color: #ef4444;
+}
+
+.dot.positive {
+    background-color: #3b82f6;
+}
+
+.dot.compare {
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background-color: transparent;
+}
+
+/* Similarity Display */
+.similarity-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.similarity-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.similarity-value {
+    color: #3b82f6;
+    font-weight: 700;
+    font-size: 1rem;
+    font-family: monospace;
+}
+
+.similarity-indicator {
+    font-size: 1.1rem;
+    margin-left: auto;
+}

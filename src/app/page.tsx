@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { VectorVisualizer } from '@/components/VectorVisualizer';
 
 export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -130,11 +131,13 @@ export default function Home() {
         webSearch: webSearchEnabled,
       });
 
-      // If this is a new conversation, update current conversation
+      // If this is a new conversation, update current conversation immediately
       if (!currentConversation) {
         const newConv = await aiAPI.getConversation(response.conversationId);
         setCurrentConversation(newConv);
         await loadConversations();
+        // Update URL immediately to prevent duplicate messages
+        router.push(`/?chat=${response.conversationId}`, { scroll: false });
       }
 
       // Create streaming message placeholder
@@ -173,7 +176,9 @@ export default function Home() {
           setIsLoading(false);
           
           // Reload messages from server to get full data including embeddings
-          if (currentConversation || response.conversationId) {
+          // Only reload if we already had a conversation (to get embeddings)
+          // For new conversations, we already have the messages in state
+          if (currentConversation) {
             loadMessages(response.conversationId);
           }
         }
@@ -236,8 +241,15 @@ export default function Home() {
         border-r border-white/10 bg-black
         flex flex-col overflow-hidden
       `}>
-        <div className="p-4 border-b border-white/10">
-          <h2 className="font-semibold">Conversations</h2>
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <h2 className="font-semibold text-lg">Knovera</h2>
+          <button
+            onClick={startNewChat}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="New chat"
+          >
+            <Plus size={18} />
+          </button>
         </div>
 
         {/* Search */}
@@ -437,7 +449,7 @@ export default function Home() {
                       </div>
                       
                       {/* Metadata section with tokens and vector embeddings */}
-                      <div className="mt-2 ml-2 md:ml-4 space-y-1">
+                      <div className="mt-2 ml-2 md:ml-4 space-y-2">
                         <div className="flex items-center gap-3 text-xs text-white/40">
                           {msg.tokensUsed && (
                             <div className="flex items-center gap-1">
@@ -448,9 +460,7 @@ export default function Home() {
                           {msg.embedding && (
                             <button
                               onClick={() => {
-                                setExpandedEmbedding(
-                                  expandedEmbedding === msg.id ? null : msg.id
-                                );
+                                setExpandedEmbedding(expandedEmbedding === msg.id ? null : msg.id);
                               }}
                               className="flex items-center gap-1 hover:text-white/60 transition-colors cursor-pointer"
                             >
@@ -460,35 +470,40 @@ export default function Home() {
                           )}
                         </div>
                         
-                        {/* Show embedding when expanded */}
-                        {expandedEmbedding === msg.id && msg.embedding && (
-                          <div className="bg-black/30 rounded-lg p-2 md:p-3 text-xs font-mono text-white/60 max-h-40 overflow-y-auto scrollbar-hide">
-                            {(() => {
-                              try {
-                                const embedding = JSON.parse(msg.embedding);
-                                if (Array.isArray(embedding)) {
-                                  return (
-                                    <div className="space-y-1">
-                                      <div className="text-white/80 mb-2">
-                                        Vector Embedding ({embedding.length} dimensions):
-                                      </div>
-                                      <div className="break-all">
-                                        [{embedding.map((n: number, i: number) => 
-                                          <span key={i}>
-                                            {n.toFixed(4)}{i < embedding.length - 1 ? ', ' : ''}
-                                          </span>
-                                        )}]
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                return 'Invalid embedding format';
-                              } catch (error) {
-                                return 'Error parsing embedding';
+                        {/* Inline Vector Visualization */}
+                        {expandedEmbedding === msg.id && msg.embedding && (() => {
+                          try {
+                            const embedding = JSON.parse(msg.embedding);
+                            if (!Array.isArray(embedding)) return null;
+                            
+                            // Find previous assistant message for comparison
+                            let previousEmbedding: number[] | undefined;
+                            for (let i = idx - 1; i >= 0; i--) {
+                              if (messages[i].role === 'assistant' && messages[i].embedding) {
+                                try {
+                                  const prevEmb = JSON.parse(messages[i].embedding!);
+                                  if (Array.isArray(prevEmb)) {
+                                    previousEmbedding = prevEmb;
+                                    break;
+                                  }
+                                } catch {}
                               }
-                            })()}
-                          </div>
-                        )}
+                            }
+                            
+                            return (
+                              <VectorVisualizer 
+                                data={embedding} 
+                                compareTo={previousEmbedding}
+                              />
+                            );
+                          } catch (error) {
+                            return (
+                              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 text-xs text-red-400">
+                                Error parsing embedding
+                              </div>
+                            );
+                          }
+                        })()}
                       </div>
                     </div>
 
