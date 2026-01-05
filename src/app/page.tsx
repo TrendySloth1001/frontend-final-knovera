@@ -400,7 +400,7 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto px-3 md:px-6 py-4 md:py-8">
+            <div className="w-full px-3 md:px-6 lg:px-12 py-4 md:py-6">
               {messages.map((msg, idx) => (
                 <div
                   key={msg.id}
@@ -461,7 +461,7 @@ export default function Home() {
 
         {/* Input Area */}
         <div className="border-t border-white/10 p-2 md:p-3 safe-area-bottom">
-          <div className="max-w-3xl mx-auto">
+          <div className="w-full px-2 md:px-4 lg:px-8">
             <div className="flex gap-2 items-end">
               <button
                 onClick={() => setWebSearchEnabled(!webSearchEnabled)}
