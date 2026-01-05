@@ -67,20 +67,20 @@ export default function StudentSignupPage() {
 
   return (
     <div className="max-w-2xl mx-auto mt-8">
-      <div className="bg-white border-2 border-black rounded-lg p-8">
+      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="bg-black text-white p-3 rounded-full">
+          <div className="bg-white text-black p-3 rounded-full">
             <BookOpen size={28} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Complete Student Profile</h1>
-            <p className="text-gray-600">Tell us more about yourself</p>
+            <h1 className="text-3xl font-bold text-white">Complete Student Profile</h1>
+            <p className="text-gray-400">Tell us more about yourself</p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-2 border-red-600 rounded text-red-600">
+          <div className="mb-6 p-4 bg-red-900/50 border-2 border-red-600 rounded text-red-400">
             {error}
           </div>
         )}
@@ -89,7 +89,7 @@ export default function StudentSignupPage() {
           {/* Required Fields */}
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-semibold mb-2">
+              <label htmlFor="firstName" className="block text-sm font-semibold mb-2 text-gray-300">
                 First Name *
               </label>
               <input
@@ -99,12 +99,12 @@ export default function StudentSignupPage() {
                 value={formData.firstName}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded focus:border-black focus:outline-none"
+                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
                 placeholder="Jane"
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="block text-sm font-semibold mb-2">
+              <label htmlFor="lastName" className="block text-sm font-semibold mb-2 text-gray-300">
                 Last Name *
               </label>
               <input
@@ -114,7 +114,7 @@ export default function StudentSignupPage() {
                 value={formData.lastName}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded focus:border-black focus:outline-none"
+                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
                 placeholder="Smith"
               />
             </div>
@@ -123,7 +123,7 @@ export default function StudentSignupPage() {
           {/* Optional Fields */}
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="grade" className="block text-sm font-semibold mb-2">
+              <label htmlFor="grade" className="block text-sm font-semibold mb-2 text-gray-300">
                 Grade/Year
               </label>
               <input
@@ -132,12 +132,12 @@ export default function StudentSignupPage() {
                 name="grade"
                 value={formData.grade}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded focus:border-black focus:outline-none"
+                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
                 placeholder="e.g., 10th Grade, Year 2"
               />
             </div>
             <div>
-              <label htmlFor="institution" className="block text-sm font-semibold mb-2">
+              <label htmlFor="institution" className="block text-sm font-semibold mb-2 text-gray-300">
                 School/Institution
               </label>
               <input
@@ -146,7 +146,7 @@ export default function StudentSignupPage() {
                 name="institution"
                 value={formData.institution}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded focus:border-black focus:outline-none"
+                className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
                 placeholder="Your school name"
               />
             </div>
@@ -154,7 +154,7 @@ export default function StudentSignupPage() {
 
           {/* Interests */}
           <div>
-            <label htmlFor="interests" className="block text-sm font-semibold mb-2">
+            <label htmlFor="interests" className="block text-sm font-semibold mb-2 text-gray-300">
               Interests
             </label>
             <textarea
@@ -163,7 +163,7 @@ export default function StudentSignupPage() {
               value={formData.interests}
               onChange={handleChange}
               rows={4}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded focus:border-black focus:outline-none"
+              className="w-full px-4 py-2 bg-gray-800 border-2 border-gray-600 text-white rounded focus:border-white focus:outline-none"
               placeholder="What subjects or topics are you interested in?"
             />
             <p className="mt-2 text-sm text-gray-600">
@@ -172,9 +172,9 @@ export default function StudentSignupPage() {
           </div>
 
           {/* Info Box */}
-          <div className="bg-gray-100 border-2 border-gray-300 rounded p-4">
-            <h3 className="font-semibold mb-2">What's Next?</h3>
-            <ul className="text-sm text-gray-700 space-y-1">
+          <div className="bg-gray-800 border-2 border-gray-700 rounded p-4">
+            <h3 className="font-semibold mb-2 text-white">What's Next?</h3>
+            <ul className="text-sm text-gray-400 space-y-1">
               <li className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
                 Browse courses and materials
@@ -194,7 +194,7 @@ export default function StudentSignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-black text-white rounded font-semibold hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 bg-white text-black rounded font-semibold hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

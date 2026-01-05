@@ -87,31 +87,31 @@ export default function CallbackPage() {
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="bg-white border-2 border-black rounded-lg p-8 max-w-md w-full text-center">
+      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-8 max-w-md w-full text-center">
         {status === 'processing' && (
           <>
-            <Loader2 className="animate-spin h-16 w-16 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Processing...</h2>
-            <p className="text-gray-600">{message}</p>
+            <Loader2 className="animate-spin h-16 w-16 mx-auto mb-4 text-white" />
+            <h2 className="text-xl font-bold mb-2 text-white">Processing...</h2>
+            <p className="text-gray-400">{message}</p>
           </>
         )}
         
         {status === 'success' && (
           <>
-            <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-600" />
-            <h2 className="text-xl font-bold mb-2">Success!</h2>
-            <p className="text-gray-600">{message}</p>
+            <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
+            <h2 className="text-xl font-bold mb-2 text-white">Success!</h2>
+            <p className="text-gray-400">{message}</p>
           </>
         )}
         
         {status === 'error' && (
           <>
-            <XCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
-            <h2 className="text-xl font-bold mb-2">Error</h2>
-            <p className="text-gray-600 mb-4">{message}</p>
+            <XCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+            <h2 className="text-xl font-bold mb-2 text-white">Error</h2>
+            <p className="text-gray-400 mb-4">{message}</p>
             <button
               onClick={() => router.push('/login')}
-              className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+              className="px-6 py-2 bg-white text-black rounded hover:bg-gray-200 transition-colors"
             >
               Back to Login
             </button>

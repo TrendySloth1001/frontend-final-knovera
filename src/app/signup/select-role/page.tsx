@@ -35,7 +35,7 @@ export default function SelectRolePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin h-12 w-12 border-4 border-black border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -43,9 +43,9 @@ export default function SelectRolePage() {
   return (
     <div className="max-w-4xl mx-auto mt-12">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Knovera!</h1>
-        <p className="text-gray-600 text-lg">
-          Hi <span className="font-semibold">{email}</span>! 
+        <h1 className="text-4xl font-bold mb-4 text-white">Welcome to Knover!</h1>
+        <p className="text-gray-400 text-lg">
+          Hi <span className="font-semibold text-white">{email}</span>! 
           <br />
           Please select your role to complete your profile
         </p>
@@ -55,31 +55,31 @@ export default function SelectRolePage() {
         {/* Teacher Card */}
         <button
           onClick={() => router.push('/signup/teacher')}
-          className="bg-white border-2 border-black rounded-lg p-8 hover:bg-gray-50 transition-all hover:shadow-lg group text-left"
+          className="bg-gray-900 border-2 border-gray-700 rounded-lg p-8 hover:bg-gray-800 transition-all hover:shadow-lg group text-left"
         >
           <div className="flex items-center justify-between mb-6">
-            <div className="bg-black text-white p-4 rounded-full">
+            <div className="bg-white text-black p-4 rounded-full">
               <GraduationCap size={32} />
             </div>
-            <ArrowRight className="group-hover:translate-x-2 transition-transform" size={24} />
+            <ArrowRight className="group-hover:translate-x-2 transition-transform text-white" size={24} />
           </div>
           
-          <h2 className="text-2xl font-bold mb-3">I'm a Teacher</h2>
-          <p className="text-gray-600 mb-4">
+          <h2 className="text-2xl font-bold mb-3 text-white">I'm a Teacher</h2>
+          <p className="text-gray-400 mb-4">
             Create and share educational content, manage students, and track their progress.
           </p>
           
-          <ul className="space-y-2 text-sm text-gray-700">
+          <ul className="space-y-2 text-sm text-gray-400">
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
               Create courses and assignments
             </li>
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
               Share resources with students
             </li>
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
               Grade and provide feedback
             </li>
           </ul>
@@ -88,31 +88,31 @@ export default function SelectRolePage() {
         {/* Student Card */}
         <button
           onClick={() => router.push('/signup/student')}
-          className="bg-white border-2 border-black rounded-lg p-8 hover:bg-gray-50 transition-all hover:shadow-lg group text-left"
+          className="bg-gray-900 border-2 border-gray-700 rounded-lg p-8 hover:bg-gray-800 transition-all hover:shadow-lg group text-left"
         >
           <div className="flex items-center justify-between mb-6">
-            <div className="bg-black text-white p-4 rounded-full">
+            <div className="bg-white text-black p-4 rounded-full">
               <BookOpen size={32} />
             </div>
-            <ArrowRight className="group-hover:translate-x-2 transition-transform" size={24} />
+            <ArrowRight className="group-hover:translate-x-2 transition-transform text-white" size={24} />
           </div>
           
-          <h2 className="text-2xl font-bold mb-3">I'm a Student</h2>
-          <p className="text-gray-600 mb-4">
+          <h2 className="text-2xl font-bold mb-3 text-white">I'm a Student</h2>
+          <p className="text-gray-400 mb-4">
             Access learning materials, complete assignments, and track your academic progress.
           </p>
           
-          <ul className="space-y-2 text-sm text-gray-700">
+          <ul className="space-y-2 text-sm text-gray-400">
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
               Access course materials
             </li>
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
               Submit assignments
             </li>
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
               Track your progress
             </li>
           </ul>

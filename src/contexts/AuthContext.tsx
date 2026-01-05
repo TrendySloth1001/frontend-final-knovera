@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { JWTPayload, UserProfileResponse } from '@/types/auth';
-import { authAPI, getAuthToken, clearAllTokens } from '@/lib/api';
+import { authAPI, getAuthToken, getTempToken, clearAllTokens } from '@/lib/api';
 import { decodeToken, isTokenValid } from '@/lib/token';
 
 interface AuthContextType {
@@ -17,6 +17,7 @@ interface AuthContextType {
   tokenPayload: JWTPayload | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  hasTempToken: boolean;
   login: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -32,7 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   const refreshUser = useCallback(async () => {
-    const currentToken = getAuthToken();
+    // Check for both regular token and temp token
+    let currentToken = getAuthToken();
+    if (!currentToken) {
+      currentToken = getTempToken();
+    }
     
     if (!currentToken || !isTokenValid(currentToken)) {
       setUser(null);
@@ -111,7 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     tokenPayload,
     isLoading,
-    isAuthenticated: !!user && !!token,
+    isAuthenticated: !!user && !!token && !tokenPayload?.isTemp,
+    hasTempToken: !!token && !!tokenPayload?.isTemp,
     login,
     logout,
     refreshUser,

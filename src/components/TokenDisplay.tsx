@@ -28,8 +28,8 @@ export default function TokenDisplay({ token, tokenPayload, user }: TokenDisplay
 
   if (!token || !tokenPayload) {
     return (
-      <div className="bg-white border-2 border-black rounded-lg p-6">
-        <div className="text-center text-gray-500">
+      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6">
+        <div className="text-center text-gray-400">
           No authentication token found. Please sign in.
         </div>
       </div>
@@ -39,28 +39,28 @@ export default function TokenDisplay({ token, tokenPayload, user }: TokenDisplay
   return (
     <div className="space-y-6">
       {/* JWT Token */}
-      <div className="bg-white border-2 border-black rounded-lg p-6">
+      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold flex items-center gap-2">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Key size={24} />
             JWT Token
           </h2>
           <button
             onClick={copyToken}
-            className="flex items-center gap-2 px-3 py-1 bg-black text-white rounded hover:bg-gray-800 transition-colors text-sm"
+            className="flex items-center gap-2 px-3 py-1 bg-white text-black rounded hover:bg-gray-800 transition-colors text-sm"
           >
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <div className="bg-gray-100 p-4 rounded font-mono text-xs break-all">
+        <div className="bg-gray-800 p-4 rounded font-mono text-xs break-all">
           {token}
         </div>
       </div>
 
       {/* Token Payload */}
-      <div className="bg-white border-2 border-black rounded-lg p-6">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+      <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6">
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
           <Shield size={24} />
           Token Payload
         </h2>
@@ -90,8 +90,8 @@ export default function TokenDisplay({ token, tokenPayload, user }: TokenDisplay
 
       {/* User Profile */}
       {user && (
-        <div className="bg-white border-2 border-black rounded-lg p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+        <div className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <User size={24} />
             User Profile
           </h2>
@@ -112,8 +112,8 @@ export default function TokenDisplay({ token, tokenPayload, user }: TokenDisplay
 
           {/* Profile Details */}
           {user.profile && (
-            <div className="mt-6 pt-6 border-t-2 border-gray-200">
-              <h3 className="font-bold mb-3">
+            <div className="mt-6 pt-6 border-t-2 border-gray-700">
+              <h3 className="font-bold mb-3 text-white">
                 {user.user.role === 'TEACHER' ? 'Teacher' : 'Student'} Profile
               </h3>
               <div className="space-y-3">
@@ -165,8 +165,8 @@ function DataRow({ icon, label, value, className = '' }: DataRowProps) {
     <div className="flex items-start gap-3">
       {icon && <div className="text-gray-600 mt-0.5">{icon}</div>}
       <div className="flex-1">
-        <div className="text-sm text-gray-600">{label}</div>
-        <div className={`font-medium ${className}`}>{value}</div>
+        <div className="text-sm text-gray-400">{label}</div>
+        <div className={`font-medium text-gray-300 ${className}`}>{value}</div>
       </div>
     </div>
   );
