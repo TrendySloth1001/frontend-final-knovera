@@ -12,6 +12,7 @@ import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Data
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import ModelSelector from '@/components/ModelSelector';
 
 export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -35,6 +36,7 @@ export default function Home() {
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -799,21 +801,22 @@ export default function Home() {
         {/* Input Area */}
         <div className="border-t border-white/10 p-2 md:p-3 safe-area-bottom">
           <div className="w-full max-w-4xl mx-auto px-2 md:px-4">
-            <div className="relative flex items-center">
+            {/* Unified Input Container - Single rounded rectangle */}
+            <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl focus-within:border-white/30 transition-colors">
               {/* Search Icon - Inside Left */}
               <button
                 onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                className={`absolute left-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                className={`ml-3 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-colors ${
                   webSearchEnabled 
                     ? 'bg-white text-black hover:bg-white/90' 
-                    : 'bg-white/5 text-white hover:bg-white/10'
+                    : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
                 title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
               >
                 <Search size={14} />
               </button>
               
-              {/* Input Field */}
+              {/* Input Field - Seamless integration */}
               <textarea
                 ref={inputRef}
                 value={inputMessage}
@@ -828,15 +831,23 @@ export default function Home() {
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
                 rows={1}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-12 py-2 text-sm resize-none focus:outline-none focus:border-white/30 transition-colors scrollbar-hide"
+                className="flex-1 bg-transparent border-0 px-3 py-2.5 text-sm resize-none focus:outline-none scrollbar-hide text-white placeholder-white/40"
                 style={{ minHeight: '38px', maxHeight: '120px', overflow: 'hidden' }}
               />
+              
+              {/* Model Selector - Inside Right (before send button) */}
+              <div className="mr-2 flex-shrink-0">
+                <ModelSelector 
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                />
+              </div>
               
               {/* Send Button - Inside Right */}
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="absolute right-3 z-10 w-7 h-7 bg-white text-black rounded-full flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mr-3 flex-shrink-0 w-[30px] h-[30px] bg-white text-black rounded-full flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <Loader2 className="animate-spin" size={14} />
