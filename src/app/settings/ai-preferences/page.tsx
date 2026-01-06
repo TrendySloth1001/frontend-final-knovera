@@ -66,7 +66,7 @@ export default function AIPreferencesPage() {
       const token = localStorage.getItem('token');
 
       // Load AI settings
-      const settingsRes = await fetch(`http://localhost:5001/api/users/${user?.id}/ai-settings`, {
+      const settingsRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/ai-settings`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -85,7 +85,7 @@ export default function AIPreferencesPage() {
       }
 
       // Load user context
-      const contextRes = await fetch(`http://localhost:5001/api/users/${user?.id}/context`, {
+      const contextRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/context`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -113,7 +113,7 @@ export default function AIPreferencesPage() {
       const token = localStorage.getItem('token');
 
       // Save AI settings
-      const settingsRes = await fetch(`http://localhost:5001/api/users/${user?.id}/ai-settings`, {
+      const settingsRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/ai-settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -128,7 +128,7 @@ export default function AIPreferencesPage() {
 
       // Save user context if profile is enabled
       if (settings.profileEnabled) {
-        const contextRes = await fetch(`http://localhost:5001/api/users/${user?.id}/context`, {
+        const contextRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/context`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -159,7 +159,7 @@ export default function AIPreferencesPage() {
       setSaving(true);
       const token = localStorage.getItem('token');
 
-      const res = await fetch(`http://localhost:5001/api/users/${user?.id}/ai-settings/reset`, {
+      const res = await fetch(`http://localhost:5001/api/users/${user?.user.id}/ai-settings/reset`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
