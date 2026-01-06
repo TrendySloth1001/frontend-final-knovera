@@ -154,10 +154,13 @@ export default function Home() {
     const userMessage = inputMessage.trim();
     setInputMessage('');
     
+    // Use conversationId from URL as source of truth
+    const currentConvId = conversationId !== 'new' ? conversationId : undefined;
+    
     // Add user message to UI immediately
     const tempUserMsg: Message = {
       id: `temp-${Date.now()}`,
-      conversationId: currentConversation?.id || 'new',
+      conversationId: currentConvId || 'new',
       role: 'user',
       content: userMessage,
       sequenceNumber: messages.length,
@@ -167,10 +170,10 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Call API to get full response
+      // Call API to get full response - use conversationId from URL
       const response = await aiAPI.generate({
         prompt: userMessage,
-        conversationId: currentConversation?.id, // Use existing conversation ID if available
+        conversationId: currentConvId, // Use conversation ID from URL if it exists
         userId: user.user.id,
         teacherId: user.user.role === 'TEACHER' ? user.user.id : undefined,
         studentId: user.user.role === 'STUDENT' ? user.user.id : undefined,
@@ -179,10 +182,18 @@ export default function Home() {
         webSearch: webSearchEnabled,
       });
 
-      // If this is a new conversation, redirect to the conversation URL
-      if (!currentConversation) {
+      console.log('[Chat] API Response:', { 
+        requestConvId: currentConvId,
+        responseConvId: response.conversationId, 
+        urlConvId: conversationId,
+        isNewChat: conversationId === 'new'
+      });
+
+      // If this was a new chat, update URL immediately
+      if (conversationId === 'new' && response.conversationId) {
         router.replace(`/chat/${response.conversationId}`);
-        return; // Exit early, the new page will handle displaying the message
+        // Reload conversations list in background
+        loadConversations();
       }
 
       // Create streaming message placeholder
@@ -224,11 +235,7 @@ export default function Home() {
           setIsLoading(false);
           
           // Reload messages from server to get full data including embeddings
-          // Only reload if we already had a conversation (to get embeddings)
-          // For new conversations, we already have the messages in state
-          if (currentConversation) {
-            loadMessages(response.conversationId);
-          }
+          loadMessages(response.conversationId);
         }
       }, 30);
 
@@ -361,46 +368,89 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="relative pb-7">
-                    {/* Vertical Line */}
+                    {/* Inactive Vertical Line - full height */}
                     <div className="absolute left-5 top-0 bottom-0 w-px bg-white/20"></div>
                     
-                    {filteredConversations.map((conv, index) => (
-                      <div
-                        key={conv.id}
-                        className={`relative pl-10 pr-3 py-3 hover:bg-white/5 transition-colors group cursor-pointer ${
-                          currentConversation?.id === conv.id ? 'bg-white/10' : ''
-                        }`}
-                        onClick={() => router.push(`/chat/${conv.id}`)}
-                      >
-                        {/* Node on the line */}
-                        <div className={`absolute left-3.5 top-5 w-3 h-3 rounded-full border-2 transition-all ${
-                          currentConversation?.id === conv.id 
-                            ? 'bg-white border-white' 
-                            : 'bg-black border-white/40 group-hover:border-white group-hover:bg-white/20'
-                        }`}></div>
-                        
-                        {/* Horizontal line to content */}
-                        <div className="absolute left-6 top-6 w-4 h-px bg-white/20"></div>
+                    {filteredConversations.map((conv, index) => {
+                      const isSelected = conversationId === conv.id;
+                      const selectedIndex = filteredConversations.findIndex(c => c.id === conversationId);
+                      const isBeforeSelected = selectedIndex >= 0 && index < selectedIndex;
+                      
+                      return (
+                        <div
+                          key={conv.id}
+                          className={`relative pl-10 pr-3 py-3 hover:bg-white/5 transition-colors group cursor-pointer`}
+                          onClick={() => router.push(`/chat/${conv.id}`)}
+                        >
+                          {/* Active vertical segment - yellow line for items BEFORE selected */}
+                          {isBeforeSelected && (
+                            <div className="absolute left-5 top-0 w-px h-full bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
+                          )}
+                          
+                          {/* Selected item - curved connection from vertical to horizontal */}
+                          {isSelected && (
+                            <>
+                              {/* Vertical segment coming from above */}
+                              <div className="absolute left-5 top-0 w-px h-6 bg-gradient-to-b from-yellow-400 to-yellow-600"></div>
+                              
+                              {/* Curved corner - creates rounded L shape */}
+                              <svg 
+                                className="absolute left-5 top-6" 
+                                width="20" 
+                                height="12" 
+                                viewBox="0 0 20 12"
+                                style={{ transform: 'translate(-0.5px, -6px)' }}
+                              >
+                                <path
+                                  d="M 0.5 0 Q 0.5 6, 6 6 L 20 6"
+                                  fill="none"
+                                  stroke="url(#yellowGradient)"
+                                  strokeWidth="1.5"
+                                />
+                                <defs>
+                                  <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#fbbf24" />
+                                    <stop offset="100%" stopColor="#facc15" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                            </>
+                          )}
+                          
+                          {/* Node on the line */}
+                          <div className={`absolute left-3.5 top-5 w-3 h-3 rounded-full border-2 transition-all z-10 ${
+                            isSelected 
+                              ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 border-yellow-500 shadow-lg shadow-yellow-500/60' 
+                              : 'bg-black border-white/40 group-hover:border-white group-hover:bg-white/20'
+                          }`}></div>
+                          
+                          {/* Horizontal line to content - only gray for non-selected */}
+                          {!isSelected && (
+                            <div className="absolute left-6 top-6 w-4 h-px bg-white/20"></div>
+                          )}
 
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">
-                              {conv.title || conv.topic || 'New conversation'}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-medium text-sm truncate transition-colors ${
+                                isSelected ? 'text-white' : 'text-white/80'
+                              }`}>
+                                {conv.title || conv.topic || 'New conversation'}
+                              </div>
+                              <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-200 rounded">
+                                {new Date(conv.lastActiveAt).toLocaleDateString()}
+                              </span>
                             </div>
-                            <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-200 rounded">
-                              {new Date(conv.lastActiveAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div
-                            onClick={(e) => handleDeleteConversation(conv.id, e)}
-                            className="p-1.5 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 size={14} className="text-red-400" />
+                            <div
+                              onClick={(e) => handleDeleteConversation(conv.id, e)}
+                              className="p-1.5 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} className="text-red-400" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

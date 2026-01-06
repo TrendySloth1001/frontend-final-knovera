@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import TopNav from '@/components/TopNav';
+import { ArrowLeft, Sparkles, Save, RotateCcw, MessageSquare, Hash, AlignLeft } from 'lucide-react';
+
+const API_BASE_URL = 'http://localhost:3001';
 
 interface AISettings {
   baseTone: string;
@@ -25,7 +27,7 @@ interface UserContext {
 }
 
 export default function AIPreferencesPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   
   const [settings, setSettings] = useState<AISettings>({
@@ -52,68 +54,84 @@ export default function AIPreferencesPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
+    // Wait for auth to finish loading before checking user
+    if (authLoading) {
+      return;
+    }
+    
     if (!user) {
       router.push('/login');
       return;
     }
-
     loadSettings();
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   const loadSettings = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      // Load AI settings
-      const settingsRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/ai-settings`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (settingsRes.ok) {
-        const data = await settingsRes.json();
-        setSettings({
-          baseTone: data.baseTone,
-          warmth: data.warmth,
-          enthusiasm: data.enthusiasm,
-          emojiUsage: data.emojiUsage,
-          useHeaders: data.useHeaders,
-          responseLength: data.responseLength,
-          customInstructions: data.customInstructions,
-          profileEnabled: data.profileEnabled,
-        });
+      if (!token) {
+        setMessage({ type: 'error', text: 'No authentication token found. Please log in again.' });
+        router.push('/login');
+        return;
       }
 
-      // Load user context
-      const contextRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/context`, {
+      const settingsRes = await fetch(`${API_BASE_URL}/api/users/${user?.user.id}/ai-settings`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
+      if (settingsRes.status === 401) {
+        setMessage({ type: 'error', text: 'Session expired. Please log in again.' });
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+
+      if (settingsRes.ok) {
+        const result = await settingsRes.json();
+        if (result.success && result.data) {
+          setSettings(result.data);
+        }
+      }
+
+      const contextRes = await fetch(`${API_BASE_URL}/api/users/${user?.user.id}/context`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (contextRes.status === 401) {
+        setMessage({ type: 'error', text: 'Session expired. Please log in again.' });
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+
       if (contextRes.ok) {
-        const data = await contextRes.json();
-        setUserContext({
-          learningGoals: data.learningGoals || null,
-          weakSubjects: data.weakSubjects || [],
-          strongSubjects: data.strongSubjects || [],
-          preferredExamples: data.preferredExamples || null,
-          interests: data.interests || null,
-        });
+        const result = await contextRes.json();
+        if (result.success && result.data) {
+          setUserContext(result.data);
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
-      setMessage({ type: 'error', text: 'Failed to load settings' });
+      setMessage({ type: 'error', text: 'Failed to load settings. Make sure the server is running.' });
     } finally {
       setLoading(false);
     }
   };
 
-  const saveSettings = async () => {
+  const handleSave = async () => {
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
 
-      // Save AI settings
-      const settingsRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/ai-settings`, {
+      if (!token) {
+        setMessage({ type: 'error', text: 'No authentication token found. Please log in again.' });
+        router.push('/login');
+        return;
+      }
+
+      const settingsRes = await fetch(`${API_BASE_URL}/api/users/${user?.user.id}/ai-settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -122,13 +140,15 @@ export default function AIPreferencesPage() {
         body: JSON.stringify(settings),
       });
 
-      if (!settingsRes.ok) {
-        throw new Error('Failed to save AI settings');
+      if (settingsRes.status === 401) {
+        setMessage({ type: 'error', text: 'Session expired. Please log in again.' });
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
       }
 
-      // Save user context if profile is enabled
       if (settings.profileEnabled) {
-        const contextRes = await fetch(`http://localhost:5001/api/users/${user?.user.id}/context`, {
+        const contextRes = await fetch(`${API_BASE_URL}/api/users/${user?.user.id}/context`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -137,322 +157,342 @@ export default function AIPreferencesPage() {
           body: JSON.stringify(userContext),
         });
 
-        if (!contextRes.ok) {
-          throw new Error('Failed to save user context');
+        if (contextRes.status === 401) {
+          setMessage({ type: 'error', text: 'Session expired. Please log in again.' });
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
         }
       }
 
-      setMessage({ type: 'success', text: 'Settings saved successfully! ✓' });
-      setTimeout(() => setMessage(null), 3000);
+      if (settingsRes.ok) {
+        setMessage({ type: 'success', text: 'Settings saved successfully!' });
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        const errorData = await settingsRes.json();
+        setMessage({ type: 'error', text: errorData.error?.message || 'Failed to save settings' });
+      }
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      console.error('Save error:', error);
       setMessage({ type: 'error', text: 'Failed to save settings' });
     } finally {
       setSaving(false);
     }
   };
 
-  const resetToDefaults = async () => {
-    if (!confirm('Reset all AI preferences to defaults?')) return;
-
+  const handleReset = async () => {
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
 
-      const res = await fetch(`http://localhost:5001/api/users/${user?.user.id}/ai-settings/reset`, {
+      if (!token) {
+        setMessage({ type: 'error', text: 'No authentication token found. Please log in again.' });
+        router.push('/login');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/users/${user?.user.id}/ai-settings/reset`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error('Failed to reset settings');
+      if (res.status === 401) {
+        setMessage({ type: 'error', text: 'Session expired. Please log in again.' });
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
 
-      const data = await res.json();
-      setSettings({
-        baseTone: data.baseTone,
-        warmth: data.warmth,
-        enthusiasm: data.enthusiasm,
-        emojiUsage: data.emojiUsage,
-        useHeaders: data.useHeaders,
-        responseLength: data.responseLength,
-        customInstructions: data.customInstructions,
-        profileEnabled: data.profileEnabled,
-      });
-
-      setMessage({ type: 'success', text: 'Settings reset to defaults' });
-      setTimeout(() => setMessage(null), 3000);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          setSettings(result.data);
+        }
+        setMessage({ type: 'success', text: 'Settings reset to defaults' });
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        const errorData = await res.json();
+        setMessage({ type: 'error', text: errorData.error?.message || 'Failed to reset settings' });
+      }
     } catch (error) {
-      console.error('Failed to reset settings:', error);
+      console.error('Reset error:', error);
       setMessage({ type: 'error', text: 'Failed to reset settings' });
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-        <TopNav />
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-gray-500">Loading settings...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">
+          {authLoading ? 'Authenticating...' : 'Loading preferences...'}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      <TopNav />
-      
-      <div className="max-w-4xl mx-auto px-4 py-8 mt-16">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">AI Preferences</h1>
-          <p className="text-gray-600 mt-2">Customize how Kai interacts with you</p>
+    <div className="min-h-screen bg-black">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 z-10 h-16 bg-black/80 backdrop-blur-xl border-b border-white/10">
+        <div className="max-w-5xl mx-auto h-full px-6 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => router.back()}
+              className="p-2 -ml-2 text-white/60 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex items-center gap-3">
+              <Sparkles size={20} className="text-purple-400" />
+              <h1 className="text-xl font-semibold text-white">AI Preferences</h1>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleReset}
+              disabled={saving}
+              className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2 border border-white/10"
+            >
+              <RotateCcw size={16} />
+              Reset
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <Save size={16} />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
+      </div>
 
-        {message && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+      {/* Notification */}
+      {message && (
+        <div className="fixed top-20 right-6 z-50">
+          <div className={`px-4 py-3 rounded-lg border ${
+            message.type === 'success' 
+              ? 'bg-green-500/10 border-green-500/20 text-green-400' 
+              : 'bg-red-500/10 border-red-500/20 text-red-400'
           }`}>
             {message.text}
           </div>
-        )}
+        </div>
+      )}
 
-        <div className="space-y-6">
-          {/* Base Tone */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">Base Style & Tone</h2>
+      {/* Main Content */}
+      <div className="pt-16">
+        <div className="max-w-5xl mx-auto px-6 py-12">
+          <div className="max-w-3xl space-y-8">
             
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Conversation Tone
-              </label>
-              <select
-                value={settings.baseTone}
-                onChange={(e) => setSettings({ ...settings, baseTone: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="formal">Formal - Professional and academic</option>
-                <option value="friendly">Friendly - Warm and approachable</option>
-                <option value="casual">Casual - Relaxed like chatting with a friend</option>
-                <option value="professional">Professional - Clear and precise</option>
-                <option value="encouraging">Encouraging - Supportive and motivating</option>
-              </select>
+            {/* Tone & Style */}
+            <div className="p-6 rounded-xl border border-white/10 bg-white/5">
+              <div className="flex items-center gap-3 mb-6">
+                <MessageSquare size={20} className="text-purple-400" />
+                <h2 className="text-lg font-semibold text-white">Tone & Style</h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Base Tone */}
+                <div>
+                  <label className="block text-sm text-white/60 mb-3">Base Tone</label>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    {['formal', 'friendly', 'casual', 'professional', 'encouraging'].map((tone) => (
+                      <button
+                        key={tone}
+                        onClick={() => setSettings({ ...settings, baseTone: tone })}
+                        className={`px-4 py-2 rounded-lg border text-sm capitalize transition-all ${
+                          settings.baseTone === tone
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-400'
+                            : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {tone}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Warmth */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm text-white/60">Warmth</label>
+                    <span className="text-sm text-white font-medium">{settings.warmth}/10</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={settings.warmth}
+                    onChange={(e) => setSettings({ ...settings, warmth: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500"
+                  />
+                  <div className="flex justify-between mt-2 text-xs text-white/40">
+                    <span>Concise</span>
+                    <span>Empathetic</span>
+                  </div>
+                </div>
+
+                {/* Enthusiasm */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm text-white/60">Enthusiasm</label>
+                    <span className="text-sm text-white font-medium">{settings.enthusiasm}/10</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={settings.enthusiasm}
+                    onChange={(e) => setSettings({ ...settings, enthusiasm: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500"
+                  />
+                  <div className="flex justify-between mt-2 text-xs text-white/40">
+                    <span>Calm</span>
+                    <span>Energetic</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Warmth: {settings.warmth}/10
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                value={settings.warmth}
-                onChange={(e) => setSettings({ ...settings, warmth: parseInt(e.target.value) })}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+            {/* Formatting */}
+            <div className="p-6 rounded-xl border border-white/10 bg-white/5">
+              <div className="flex items-center gap-3 mb-6">
+                <Hash size={20} className="text-purple-400" />
+                <h2 className="text-lg font-semibold text-white">Formatting</h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Emoji Usage */}
+                <div>
+                  <label className="block text-sm text-white/60 mb-3">Emoji Usage</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'none', label: 'None', icon: '🚫' },
+                      { value: 'occasional', label: 'Occasional', icon: '😊' },
+                      { value: 'frequent', label: 'Frequent', icon: '🎉' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setSettings({ ...settings, emojiUsage: option.value })}
+                        className={`px-4 py-3 rounded-lg border text-sm transition-all ${
+                          settings.emojiUsage === option.value
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-400'
+                            : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{option.icon}</div>
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Response Length */}
+                <div>
+                  <label className="block text-sm text-white/60 mb-3">Response Length</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['concise', 'balanced', 'detailed'].map((length) => (
+                      <button
+                        key={length}
+                        onClick={() => setSettings({ ...settings, responseLength: length })}
+                        className={`px-4 py-2 rounded-lg border text-sm capitalize transition-all ${
+                          settings.responseLength === length
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-400'
+                            : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {length}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Use Headers */}
+                <div className="flex items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5">
+                  <div>
+                    <div className="text-white font-medium mb-1">Use Headers & Lists</div>
+                    <div className="text-sm text-white/60">Organize responses with markdown formatting</div>
+                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, useHeaders: !settings.useHeaders })}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      settings.useHeaders ? 'bg-purple-600' : 'bg-white/20'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                      settings.useHeaders ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Instructions */}
+            <div className="p-6 rounded-xl border border-white/10 bg-white/5">
+              <div className="flex items-center gap-3 mb-6">
+                <AlignLeft size={20} className="text-purple-400" />
+                <h2 className="text-lg font-semibold text-white">Custom Instructions</h2>
+              </div>
+
+              <textarea
+                value={settings.customInstructions || ''}
+                onChange={(e) => setSettings({ ...settings, customInstructions: e.target.value })}
+                placeholder="Add any specific instructions for the AI (e.g., 'Always provide real-world examples' or 'Explain concepts using analogies')"
+                className="w-full h-32 px-4 py-3 bg-black/50 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500/50 resize-none"
               />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Concise</span>
-                <span>Caring & Empathetic</span>
+            </div>
+
+            {/* Profile Connection */}
+            <div className="p-6 rounded-xl border border-white/10 bg-white/5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-white font-medium mb-1">Connect Learning Profile</div>
+                  <div className="text-sm text-white/60">Use your learning goals and preferences in AI responses</div>
+                </div>
+                <button
+                  onClick={() => setSettings({ ...settings, profileEnabled: !settings.profileEnabled })}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    settings.profileEnabled ? 'bg-purple-600' : 'bg-white/20'
+                  }`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    settings.profileEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </button>
               </div>
-            </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Enthusiasm: {settings.enthusiasm}/10
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                value={settings.enthusiasm}
-                onChange={(e) => setSettings({ ...settings, enthusiasm: parseInt(e.target.value) })}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Calm & Measured</span>
-                <span>Excited & Energetic!</span>
-              </div>
-            </div>
-          </div>
+              {settings.profileEnabled && (
+                <div className="mt-6 pt-6 border-t border-white/10 space-y-4">
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">Learning Goals</label>
+                    <input
+                      type="text"
+                      value={userContext.learningGoals || ''}
+                      onChange={(e) => setUserContext({ ...userContext, learningGoals: e.target.value })}
+                      placeholder="e.g., Master calculus, Improve problem-solving"
+                      className="w-full px-4 py-2 bg-black/50 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
 
-          {/* Characteristics */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">Characteristics</h2>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Emoji Usage
-              </label>
-              <select
-                value={settings.emojiUsage}
-                onChange={(e) => setSettings({ ...settings, emojiUsage: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="none">None - No emojis</option>
-                <option value="occasional">Occasional - 1-2 emojis when appropriate</option>
-                <option value="frequent">Frequent - 2-4 emojis for personality</option>
-              </select>
-            </div>
-
-            <div className="mb-6">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={settings.useHeaders}
-                  onChange={(e) => setSettings({ ...settings, useHeaders: e.target.checked })}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">
-                  Use Headers & Lists - Organize long responses with markdown
-                </span>
-              </label>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Response Length
-              </label>
-              <select
-                value={settings.responseLength}
-                onChange={(e) => setSettings({ ...settings, responseLength: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="concise">Concise - Brief and focused (2-3 sentences)</option>
-                <option value="balanced">Balanced - Thorough but focused</option>
-                <option value="detailed">Detailed - Comprehensive with examples</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Custom Instructions */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">Custom Instructions</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Add any specific preferences or instructions for how Kai should respond to you
-            </p>
-            <textarea
-              value={settings.customInstructions || ''}
-              onChange={(e) => setSettings({ ...settings, customInstructions: e.target.value || null })}
-              placeholder="e.g., Always explain concepts with real-world examples, avoid complex jargon..."
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-            />
-          </div>
-
-          {/* Profile Connection */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">Learning Profile</h2>
-            
-            <div className="mb-6">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={settings.profileEnabled}
-                  onChange={(e) => setSettings({ ...settings, profileEnabled: e.target.checked })}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                />
-                <span className="ml-2 text-sm font-medium text-gray-700">
-                  Enable profile connection - Let Kai remember your learning context
-                </span>
-              </label>
-              <p className="text-xs text-gray-500 mt-1 ml-6">
-                When enabled, Kai will use your learning goals and subject preferences to personalize responses
-              </p>
-            </div>
-
-            {settings.profileEnabled && (
-              <div className="space-y-4 mt-6 pt-6 border-t border-gray-200">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Learning Goals
-                  </label>
-                  <textarea
-                    value={userContext.learningGoals || ''}
-                    onChange={(e) => setUserContext({ ...userContext, learningGoals: e.target.value || null })}
-                    placeholder="e.g., Master calculus for engineering entrance exams"
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  />
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">Interests</label>
+                    <input
+                      type="text"
+                      value={userContext.interests || ''}
+                      onChange={(e) => setUserContext({ ...userContext, interests: e.target.value })}
+                      placeholder="e.g., Physics, Computer Science, History"
+                      className="w-full px-4 py-2 bg-black/50 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
                 </div>
+              )}
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Strong Subjects (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={userContext.strongSubjects.join(', ')}
-                    onChange={(e) => setUserContext({ 
-                      ...userContext, 
-                      strongSubjects: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
-                    })}
-                    placeholder="e.g., Physics, Chemistry"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subjects Needing Help (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={userContext.weakSubjects.join(', ')}
-                    onChange={(e) => setUserContext({ 
-                      ...userContext, 
-                      weakSubjects: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
-                    })}
-                    placeholder="e.g., Mathematics, Biology"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred Example Types
-                  </label>
-                  <input
-                    type="text"
-                    value={userContext.preferredExamples || ''}
-                    onChange={(e) => setUserContext({ ...userContext, preferredExamples: e.target.value || null })}
-                    placeholder="e.g., Real-world applications, Visual diagrams"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Interests & Context
-                  </label>
-                  <textarea
-                    value={userContext.interests || ''}
-                    onChange={(e) => setUserContext({ ...userContext, interests: e.target.value || null })}
-                    placeholder="e.g., Interested in space exploration, loves cricket"
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4">
-            <button
-              onClick={saveSettings}
-              disabled={saving}
-              className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {saving ? 'Saving...' : 'Save Preferences'}
-            </button>
-            <button
-              onClick={resetToDefaults}
-              disabled={saving}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Reset to Defaults
-            </button>
           </div>
         </div>
       </div>
