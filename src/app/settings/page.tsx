@@ -8,7 +8,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, AlertTriangle, Trash2, User, Mail, Shield, Calendar } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Sparkles, ChevronRight } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Notification from '@/components/Notification';
 import { apiClient } from '@/lib/api';
@@ -89,81 +89,58 @@ export default function SettingsPage() {
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="max-w-2xl">
             
-            {/* Profile Section */}
+            {/* Profile Header - Compact */}
             <section className="mb-12">
-              <h2 className="text-sm font-medium text-white/40 uppercase tracking-wider mb-6">Profile</h2>
+              <div className="flex items-center gap-4 p-6 rounded-xl border border-white/10 bg-white/5">
+                {/* Avatar */}
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-white/10 flex-shrink-0">
+                  {user.user.avatarUrl ? (
+                    <img 
+                      src={user.user.avatarUrl} 
+                      alt={user.user.displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                      <span className="text-xl text-white font-bold">
+                        {user.user.displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Info */}
+                <div className="flex-1">
+                  <div className="text-white font-medium mb-0.5">{user.user.displayName}</div>
+                  <div className="text-white/60 text-sm mb-1">{user.user.email}</div>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs rounded-full border border-blue-500/20">
+                    {user.user.role}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Settings Options */}
+            <section className="mb-12">
+              <h2 className="text-sm font-medium text-white/40 uppercase tracking-wider mb-4">Preferences</h2>
               
-              <div className="space-y-6">
-                {/* Avatar & Name */}
-                <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 rounded-full overflow-hidden border border-white/10 flex-shrink-0 shadow-lg">
-                    {user.user.avatarUrl ? (
-                      <img 
-                        src={user.user.avatarUrl} 
-                        alt={user.user.displayName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                        <span className="text-2xl text-white font-bold">
-                          {user.user.displayName.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-white font-medium mb-1">{user.user.displayName}</div>
-                    <div className="text-white/60 text-sm">{user.user.role}</div>
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div className="border-t border-white/10 pt-6">
-                  <div className="flex items-start justify-between py-3">
-                    <div className="flex items-start gap-3 flex-1">
-                      <Mail size={18} className="text-white/40 mt-0.5" />
-                      <div className="flex-1">
-                        <div className="text-sm text-white/60 mb-1">Email address</div>
-                        <div className="text-white">{user.user.email}</div>
-                      </div>
+              <div className="space-y-2">
+                {/* AI Preferences */}
+                <button
+                  onClick={() => router.push('/settings/ai-preferences')}
+                  className="w-full flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">
+                      <Sparkles size={20} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-white font-medium mb-0.5">AI Preferences</div>
+                      <div className="text-white/60 text-sm">Customize AI personality and behavior</div>
                     </div>
                   </div>
-                </div>
-
-                {/* Account Status */}
-                <div className="border-t border-white/10 pt-6">
-                  <div className="flex items-start justify-between py-3">
-                    <div className="flex items-start gap-3 flex-1">
-                      <Shield size={18} className="text-white/40 mt-0.5" />
-                      <div className="flex-1">
-                        <div className="text-sm text-white/60 mb-1">Account status</div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-white">Active</span>
-                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Member Since */}
-                <div className="border-t border-white/10 pt-6">
-                  <div className="flex items-start justify-between py-3">
-                    <div className="flex items-start gap-3 flex-1">
-                      <Calendar size={18} className="text-white/40 mt-0.5" />
-                      <div className="flex-1">
-                        <div className="text-sm text-white/60 mb-1">Member since</div>
-                        <div className="text-white">
-                          {new Date(user.user.createdAt).toLocaleDateString('en-US', { 
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric' 
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  <ChevronRight size={20} className="text-white/40 group-hover:text-white/60 transition-colors" />
+                </button>
               </div>
             </section>
 
