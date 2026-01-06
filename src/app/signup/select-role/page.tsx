@@ -7,12 +7,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTempToken } from '@/lib/api';
+import { getTempToken, clearTempToken } from '@/lib/api';
 import { decodeToken, isTempToken } from '@/lib/token';
-import { GraduationCap, BookOpen, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { GraduationCap, BookOpen, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export default function SelectRolePage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
@@ -32,6 +34,12 @@ export default function SelectRolePage() {
     setLoading(false);
   }, [router]);
 
+  const handleBackToLogin = async () => {
+    clearTempToken();
+    await refreshUser();
+    router.push('/login');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -42,6 +50,15 @@ export default function SelectRolePage() {
 
   return (
     <div className="max-w-3xl mx-auto mt-16 px-4">
+      {/* Back Button */}
+      <button
+        onClick={handleBackToLogin}
+        className="mb-6 flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+      >
+        <ArrowLeft size={16} />
+        <span className="text-sm">Back to Login</span>
+      </button>
+
       {/* Header */}
       <div className="text-center mb-16">
         <h1 className="text-3xl font-bold mb-3 text-white">Choose Your Role</h1>

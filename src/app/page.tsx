@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
-import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins } from 'lucide-react';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -32,6 +32,7 @@ export default function Home() {
   const [expandedEmbedding, setExpandedEmbedding] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
+  const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -276,8 +277,8 @@ export default function Home() {
       {/* Sidebar - Mobile overlay or desktop fixed */}
       <div className={`
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        ${isSidebarOpen ? 'md:w-80' : 'w-0 md:w-0'}
-        fixed md:relative z-30 h-full w-80
+        ${isSidebarOpen ? 'md:w-64' : 'w-0 md:w-0'}
+        fixed md:relative z-30 h-full w-64
         transition-all duration-300 
         border-r border-white/10 bg-black
         flex flex-col overflow-hidden
@@ -295,20 +296,31 @@ export default function Home() {
 
         {/* Search */}
         <div className="p-3 border-b border-white/10">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-white/40" size={14} />
+          <div className="relative group">
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-white/40 group-focus-within:text-purple-400 transition-colors" size={14} />
             <input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-white/30 transition-colors"
+              className="w-full bg-gradient-to-r from-white/5 to-white/5 hover:from-purple-500/10 hover:to-blue-500/10 border border-white/10 hover:border-white/20 focus:border-purple-500/50 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all duration-200"
             />
           </div>
         </div>
 
+        {/* Syllabus Button */}
+        <div className="p-3 border-b border-white/10">
+          <button
+            onClick={() => router.push('/syllabus')}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20 border border-purple-500/30 rounded-lg transition-all text-sm font-medium"
+          >
+            <BookOpen size={16} className="text-purple-400" />
+            <span>Syllabus</span>
+          </button>
+        </div>
+
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <style jsx>{`
             .scrollbar-hide::-webkit-scrollbar {
               display: none;
@@ -318,40 +330,67 @@ export default function Home() {
               scrollbar-width: none;
             }
           `}</style>
-          {filteredConversations.length === 0 ? (
-            <div className="p-8 text-center text-white/40 text-sm">
-              {searchQuery ? 'No conversations found' : 'No conversations yet'}
-            </div>
-          ) : (
-            filteredConversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`w-full p-4 hover:bg-white/5 transition-colors border-b border-white/5 flex items-start gap-3 group ${
-                  currentConversation?.id === conv.id ? 'bg-white/10' : ''
-                }`}
+          
+          {/* Conversations Container - Styled like Syllabus */}
+          <div className="p-3">
+            <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg overflow-hidden">
+              {/* Section Header */}
+              <button
+                onClick={() => setIsConversationsExpanded(!isConversationsExpanded)}
+                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
               >
-                <MessageSquare size={18} className="text-white/60 flex-shrink-0 mt-1" />
-                <div
-                  onClick={() => setCurrentConversation(conv)}
-                  className="flex-1 min-w-0 cursor-pointer"
-                >
-                  <div className="font-medium text-sm truncate">
-                    {conv.title || conv.topic || 'New conversation'}
-                  </div>
-                  <div className="text-xs text-white/40 mt-1">
-                    {new Date(conv.lastActiveAt).toLocaleDateString()}
-                  </div>
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={16} className="text-purple-400" />
+                  <span className="text-sm font-medium">Conversations</span>
+                  <span className="text-xs text-white/40">({filteredConversations.length})</span>
                 </div>
-                <div
-                  onClick={(e) => handleDeleteConversation(conv.id, e)}
-                  className="p-1 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                  title="Delete"
-                >
-                  <Trash2 size={14} className="text-red-400" />
-                </div>
+                <ChevronDown 
+                  size={16} 
+                  className={`text-purple-400 transition-transform duration-200 ${
+                    isConversationsExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Collapsible Content */}
+              <div className={`${
+                isConversationsExpanded ? 'max-h-[calc(100vh-300px)]' : 'max-h-0'
+              } overflow-y-auto scrollbar-hide transition-all duration-200`}>
+            {filteredConversations.length === 0 ? (
+              <div className="p-8 text-center text-white/40 text-sm">
+                {searchQuery ? 'No conversations found' : 'No conversations yet'}
               </div>
-            ))
-          )}
+            ) : (
+              filteredConversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`w-full p-3 hover:bg-white/10 transition-colors border-t border-white/5 flex items-start gap-2.5 group cursor-pointer ${
+                    currentConversation?.id === conv.id ? 'bg-white/10 border-l-2 border-l-purple-400' : ''
+                  }`}
+                  onClick={() => setCurrentConversation(conv)}
+                >
+                  <MessageSquare size={16} className="text-white/60 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">
+                      {conv.title || conv.topic || 'New conversation'}
+                    </div>
+                    <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-200 rounded">
+                      {new Date(conv.lastActiveAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div
+                    onClick={(e) => handleDeleteConversation(conv.id, e)}
+                    className="p-1.5 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} className="text-red-400" />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+            </div>
+          </div>
         </div>
 
         {/* User Profile & Server Status */}
