@@ -53,6 +53,12 @@ export default function TopNav() {
               <>
                 {isAuthenticated && user?.user ? (
                   <>
+                    <Link
+                      href="/settings/ai-preferences"
+                      className="text-gray-300 hover:text-white transition-colors"
+                    >
+                      AI Settings
+                    </Link>
                     <div className="flex items-center gap-2 text-gray-400">
                       <span>{user.user.displayName}</span>
                       <span className="text-xs px-2 py-1 bg-gray-800 rounded">
@@ -100,6 +106,13 @@ export default function TopNav() {
                       <div className="text-sm">{user.user.email}</div>
                       <div className="text-xs mt-1">Role: {user.user.role}</div>
                     </div>
+                    <Link
+                      href="/settings/ai-preferences"
+                      className="block px-4 py-2 text-white hover:bg-gray-900 transition-colors rounded"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      AI Settings
+                    </Link>
                     <button
                       onClick={() => {
                         logout();
