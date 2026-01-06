@@ -16,6 +16,17 @@ interface MarkdownRendererProps {
 }
 
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
+  // Function to generate slug from heading text
+  const slugify = (text: string): string => {
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\-]+/g, '')
+      .replace(/\-\-+/g, '-');
+  };
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -84,24 +95,30 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         hr({ ...props }) {
           return <hr className="my-6 border-white/20" {...props} />;
         },
-        // Headings
+        // Headings with auto-generated IDs
         h1({ children, ...props }) {
+          const text = children?.toString() || '';
+          const id = slugify(text);
           return (
-            <h1 className="text-2xl font-bold mt-6 mb-3" {...props}>
+            <h1 id={id} className="text-2xl font-bold mt-6 mb-3" {...props}>
               {children}
             </h1>
           );
         },
         h2({ children, ...props }) {
+          const text = children?.toString() || '';
+          const id = slugify(text);
           return (
-            <h2 className="text-xl font-bold mt-5 mb-2" {...props}>
+            <h2 id={id} className="text-xl font-bold mt-5 mb-2" {...props}>
               {children}
             </h2>
           );
         },
         h3({ children, ...props }) {
+          const text = children?.toString() || '';
+          const id = slugify(text);
           return (
-            <h3 className="text-lg font-semibold mt-4 mb-2" {...props}>
+            <h3 id={id} className="text-lg font-semibold mt-4 mb-2" {...props}>
               {children}
             </h3>
           );

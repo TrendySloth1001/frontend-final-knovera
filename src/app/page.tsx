@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
-import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown } from 'lucide-react';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -33,6 +33,7 @@ export default function Home() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
+  const [isHelpExpanded, setIsHelpExpanded] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -407,6 +408,56 @@ export default function Home() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Help Section */}
+        <div className="border-t border-white/10">
+          <div className="p-3">
+            <div className="bg-black border border-white/20 rounded-lg overflow-hidden">
+              {/* Help Header */}
+              <button
+                onClick={() => setIsHelpExpanded(!isHelpExpanded)}
+                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <HelpCircle size={16} className="text-white" />
+                  <span className="text-sm font-medium">Help & Support</span>
+                </div>
+                <ChevronDown 
+                  size={16} 
+                  className={`text-white transition-transform duration-200 ${
+                    isHelpExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Help Options */}
+              <div className={`${
+                isHelpExpanded ? 'max-h-40' : 'max-h-0'
+              } overflow-hidden transition-all duration-200`}>
+                <div className="border-t border-white/10">
+                  <button
+                    onClick={() => router.push('/privacy-policy')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+                  >
+                    <span>Privacy Policy</span>
+                  </button>
+                  <button
+                    onClick={() => router.push('/terms')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/5 transition-colors flex items-center gap-2 border-t border-white/5"
+                  >
+                    <span>Terms of Service</span>
+                  </button>
+                  <button
+                    onClick={() => router.push('/help')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/5 transition-colors flex items-center gap-2 border-t border-white/5"
+                  >
+                    <span>Help Center</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
