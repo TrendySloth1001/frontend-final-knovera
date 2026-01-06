@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -16,7 +16,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useParams();
+  const conversationId = params.conversationId as string;
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
@@ -52,21 +53,34 @@ export default function Home() {
     }
   }, [user]);
 
-  // Redirect to /chat/new on mount
+  // Load conversation from URL parameter
   useEffect(() => {
-    if (!authLoading) {
-      if (isAuthenticated) {
-        router.replace('/chat/new');
-      }
-    }
-  }, [authLoading, isAuthenticated, router]);
+    if (!user?.user?.id) return;
 
-  // Load messages when conversation changes
-  useEffect(() => {
-    if (currentConversation?.id) {
-      loadMessages(currentConversation.id);
+    if (conversationId && conversationId !== 'new') {
+      // Only load if it's a different conversation
+      if (currentConversation?.id !== conversationId) {
+        // Try to load conversation directly
+        aiAPI.getConversation(conversationId).then(conv => {
+          setCurrentConversation(conv);
+          // Load messages immediately
+          return aiAPI.getMessages(conversationId);
+        }).then(msgs => {
+          if (msgs) {
+            setMessages(msgs);
+          }
+        }).catch(err => {
+          console.error('Failed to load conversation from URL:', err);
+          // If conversation not found, redirect to new chat
+          router.push('/chat/new');
+        });
+      }
+    } else if (conversationId === 'new') {
+      // Clear current conversation for new chat
+      setCurrentConversation(null);
+      setMessages([]);
     }
-  }, [currentConversation]);
+  }, [conversationId, user?.user?.id]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -346,7 +360,7 @@ export default function Home() {
                     {searchQuery ? 'No conversations found' : 'No conversations yet'}
                   </div>
                 ) : (
-                  <div className="relative">
+                  <div className="relative pb-7">
                     {/* Vertical Line */}
                     <div className="absolute left-5 top-0 bottom-0 w-px bg-white/20"></div>
                     
