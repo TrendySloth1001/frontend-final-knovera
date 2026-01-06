@@ -294,32 +294,18 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="p-3 border-b border-white/10">
-          <div className="relative group">
-            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-white/40 group-focus-within:text-purple-400 transition-colors" size={14} />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gradient-to-r from-white/5 to-white/5 hover:from-purple-500/10 hover:to-blue-500/10 border border-white/10 hover:border-white/20 focus:border-purple-500/50 rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all duration-200"
-            />
-          </div>
-        </div>
-
-        {/* Syllabus Button */}
+        {/* Syllabus Button */
         <div className="p-3 border-b border-white/10">
           <button
             onClick={() => router.push('/syllabus')}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20 border border-purple-500/30 rounded-lg transition-all text-sm font-medium"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-black hover:bg-white/5 border border-white/20 rounded-lg transition-all text-sm font-medium"
           >
-            <BookOpen size={16} className="text-purple-400" />
+            <BookOpen size={16} className="text-white" />
             <span>Syllabus</span>
           </button>
         </div>
 
-        {/* Conversation List */}
+        }{/* Conversation List */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <style jsx>{`
             .scrollbar-hide::-webkit-scrollbar {
@@ -333,20 +319,20 @@ export default function Home() {
           
           {/* Conversations Container - Styled like Syllabus */}
           <div className="p-3">
-            <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg overflow-hidden">
+            <div className="bg-black border border-white/20 rounded-lg overflow-hidden">
               {/* Section Header */}
               <button
                 onClick={() => setIsConversationsExpanded(!isConversationsExpanded)}
                 className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <MessageSquare size={16} className="text-purple-400" />
+                  <MessageSquare size={16} className="text-white" />
                   <span className="text-sm font-medium">Conversations</span>
                   <span className="text-xs text-white/40">({filteredConversations.length})</span>
                 </div>
                 <ChevronDown 
                   size={16} 
-                  className={`text-purple-400 transition-transform duration-200 ${
+                  className={`text-white transition-transform duration-200 ${
                     isConversationsExpanded ? 'rotate-180' : ''
                   }`}
                 />
@@ -356,65 +342,108 @@ export default function Home() {
               <div className={`${
                 isConversationsExpanded ? 'max-h-[calc(100vh-300px)]' : 'max-h-0'
               } overflow-y-auto scrollbar-hide transition-all duration-200`}>
-            {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-white/40 text-sm">
-                {searchQuery ? 'No conversations found' : 'No conversations yet'}
-              </div>
-            ) : (
-              filteredConversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  className={`w-full p-3 hover:bg-white/10 transition-colors border-t border-white/5 flex items-start gap-2.5 group cursor-pointer ${
-                    currentConversation?.id === conv.id ? 'bg-white/10 border-l-2 border-l-purple-400' : ''
-                  }`}
-                  onClick={() => setCurrentConversation(conv)}
-                >
-                  <MessageSquare size={16} className="text-white/60 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">
-                      {conv.title || conv.topic || 'New conversation'}
+                {/* Search Inside Conversations */}
+                {isConversationsExpanded && (
+                  <div className="p-3 border-t border-white/10">
+                    <div className="relative group">
+                      <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" size={14} />
+                      <input
+                        type="text"
+                        placeholder="Search conversations..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-black border border-white/20 hover:border-white/30 focus:border-white/40 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none transition-all duration-200"
+                      />
                     </div>
-                    <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-200 rounded">
-                      {new Date(conv.lastActiveAt).toLocaleDateString()}
-                    </span>
                   </div>
-                  <div
-                    onClick={(e) => handleDeleteConversation(conv.id, e)}
-                    className="p-1.5 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all"
-                    title="Delete"
-                  >
-                    <Trash2 size={14} className="text-red-400" />
+                )}
+
+                {/* Conversations Timeline */}
+                {filteredConversations.length === 0 ? (
+                  <div className="p-8 text-center text-white/40 text-sm">
+                    {searchQuery ? 'No conversations found' : 'No conversations yet'}
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                ) : (
+                  <div className="relative">
+                    {/* Vertical Line */}
+                    <div className="absolute left-5 top-0 bottom-0 w-px bg-white/20"></div>
+                    
+                    {filteredConversations.map((conv, index) => (
+                      <div
+                        key={conv.id}
+                        className={`relative pl-10 pr-3 py-3 hover:bg-white/5 transition-colors group cursor-pointer ${
+                          currentConversation?.id === conv.id ? 'bg-white/10' : ''
+                        }`}
+                        onClick={() => setCurrentConversation(conv)}
+                      >
+                        {/* Node on the line */}
+                        <div className={`absolute left-3.5 top-5 w-3 h-3 rounded-full border-2 transition-all ${
+                          currentConversation?.id === conv.id 
+                            ? 'bg-white border-white' 
+                            : 'bg-black border-white/40 group-hover:border-white group-hover:bg-white/20'
+                        }`}></div>
+                        
+                        {/* Horizontal line to content */}
+                        <div className="absolute left-6 top-6 w-4 h-px bg-white/20"></div>
+
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">
+                              {conv.title || conv.topic || 'New conversation'}
+                            </div>
+                            <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-200 rounded">
+                              {new Date(conv.lastActiveAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div
+                            onClick={(e) => handleDeleteConversation(conv.id, e)}
+                            className="p-1.5 hover:bg-red-500/20 rounded opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} className="text-red-400" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* User Profile & Server Status */}
+        {/* User Profile */}
         <div className="border-t border-white/10 relative">
           {user && (
-            <div className="p-3">
-              <div
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2 mb-2 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
-                  {user.user.avatarUrl ? (
-                    <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-xs text-white font-semibold">
-                        {user.user.displayName.charAt(0).toUpperCase()}
-                      </span>
+            <div className="p-2">
+              {/* Profile Card */}
+              <div className="bg-black border border-white/20 rounded-lg p-2">
+                <div
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                    {user.user.avatarUrl ? (
+                      <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-xs text-white font-semibold">
+                          {user.user.displayName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-xs font-medium text-white truncate leading-none">{user.user.displayName}</div>
+                      {/* Role Badge */}
+                      <div className="bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 p-[1px] rounded flex-shrink-0">
+                        <div className="bg-black px-1.5 py-[3px] rounded flex items-center justify-center">
+                          <span className="text-[9px] text-white font-bold leading-none">{user.user.role.charAt(0)}</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-white truncate">{user.user.displayName}</div>
-                  <div className="text-xs text-white/40">{user.user.role}</div>
+                  </div>
                 </div>
               </div>
               
@@ -435,18 +464,6 @@ export default function Home() {
                     onClick={() => {
                       router.push('/settings');
                       setShowProfileMenu(false);
-                  <><div className="h-px bg-white/10"></div><button
-                        onClick={() => {
-                          handleLogout();
-                          setShowProfileMenu(false);
-                        } }
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        Logout
-                      </button></>
                     }}
                     className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors flex items-center gap-2"
                   >
@@ -471,12 +488,6 @@ export default function Home() {
                   </button>
                 </div>
               )}
-              
-              <div className="h-px bg-white/10 mb-2"></div>
-              <div className="flex items-center gap-2 text-xs px-2">
-                <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-white/60">Server {serverStatus}</span>
-              </div>
             </div>
           )}
         </div>
@@ -691,47 +702,50 @@ export default function Home() {
 
         {/* Input Area */}
         <div className="border-t border-white/10 p-2 md:p-3 safe-area-bottom">
-          <div className="w-full px-2 md:px-4 lg:px-8">
-            <div className="flex gap-2 items-end">
+          <div className="w-full max-w-4xl mx-auto px-2 md:px-4">
+            <div className="relative flex items-center">
+              {/* Search Icon - Inside Left */}
               <button
                 onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${
+                className={`absolute left-3 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
                   webSearchEnabled 
                     ? 'bg-white text-black hover:bg-white/90' 
                     : 'bg-white/5 text-white hover:bg-white/10'
                 }`}
                 title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
               >
-                <Search size={16} />
+                <Search size={14} />
               </button>
-              <div className="flex-1 relative">
-                <textarea
-                  ref={inputRef}
-                  value={inputMessage}
-                  onChange={(e) => {
-                    setInputMessage(e.target.value);
-                    // Auto-resize textarea
-                    if (inputRef.current) {
-                      inputRef.current.style.height = '38px';
-                      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
-                    }
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your message..."
-                  rows={1}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-white/30 transition-colors scrollbar-hide"
-                  style={{ minHeight: '38px', maxHeight: '120px', overflow: 'hidden' }}
-                />
-              </div>
+              
+              {/* Input Field */}
+              <textarea
+                ref={inputRef}
+                value={inputMessage}
+                onChange={(e) => {
+                  setInputMessage(e.target.value);
+                  // Auto-resize textarea
+                  if (inputRef.current) {
+                    inputRef.current.style.height = '38px';
+                    inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+                  }
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your message..."
+                rows={1}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-12 py-2 text-sm resize-none focus:outline-none focus:border-white/30 transition-colors scrollbar-hide"
+                style={{ minHeight: '38px', maxHeight: '120px', overflow: 'hidden' }}
+              />
+              
+              {/* Send Button - Inside Right */}
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="w-9 h-9 bg-white text-black rounded-full flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                className="absolute right-3 z-10 w-7 h-7 bg-white text-black rounded-full flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
-                  <Loader2 className="animate-spin" size={16} />
+                  <Loader2 className="animate-spin" size={14} />
                 ) : (
-                  <Send size={16} />
+                  <Send size={14} />
                 )}
               </button>
             </div>

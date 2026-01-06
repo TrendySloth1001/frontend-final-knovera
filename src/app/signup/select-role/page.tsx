@@ -72,21 +72,21 @@ export default function SelectRolePage() {
         {/* Teacher Card */}
         <button
           onClick={() => router.push('/signup/teacher')}
-          className="w-full bg-black border border-white/10 rounded-xl p-6 hover:border-white/30 transition-all group text-left"
+          className="w-full bg-black border border-white/20 rounded-lg p-4 hover:border-white/30 transition-all group text-left"
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center">
-                <GraduationCap size={24} className="text-white" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center">
+                <GraduationCap size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white mb-1">Teacher</h2>
-                <p className="text-sm text-white/60">
+                <h2 className="text-lg font-semibold text-white mb-0.5">Teacher</h2>
+                <p className="text-xs text-white/60">
                   Create content, manage students, and track progress
                 </p>
               </div>
             </div>
-            <ArrowRight className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" size={20} />
+            <ArrowRight className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" size={18} />
           </div>
         </button>
 
@@ -103,21 +103,21 @@ export default function SelectRolePage() {
         {/* Student Card */}
         <button
           onClick={() => router.push('/signup/student')}
-          className="w-full bg-black border border-white/10 rounded-xl p-6 hover:border-white/30 transition-all group text-left"
+          className="w-full bg-black border border-white/20 rounded-lg p-4 hover:border-white/30 transition-all group text-left"
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center">
-                <BookOpen size={24} className="text-white" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center">
+                <BookOpen size={20} className="text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white mb-1">Student</h2>
-                <p className="text-sm text-white/60">
+                <h2 className="text-lg font-semibold text-white mb-0.5">Student</h2>
+                <p className="text-xs text-white/60">
                   Access learning materials and track your progress
                 </p>
               </div>
             </div>
-            <ArrowRight className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" size={20} />
+            <ArrowRight className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all" size={18} />
           </div>
         </button>
       </div>
