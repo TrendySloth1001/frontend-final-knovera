@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
-import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle } from 'lucide-react';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import ThinkingBlock from '@/components/ThinkingBlock';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
@@ -29,7 +29,6 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Open by default
   const [searchQuery, setSearchQuery] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState('');
   const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [expandedEmbedding, setExpandedEmbedding] = useState<string | null>(null);
@@ -38,6 +37,7 @@ export default function Home() {
   const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   
   // Load selected model from localStorage on mount
   useEffect(() => {
@@ -47,6 +47,9 @@ export default function Home() {
       setSelectedModel(savedModel);
     }
   }, []);
+  
+  // Calculate total tokens used in conversation
+  const totalTokens = messages.reduce((sum, msg) => sum + (msg.tokensUsed || 0), 0);
   
   // Log when model changes and save to localStorage
   const handleModelChange = (model: string) => {
@@ -247,7 +250,7 @@ export default function Home() {
       let currentIndex = 0;
       const streamInterval = setInterval(() => {
         if (currentIndex < fullResponse.length) {
-          const chunkSize = Math.min(5, fullResponse.length - currentIndex);
+          const chunkSize = Math.min(3, fullResponse.length - currentIndex);
           currentIndex += chunkSize;
           const partialText = fullResponse.substring(0, currentIndex);
           
@@ -267,7 +270,7 @@ export default function Home() {
           // Reload messages from server to get full data including embeddings
           loadMessages(response.conversationId);
         }
-      }, 30);
+      }, 50);
 
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -310,7 +313,7 @@ export default function Home() {
       {/* Sidebar - Mobile overlay or desktop fixed */}
       <div className={`
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        ${isSidebarOpen ? 'w-64' : 'w-0'}
+        ${isSidebarOpen ? 'w-80' : 'w-0'}
         fixed md:relative z-30 h-full
         transition-all duration-300 
         ${isSidebarOpen ? 'border-r border-white/10' : 'border-0'}
@@ -640,6 +643,15 @@ export default function Home() {
             <Menu size={18} />
           </button>
           <div className="flex-1"></div>
+          
+          {/* Total Token Count */}
+          {messages.length > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-xs font-medium">
+              <Coins className="w-3.5 h-3.5" />
+              <span>{totalTokens.toLocaleString()}</span>
+            </div>
+          )}
+          
           {/* Model Selector */}
           <ModelSelector 
             selectedModel={selectedModel}
@@ -745,6 +757,28 @@ export default function Home() {
                                 </div>
                               </div>
                             )}
+                            
+                            {/* Copy button */}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(msg.content);
+                                  setCopiedMessageId(msg.id);
+                                  setTimeout(() => setCopiedMessageId(null), 2000);
+                                } catch (err) {
+                                  console.error('Failed to copy:', err);
+                                }
+                              }}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/30 text-green-300 hover:bg-green-500/20 transition-colors"
+                              title="Copy message"
+                            >
+                              {copiedMessageId === msg.id ? (
+                                <Check className="w-3.5 h-3.5" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                              <span className="font-medium">{copiedMessageId === msg.id ? 'copied' : 'copy'}</span>
+                            </button>
                             
                             {/* Vector visualization button */}
                             {msg.embedding && (

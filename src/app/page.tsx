@@ -27,13 +27,13 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
-  const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [expandedEmbedding, setExpandedEmbedding] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
+  //const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);

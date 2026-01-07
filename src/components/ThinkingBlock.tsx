@@ -17,6 +17,25 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
   const lines = thinking.split('\n').filter(line => line.trim());
   const preview = lines[0] || '';
 
+  // Parse thinking into parent/child structure
+  const parseThinking = () => {
+    const items: Array<{ text: string; isChild: boolean }> = [];
+    
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      const isNumberedStep = /^Step \d+:/i.test(trimmed);
+      
+      items.push({ 
+        text: trimmed, 
+        isChild: isNumberedStep 
+      });
+    });
+
+    return items;
+  };
+
+  const thinkingItems = parseThinking();
+
   return (
     <div className="mb-3 md:mb-4 rounded-lg md:rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-blue-500/5 overflow-hidden max-w-full">
       {/* Header */}
@@ -45,19 +64,29 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
             
             {/* Timeline steps */}
             <div className="space-y-4 md:space-y-5">
-              {lines.map((line, index) => (
-                <div key={index} className="relative">
-                  {/* Node/Dot - YELLOW */}
-                  <div className="absolute -left-[29px] md:-left-[37px] top-[2px]">
-                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-400 border-2 border-yellow-500 shadow-md shadow-yellow-500/40"></div>
+              {thinkingItems.map((item, index) => (
+                <div key={index} className={`relative ${item.isChild ? 'ml-5 md:ml-6' : ''}`}>
+                  {/* Node/Dot - YELLOW (smaller for child steps) */}
+                  <div className={`absolute ${item.isChild ? '-left-[34px] md:-left-[42px]' : '-left-[29px] md:-left-[37px]'} top-[2px]`}>
+                    <div className={`${
+                      item.isChild 
+                        ? 'w-2 h-2 md:w-2.5 md:h-2.5 bg-yellow-300 border border-yellow-400' 
+                        : 'w-2.5 h-2.5 md:w-3 md:h-3 bg-yellow-400 border-2 border-yellow-500 shadow-md shadow-yellow-500/40'
+                    } rounded-full`}></div>
                   </div>
                   
                   {/* Horizontal connector line from node to content - YELLOW */}
-                  <div className="absolute -left-6 md:-left-[30px] top-[6px] md:top-[7px] w-4 md:w-5 h-[1.5px] bg-yellow-500/50"></div>
+                  <div className={`absolute ${
+                    item.isChild 
+                      ? '-left-[31px] md:-left-[38px] w-6 md:w-7' 
+                      : '-left-6 md:-left-[30px] w-4 md:w-5'
+                  } top-[6px] md:top-[7px] h-[1.5px] bg-yellow-500/50`}></div>
                   
-                  {/* Step content - PURPLE theme */}
-                  <div className="font-mono text-xs md:text-sm text-purple-200/90 whitespace-pre-wrap break-words leading-relaxed">
-                    {line}
+                  {/* Step content - PURPLE theme (slightly dimmed for child) */}
+                  <div className={`font-mono text-xs md:text-sm ${
+                    item.isChild ? 'text-purple-200/75' : 'text-purple-200/90'
+                  } whitespace-pre-wrap break-words leading-relaxed`}>
+                    {item.text}
                   </div>
                 </div>
               ))}
