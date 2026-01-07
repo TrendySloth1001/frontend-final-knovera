@@ -38,8 +38,30 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
       {/* Content */}
       {isExpanded ? (
         <div className="px-3 py-2 md:px-4 md:py-3 border-t border-purple-500/20 custom-scrollbar">
-          <div className="space-y-1 font-mono text-xs md:text-sm text-purple-200/90 whitespace-pre-wrap break-words">
-            {thinking}
+          {/* Vertical Timeline */}
+          <div className="relative pl-8 md:pl-10">
+            {/* Vertical guide line - YELLOW */}
+            <div className="absolute left-2 md:left-2.5 top-0 bottom-0 w-[2px] bg-yellow-500/60"></div>
+            
+            {/* Timeline steps */}
+            <div className="space-y-4 md:space-y-5">
+              {lines.map((line, index) => (
+                <div key={index} className="relative">
+                  {/* Node/Dot - YELLOW */}
+                  <div className="absolute -left-[29px] md:-left-[37px] top-[2px]">
+                    <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-400 border-2 border-yellow-500 shadow-md shadow-yellow-500/40"></div>
+                  </div>
+                  
+                  {/* Horizontal connector line from node to content - YELLOW */}
+                  <div className="absolute -left-6 md:-left-[30px] top-[6px] md:top-[7px] w-4 md:w-5 h-[1.5px] bg-yellow-500/50"></div>
+                  
+                  {/* Step content - PURPLE theme */}
+                  <div className="font-mono text-xs md:text-sm text-purple-200/90 whitespace-pre-wrap break-words leading-relaxed">
+                    {line}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       ) : (

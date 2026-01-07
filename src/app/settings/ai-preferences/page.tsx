@@ -285,7 +285,7 @@ export default function AIPreferencesPage() {
       )}
 
       {/* Main Content */}
-      <div className="pt-16">
+      <div className="pt-16 h-screen overflow-y-auto custom-scrollbar">
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="max-w-3xl space-y-8">
             
