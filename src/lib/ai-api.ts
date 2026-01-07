@@ -11,6 +11,7 @@ export interface Message {
   content: string;
   retrievedDocs?: any;
   thoughtTags?: string; // Comma-separated thought tags
+  thinking?: string; // AI reasoning from <think> tags
   tokensUsed?: number;
   embedding?: string; // JSON stringified embedding array
   sequenceNumber: number;
@@ -45,12 +46,14 @@ export interface GenerateTextRequest {
   topic?: string;
   webSearch?: boolean;
   stream?: boolean;
+  model?: string;
 }
 
 export interface GenerateTextResponse {
   response: string;
   conversationId: string;
   messageId: string;
+  thinking?: string;
   tokensUsed?: number;
   sourceDocuments?: Array<{
     text: string;

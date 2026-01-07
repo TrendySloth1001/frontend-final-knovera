@@ -10,6 +10,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import ThinkingBlock from '@/components/ThinkingBlock';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import ModelSelector from '@/components/ModelSelector';
@@ -37,6 +38,22 @@ export default function Home() {
   const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
+  
+  // Load selected model from localStorage on mount
+  useEffect(() => {
+    const savedModel = localStorage.getItem('selectedModel');
+    if (savedModel) {
+      console.log('[Chat] Loading saved model from localStorage:', savedModel);
+      setSelectedModel(savedModel);
+    }
+  }, []);
+  
+  // Log when model changes and save to localStorage
+  const handleModelChange = (model: string) => {
+    console.log('[Chat] Model changed to:', model);
+    setSelectedModel(model);
+    localStorage.setItem('selectedModel', model);
+  };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -172,6 +189,8 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      console.log('[Chat] Sending message with model:', selectedModel);
+      
       // Call API to get full response - use conversationId from URL
       const response = await aiAPI.generate({
         prompt: userMessage,
@@ -182,6 +201,7 @@ export default function Home() {
         useRAG: true,
         sessionType: 'chat',
         webSearch: webSearchEnabled,
+        model: selectedModel,
       });
 
       console.log('[Chat] API Response:', { 
@@ -202,12 +222,20 @@ export default function Home() {
       const streamMsgId = `stream-${Date.now()}`;
       const fullResponse = response.response;
       
+      console.log('[Chat] Response received:', {
+        hasThinking: !!response.thinking,
+        thinkingPreview: response.thinking?.substring(0, 100),
+        contentPreview: fullResponse.substring(0, 100)
+      });
+      
       // Add empty assistant message
       setMessages(prev => [...prev, {
         id: streamMsgId,
         conversationId: response.conversationId,
         role: 'assistant',
         content: '',
+        thinking: response.thinking,
+        tokensUsed: response.tokensUsed,
         sequenceNumber: messages.length + 1,
         createdAt: new Date(),
       }]);
@@ -278,15 +306,17 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-black text-white overflow-hidden">
+    <div className="h-full flex bg-black text-white">
       {/* Sidebar - Mobile overlay or desktop fixed */}
       <div className={`
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        ${isSidebarOpen ? 'md:w-64' : 'w-0 md:w-0'}
-        fixed md:relative z-30 h-full w-64
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isSidebarOpen ? 'w-64' : 'w-0'}
+        fixed md:relative z-30 h-full
         transition-all duration-300 
-        border-r border-white/10 bg-black
-        flex flex-col overflow-hidden
+        ${isSidebarOpen ? 'border-r border-white/10' : 'border-0'}
+        bg-black
+        flex flex-col
+        overflow-hidden
       `}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <h2 className="font-semibold text-lg">Knovera</h2>
@@ -600,20 +630,25 @@ export default function Home() {
       )}
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col w-full md:w-auto">
+      <div className="flex-1 flex flex-col min-h-0 w-full">
         {/* Header */}
-        <div className="h-12 border-b border-white/10 flex items-center px-3 gap-2">
+        <div className="flex-shrink-0 h-12 border-b border-white/10 flex items-center px-3 gap-2">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
           >
             <Menu size={18} />
           </button>
           <div className="flex-1"></div>
+          {/* Model Selector */}
+          <ModelSelector 
+            selectedModel={selectedModel}
+            onModelChange={handleModelChange}
+          />
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-4 md:p-8 text-center">
               <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center mb-3 md:mb-4">
@@ -652,9 +687,17 @@ export default function Home() {
                           : 'bg-transparent text-white'
                       }`}>
                         {msg.role === 'assistant' ? (
-                          <div className="text-sm md:text-base markdown-content">
-                            <MarkdownRenderer content={msg.content} />
-                          </div>
+                          <>
+                            {/* Thinking Block (if present) */}
+                            {msg.thinking && (
+                              <ThinkingBlock thinking={msg.thinking} />
+                            )}
+                            
+                            {/* Main Content */}
+                            <div className="text-sm md:text-base markdown-content max-w-full overflow-hidden">
+                              <MarkdownRenderer content={msg.content} />
+                            </div>
+                          </>
                         ) : (
                           <div className="whitespace-pre-wrap break-words text-sm md:text-base">
                             {msg.content}
@@ -839,7 +882,7 @@ export default function Home() {
               <div className="mr-2 flex-shrink-0">
                 <ModelSelector 
                   selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
+                  onModelChange={handleModelChange}
                 />
               </div>
               

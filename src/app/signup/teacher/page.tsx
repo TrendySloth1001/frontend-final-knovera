@@ -87,7 +87,7 @@ export default function TeacherSignupPage() {
 
   const canProceed = () => {
     if (currentStep === 1) {
-      return formData.firstName.trim() && formData.lastName.trim();
+      return formData?.firstName?.trim() && formData?.lastName?.trim();
     }
     return true;
   };

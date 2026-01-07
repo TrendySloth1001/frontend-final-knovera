@@ -141,7 +141,14 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
                   <button
                     key={model.name}
                     onClick={() => {
-                      onModelChange?.(model.name);
+                      console.log('[ModelSelector] Model selected:', model.name);
+                      console.log('[ModelSelector] onModelChange exists?', !!onModelChange);
+                      if (onModelChange) {
+                        onModelChange(model.name);
+                        console.log('[ModelSelector] Callback executed');
+                      } else {
+                        console.warn('[ModelSelector] No onModelChange callback!');
+                      }
                       setIsOpen(false);
                     }}
                     onMouseEnter={() => setHoveredModel(model.name)}

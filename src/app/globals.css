@@ -14,3 +14,33 @@
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
 }
+
+/* KaTeX math rendering - prevent layout breaking */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  margin: 1em 0;
+  scrollbar-width: thin;
+}
+
+.katex {
+  font-size: 1em;
+  max-width: 100%;
+}
+
+/* Markdown content container */
+.markdown-content {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.markdown-content .katex-display {
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown-content p {
+  max-width: 100%;
+}

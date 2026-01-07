@@ -7,15 +7,31 @@
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import 'highlight.js/styles/github-dark.css';
+import 'katex/dist/katex.min.css';
 
 interface MarkdownRendererProps {
   content: string;
 }
 
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
+  // Preprocess LaTeX delimiters for proper rendering
+  const preprocessLaTeX = (text: string): string => {
+    return text
+      // Convert \[...\] to $$...$$ for display math
+      .replace(/\\\[/g, '\n$$\n')
+      .replace(/\\\]/g, '\n$$\n')
+      // Convert \(...\) to $...$ for inline math
+      .replace(/\\\(/g, '$')
+      .replace(/\\\)/g, '$');
+  };
+
+  const processedContent = preprocessLaTeX(content);
+
   // Function to generate slug from heading text
   const slugify = (text: string): string => {
     return text
@@ -29,11 +45,12 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight, rehypeRaw]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeHighlight, rehypeRaw, rehypeKatex]}
       components={{
         // Code blocks
-        code({ node, inline, className, children, ...props }) {
+        code({ node, className, children, ...props }: any) {
+          const inline = !className?.includes('language-');
           const match = /language-(\w+)/.exec(className || '');
           return !inline && match ? (
             <div className="my-3 md:my-4 max-w-full">
@@ -170,14 +187,14 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         // Paragraphs
         p({ children, ...props }) {
           return (
-            <p className="my-2 leading-relaxed" {...props}>
+            <p className="my-2 leading-relaxed break-words" {...props}>
               {children}
             </p>
           );
         },
       }}
     >
-      {content}
+      {processedContent}
     </ReactMarkdown>
   );
 }

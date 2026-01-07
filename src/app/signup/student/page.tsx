@@ -66,7 +66,7 @@ export default function StudentSignupPage() {
 
   const canProceed = () => {
     if (currentStep === 1) {
-      return formData.firstName.trim() && formData.lastName.trim();
+      return formData?.firstName?.trim() && formData?.lastName?.trim();
     }
     return true;
   };
