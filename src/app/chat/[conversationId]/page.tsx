@@ -648,7 +648,7 @@ export default function Home() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-4 md:p-8 text-center">
               <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center mb-3 md:mb-4">
