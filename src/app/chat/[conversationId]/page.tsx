@@ -137,6 +137,10 @@ export default function Home() {
         ...prev,
         ...quizzesToLoad
       }));
+      // Scroll to bottom after quizzes load
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
   };
 
@@ -939,9 +943,11 @@ export default function Home() {
                             )}
                             
                             {/* Main Content */}
-                            <div className="text-sm md:text-base markdown-content max-w-full overflow-hidden">
-                              <MarkdownRenderer content={msg.content} />
-                            </div>
+                            {msg.messageType !== 'quiz' && (
+                              <div className="text-sm md:text-base markdown-content max-w-full overflow-hidden">
+                                <MarkdownRenderer content={msg.content} />
+                              </div>
+                            )}
                             
                             {/* Quiz Message - Display quiz inline */}
                             {msg.messageType === 'quiz' && msg.quizSessionId && (() => {
@@ -963,7 +969,7 @@ export default function Home() {
                               const userAnswers = quizAnswers[msg.quizSessionId] || {};
                               
                               return (
-                                <div className="mt-4 space-y-4">
+                                <div className="mt-6 space-y-0">
                                   {quiz.questions?.map((q: any, idx: number) => {
                                     const userAnswer = isCompleted 
                                       ? quiz.answers?.find((a: any) => a.questionId === q.id)
@@ -973,30 +979,33 @@ export default function Home() {
                                     return (
                                       <div 
                                         key={q.id}
-                                        className="pb-4 mb-4 border-b border-white/10 last:border-b-0"
+                                        className="py-6 border-b border-white/5 last:border-b-0"
                                       >
                                         {/* Question Header */}
-                                        <div className="flex items-start gap-3 mb-3">
-                                          <span className="inline-flex items-center justify-center w-7 h-7 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg text-white font-bold text-sm flex-shrink-0">
-                                            {idx + 1}
-                                          </span>
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
-                                                q.difficulty === 'easy' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
-                                                q.difficulty === 'hard' ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white' :
-                                                'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+                                        <div className="flex items-start gap-4 mb-4">
+                                          <div className="flex-shrink-0">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                                              <span className="text-white font-bold text-sm">{idx + 1}</span>
+                                            </div>
+                                          </div>
+                                          <div className="flex-1 pt-0.5">
+                                            <div className="flex items-center gap-3 mb-3">
+                                              <span className={`text-[10px] uppercase tracking-wider font-bold ${
+                                                q.difficulty === 'easy' ? 'text-green-400' :
+                                                q.difficulty === 'hard' ? 'text-red-400' :
+                                                'text-yellow-400'
                                               }`}>
                                                 {q.difficulty}
                                               </span>
-                                              <span className="text-xs text-white/40">{q.points} pts</span>
+                                              <div className="h-1 w-1 rounded-full bg-white/20"></div>
+                                              <span className="text-xs text-white/30 font-medium">{q.points} points</span>
                                             </div>
-                                            <p className="text-sm text-white">{q.questionText}</p>
+                                            <p className="text-base text-white/90 leading-relaxed font-light">{q.questionText}</p>
                                           </div>
                                         </div>
 
                                         {/* Answer Options/Input */}
-                                        <div className="space-y-2 ml-10">
+                                        <div className="space-y-2.5 ml-12">
                                           {(q.questionType === 'mcq' || q.questionType === 'true-false') && q.options ? (
                                             q.options.map((option: string, optIdx: number) => {
                                               const isSelected = userAnswers[q.id] === option;
@@ -1008,40 +1017,67 @@ export default function Home() {
                                                   key={optIdx}
                                                   onClick={() => !isCompleted && handleQuizAnswerChange(msg.quizSessionId!, q.id, option)}
                                                   disabled={isCompleted}
-                                                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
+                                                  className={`group w-full text-left px-4 py-3 rounded-xl text-sm transition-all relative ${
                                                     isCompleted
                                                       ? isCorrectAnswer
-                                                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 text-white font-medium'
+                                                        ? 'bg-white/[0.02] text-white border-l-2 border-green-400'
                                                         : isUserAnswer
-                                                          ? 'bg-gradient-to-r from-red-500/20 to-rose-500/20 border border-red-500/50 text-white'
-                                                          : 'border border-white/10 text-white/50'
+                                                          ? 'bg-white/[0.02] text-white/60 border-l-2 border-red-400'
+                                                          : 'bg-transparent text-white/30 border-l-2 border-transparent'
                                                       : isSelected
-                                                        ? 'bg-white/10 border border-white/30 text-white'
-                                                        : 'border border-white/10 text-white/70 hover:bg-white/5 hover:border-white/20'
+                                                        ? 'bg-white/5 text-white border-l-2 border-white/40'
+                                                        : 'bg-white/[0.02] text-white/70 hover:bg-white/[0.04] hover:text-white border-l-2 border-transparent hover:border-white/20'
                                                   }`}
                                                 >
-                                                  {option}
+                                                  <span className="flex items-center gap-3">
+                                                    <span className={`w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all ${
+                                                      isCompleted
+                                                        ? isCorrectAnswer
+                                                          ? 'border-green-400 bg-green-400'
+                                                          : isUserAnswer
+                                                            ? 'border-red-400 bg-red-400'
+                                                            : 'border-white/10 bg-transparent'
+                                                        : isSelected
+                                                          ? 'border-white/60 bg-white/20'
+                                                          : 'border-white/20 bg-transparent group-hover:border-white/40'
+                                                    }`}>
+                                                      {(isCompleted && (isCorrectAnswer || isUserAnswer)) && (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                          {isCorrectAnswer ? (
+                                                            <svg className="w-3 h-3 text-black" fill="none" strokeWidth="3" stroke="currentColor" viewBox="0 0 24 24">
+                                                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                          ) : (
+                                                            <svg className="w-3 h-3 text-black" fill="none" strokeWidth="3" stroke="currentColor" viewBox="0 0 24 24">
+                                                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                          )}
+                                                        </div>
+                                                      )}
+                                                    </span>
+                                                    {option}
+                                                  </span>
                                                 </button>
                                               );
                                             })
                                           ) : (
                                             <div>
                                               {isCompleted ? (
-                                                <div className="space-y-2">
-                                                  <div>
-                                                    <p className="text-xs text-white/50 mb-1">Your answer:</p>
-                                                    <p className={`text-sm inline-block px-2 py-0.5 rounded ${
-                                                      isCorrect 
-                                                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-white' 
-                                                        : 'bg-gradient-to-r from-red-500/20 to-rose-500/20 text-white'
+                                                <div className="space-y-3">
+                                                  <div className="px-4 py-3 rounded-xl bg-white/[0.02] border-l-2 ${
+                                                    isCorrect ? 'border-green-400' : 'border-red-400'
+                                                  }">
+                                                    <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Your Answer</p>
+                                                    <p className={`text-sm ${
+                                                      isCorrect ? 'text-white' : 'text-white/60'
                                                     }`}>
                                                       {userAnswer?.userAnswer || 'No answer'}
                                                     </p>
                                                   </div>
                                                   {!isCorrect && (
-                                                    <div>
-                                                      <p className="text-xs text-white/50 mb-1">Correct answer:</p>
-                                                      <p className="text-sm text-green-400">{q.correctAnswer}</p>
+                                                    <div className="px-4 py-3 rounded-xl bg-white/[0.02] border-l-2 border-green-400">
+                                                      <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1.5">Correct Answer</p>
+                                                      <p className="text-sm text-white">{q.correctAnswer}</p>
                                                     </div>
                                                   )}
                                                 </div>
@@ -1050,8 +1086,8 @@ export default function Home() {
                                                   value={userAnswers[q.id] || ''}
                                                   onChange={(e) => handleQuizAnswerChange(msg.quizSessionId!, q.id, e.target.value)}
                                                   placeholder="Type your answer..."
-                                                  className="w-full px-3 py-2 bg-black border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:border-white/30 resize-none"
-                                                  rows={2}
+                                                  className="w-full px-4 py-3 bg-white/[0.02] border-l-2 border-white/10 rounded-xl text-white text-sm placeholder-white/30 focus:outline-none focus:border-white/40 resize-none transition-all"
+                                                  rows={3}
                                                 />
                                               )}
                                             </div>
@@ -1059,12 +1095,12 @@ export default function Home() {
                                           
                                           {/* Explanation (shown after completion) */}
                                           {isCompleted && q.explanation && (
-                                            <div className="mt-3 pt-3 border-t border-white/10">
-                                              <div className="flex items-start gap-2">
-                                                <HelpCircle className="w-4 h-4 text-white/50 flex-shrink-0 mt-0.5" />
+                                            <div className="mt-4 pt-4 border-t border-white/5">
+                                              <div className="flex items-start gap-3">
+                                                <HelpCircle className="w-4 h-4 text-white/30 flex-shrink-0 mt-1" />
                                                 <div>
-                                                  <p className="text-xs text-white/50 mb-1">Explanation</p>
-                                                  <p className="text-sm text-white/70">{q.explanation}</p>
+                                                  <p className="text-[10px] uppercase tracking-wider font-bold text-white/40 mb-2">Explanation</p>
+                                                  <p className="text-sm text-white/60 leading-relaxed">{q.explanation}</p>
                                                 </div>
                                               </div>
                                             </div>
@@ -1076,25 +1112,48 @@ export default function Home() {
                                   
                                   {/* Submit Button or Results Summary */}
                                   {!isCompleted ? (
-                                    <button
-                                      onClick={() => handleInlineQuizSubmit(msg.quizSessionId!)}
-                                      className="w-full mt-4 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-2"
-                                    >
-                                      <Send className="w-4 h-4" />
-                                      Submit Quiz
-                                    </button>
+                                    <div className="mt-8 pt-6 border-t border-white/5">
+                                      <button
+                                        onClick={() => handleInlineQuizSubmit(msg.quizSessionId!)}
+                                        className="group relative w-full px-6 py-4 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-white/20 rounded-xl text-white font-light transition-all flex items-center justify-center gap-3 text-sm overflow-hidden"
+                                      >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <Send className="w-4 h-4 relative z-10 group-hover:translate-x-0.5 transition-transform" />
+                                        <span className="relative z-10 uppercase tracking-wider text-xs">Submit Quiz</span>
+                                      </button>
+                                    </div>
                                   ) : (
-                                    <div className="mt-4 pt-4 border-t-2 border-white/20">
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <p className="text-white font-bold text-base">Final Score</p>
-                                          <p className="text-white/50 text-xs">{quiz.totalQuestions} questions</p>
+                                    <div className="mt-8 pt-6 border-t border-white/5">
+                                      {/* Score Display */}
+                                      <div className="text-center mb-6">
+                                        <div className="inline-block">
+                                          <div className="flex items-baseline gap-2">
+                                            <span className="text-5xl font-extralight text-white">{quiz.score}</span>
+                                            <span className="text-2xl font-light text-white/40">%</span>
+                                          </div>
+                                          <div className="mt-1 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                                         </div>
-                                        <div className="text-right">
-                                          <p className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">{quiz.score}%</p>
-                                          <p className="text-xs text-white/50">
-                                            {quiz.answers?.filter((a: any) => a.isCorrect).length} / {quiz.totalQuestions} correct
-                                          </p>
+                                        <p className="text-xs text-white/30 mt-3 uppercase tracking-widest">Final Score</p>
+                                      </div>
+
+                                      {/* Stats - Minimalist */}
+                                      <div className="flex items-center justify-center gap-8">
+                                        <div className="text-center">
+                                          <div className="text-2xl font-light text-green-400">{quiz.answers?.filter((a: any) => a.isCorrect).length}</div>
+                                          <div className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Correct</div>
+                                        </div>
+                                        <div className="h-8 w-px bg-white/10"></div>
+                                        <div className="text-center">
+                                          <div className="text-2xl font-light text-red-400">{quiz.answers?.filter((a: any) => !a.isCorrect).length}</div>
+                                          <div className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Wrong</div>
+                                        </div>
+                                        <div className="h-8 w-px bg-white/10"></div>
+                                        <div className="text-center">
+                                          <div className="text-2xl font-light text-white">{quiz.answers?.filter((a: any) => a.isCorrect).reduce((sum: number, a: any) => {
+                                            const q = quiz.questions?.find((q: any) => q.id === a.questionId);
+                                            return sum + (q?.points || 0);
+                                          }, 0)}</div>
+                                          <div className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Points</div>
                                         </div>
                                       </div>
                                     </div>
