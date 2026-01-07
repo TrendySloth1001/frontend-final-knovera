@@ -8,15 +8,18 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
-import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check } from 'lucide-react';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check, Wrench, Brain, Globe } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import ThinkingBlock from '@/components/ThinkingBlock';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import ModelSelector from '@/components/ModelSelector';
+import QuizGenerator from '@/components/QuizGenerator';
+import QuizView from '@/components/QuizView';
+import QuizResults from '@/components/QuizResults';
 
 export default function Home() {
-  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const { user, token, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
   const params = useParams();
   const conversationId = params.conversationId as string;
@@ -38,6 +41,12 @@ export default function Home() {
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [showTools, setShowTools] = useState(false);
+  const [enableQuiz, setEnableQuiz] = useState(false);
+  const [activeQuiz, setActiveQuiz] = useState<any>(null);
+  const [quizResults, setQuizResults] = useState<any>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({});
+  const [loadedQuizzes, setLoadedQuizzes] = useState<Record<string, any>>({});
   
   // Load selected model from localStorage on mount
   useEffect(() => {
@@ -67,6 +76,60 @@ export default function Home() {
       router.push('/login');
     }
   }, [authLoading, isAuthenticated, router]);
+
+  // Load conversations on mount
+  useEffect(() => {
+    if (user?.user?.id) {
+      loadConversations();
+    }
+  }, [user]);
+
+  // Load quizzes when token becomes available and there are messages with quizzes
+  useEffect(() => {
+    if (token && messages.length > 0) {
+      const quizMessages = messages.filter((m: Message) => m.messageType === 'quiz' && m.quizSessionId);
+      if (quizMessages.length > 0) {
+        console.log('[Quiz] Token available, loading quizzes for', quizMessages.length, 'messages');
+        loadQuizzesForMessages(quizMessages);
+      }
+    }
+  }, [token, messages]);
+
+  const loadQuizzesForMessages = async (quizMessages: Message[]) => {
+    const quizzesToLoad: Record<string, any> = {};
+    
+    for (const msg of quizMessages) {
+      if (msg.quizSessionId && !loadedQuizzes[msg.quizSessionId]) {
+        console.log('[Quiz] Fetching quiz data for:', msg.quizSessionId);
+        try {
+          const response = await fetch(`http://localhost:3001/api/quizzes/${msg.quizSessionId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (response.ok) {
+            const quiz = await response.json();
+            const quizData = quiz.data || quiz;
+            console.log('[Quiz] Loaded quiz data for', msg.quizSessionId);
+            quizzesToLoad[msg.quizSessionId] = quizData;
+          } else {
+            console.error('[Quiz] Failed to load quiz:', msg.quizSessionId, response.status);
+          }
+        } catch (error) {
+          console.error('[Quiz] Error loading quiz:', msg.quizSessionId, error);
+        }
+      }
+    }
+    
+    // Update all loaded quizzes at once
+    if (Object.keys(quizzesToLoad).length > 0) {
+      console.log('[Quiz] Setting loaded quizzes:', Object.keys(quizzesToLoad));
+      setLoadedQuizzes(prev => ({
+        ...prev,
+        ...quizzesToLoad
+      }));
+    }
+  };
 
   // Load conversations on mount
   useEffect(() => {
@@ -134,7 +197,18 @@ export default function Home() {
   const loadMessages = async (conversationId: string) => {
     try {
       const msgs = await aiAPI.getMessages(conversationId);
+      console.log('[Messages] Loaded', msgs.length, 'messages');
+      
+      // Log quiz messages
+      const quizMessages = msgs.filter((m: Message) => m.messageType === 'quiz');
+      console.log('[Messages] Found', quizMessages.length, 'quiz messages:', quizMessages.map((m: any) => ({
+        id: m.id,
+        quizSessionId: m.quizSessionId,
+        messageType: m.messageType
+      })));
+      
       setMessages(msgs);
+      // Quiz loading will happen in useEffect when token is available
     } catch (error) {
       console.error('Failed to load messages:', error);
     }
@@ -290,6 +364,134 @@ export default function Home() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleQuizGenerated = async (quizSessionId: string) => {
+    try {
+      console.log('[Quiz] Loading quiz with ID:', quizSessionId);
+      const response = await fetch(`http://localhost:3001/api/quizzes/${quizSessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch quiz:', response.status, errorText);
+        throw new Error(`Failed to fetch quiz: ${response.status}`);
+      }
+      const quiz = await response.json();
+      console.log('[Quiz] Raw API response:', JSON.stringify(quiz, null, 2));
+      
+      // Handle both direct data and wrapped data
+      const quizData = quiz.data || quiz;
+      console.log('[Quiz] Quiz data after unwrap:', JSON.stringify(quizData, null, 2));
+      
+      // Validate quiz data
+      if (!quizData.questions || quizData.questions.length === 0) {
+        console.error('[Quiz] Invalid quiz data - no questions:', quizData);
+        throw new Error('Quiz has no questions');
+      }
+      
+      console.log('[Quiz] Loading quiz inline with', quizData.questions.length, 'questions');
+      setLoadedQuizzes(prev => ({
+        ...prev,
+        [quizSessionId]: quizData
+      }));
+      setEnableQuiz(false);
+      
+      // Wait a bit for backend to create the message, then reload
+      setTimeout(() => {
+        if (conversationId && conversationId !== 'new') {
+          console.log('[Quiz] Reloading messages to show quiz');
+          loadMessages(conversationId);
+        }
+      }, 500);
+    } catch (error) {
+      console.error('Failed to load quiz:', error);
+      alert(`Failed to load quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleQuizAnswerChange = (quizSessionId: string, questionId: string, answer: string) => {
+    setQuizAnswers(prev => ({
+      ...prev,
+      [quizSessionId]: {
+        ...(prev[quizSessionId] || {}),
+        [questionId]: answer
+      }
+    }));
+  };
+
+  const handleInlineQuizSubmit = async (quizSessionId: string) => {
+    const answers = quizAnswers[quizSessionId];
+    if (!answers) {
+      alert('Please answer at least one question');
+      return;
+    }
+
+    try {
+      // Submit the quiz
+      const submitResponse = await fetch(`http://localhost:3001/api/quizzes/${quizSessionId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ answers }),
+      });
+      if (!submitResponse.ok) throw new Error('Failed to submit quiz');
+      const results = await submitResponse.json();
+      console.log('[Quiz Submit] Quiz submitted successfully:', results.data);
+      
+      // Refetch the complete quiz data to get all answer details and explanations
+      const quizResponse = await fetch(`http://localhost:3001/api/quizzes/${quizSessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!quizResponse.ok) throw new Error('Failed to fetch quiz results');
+      const quizData = await quizResponse.json();
+      const completeQuizData = quizData.data || quizData;
+      console.log('[Quiz Submit] Loaded complete quiz results:', completeQuizData);
+      
+      // Update the loaded quiz with complete results
+      setLoadedQuizzes(prev => ({
+        ...prev,
+        [quizSessionId]: completeQuizData
+      }));
+      
+      // Clear answers for this quiz
+      setQuizAnswers(prev => {
+        const newAnswers = { ...prev };
+        delete newAnswers[quizSessionId];
+        return newAnswers;
+      });
+    } catch (error) {
+      console.error('[Quiz Submit] Failed to submit quiz:', error);
+      alert('Failed to submit quiz. Please try again.');
+    }
+  };
+
+  const handleQuizSubmit = async (answers: Record<string, string>) => {
+    if (!activeQuiz) return;
+    try {
+      const response = await fetch(`http://localhost:3001/api/quizzes/${activeQuiz.quizSessionId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ answers }),
+      });
+      if (!response.ok) throw new Error('Failed to submit quiz');
+      const results = await response.json();
+      console.log('Quiz results:', results);
+      setQuizResults(results.data);
+      setActiveQuiz(null);
+    } catch (error) {
+      console.error('Failed to submit quiz:', error);
+      alert('Failed to submit quiz. Please try again.');
     }
   };
 
@@ -709,6 +911,174 @@ export default function Home() {
                             <div className="text-sm md:text-base markdown-content max-w-full overflow-hidden">
                               <MarkdownRenderer content={msg.content} />
                             </div>
+                            
+                            {/* Quiz Message - Display quiz inline */}
+                            {msg.messageType === 'quiz' && msg.quizSessionId && (() => {
+                              console.log('[Quiz Render] Checking quiz message:', msg.id, 'quizSessionId:', msg.quizSessionId);
+                              console.log('[Quiz Render] Loaded quizzes:', Object.keys(loadedQuizzes));
+                              console.log('[Quiz Render] Has quiz data:', !!loadedQuizzes[msg.quizSessionId]);
+                              
+                              if (!loadedQuizzes[msg.quizSessionId]) {
+                                return (
+                                  <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                                    <p className="text-white/60 text-sm">Loading quiz...</p>
+                                  </div>
+                                );
+                              }
+                              
+                              const quiz = loadedQuizzes[msg.quizSessionId];
+                              console.log('[Quiz Render] Rendering quiz with', quiz.questions?.length, 'questions');
+                              const isCompleted = quiz.completedAt != null;
+                              const userAnswers = quizAnswers[msg.quizSessionId] || {};
+                              
+                              return (
+                                <div className="mt-4 space-y-4">
+                                  {quiz.questions?.map((q: any, idx: number) => {
+                                    const userAnswer = isCompleted 
+                                      ? quiz.answers?.find((a: any) => a.questionId === q.id)
+                                      : null;
+                                    const isCorrect = userAnswer?.isCorrect;
+                                    
+                                    return (
+                                      <div 
+                                        key={q.id}
+                                        className={`p-4 rounded-xl border ${
+                                          isCompleted
+                                            ? isCorrect
+                                              ? 'bg-green-500/5 border-green-500/30'
+                                              : 'bg-red-500/5 border-red-500/30'
+                                            : 'bg-white/5 border-white/10'
+                                        }`}
+                                      >
+                                        {/* Question Header */}
+                                        <div className="flex items-start gap-3 mb-3">
+                                          <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-500/20 border border-purple-500/40 rounded text-purple-300 font-bold text-xs flex-shrink-0">
+                                            {idx + 1}
+                                          </span>
+                                          <div className="flex-1">
+                                            <p className="text-white font-medium">{q.questionText}</p>
+                                            <div className="mt-1 flex items-center gap-2">
+                                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                q.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
+                                                q.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                                                'bg-red-500/20 text-red-300'
+                                              }`}>
+                                                {q.difficulty}
+                                              </span>
+                                              {isCompleted && (
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                  isCorrect ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                                                }`}>
+                                                  {isCorrect ? '✓ Correct' : '✗ Wrong'}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Answer Options/Input */}
+                                        <div className="space-y-2 ml-9">
+                                          {(q.questionType === 'mcq' || q.questionType === 'true-false') && q.options ? (
+                                            q.options.map((option: string, optIdx: number) => {
+                                              const isSelected = userAnswers[q.id] === option;
+                                              const isUserAnswer = isCompleted && userAnswer?.userAnswer === option;
+                                              const isCorrectAnswer = isCompleted && q.correctAnswer === option;
+                                              
+                                              return (
+                                                <button
+                                                  key={optIdx}
+                                                  onClick={() => !isCompleted && handleQuizAnswerChange(msg.quizSessionId!, q.id, option)}
+                                                  disabled={isCompleted}
+                                                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
+                                                    isCompleted
+                                                      ? isCorrectAnswer
+                                                        ? 'bg-green-500/20 border-2 border-green-500/50 text-green-200'
+                                                        : isUserAnswer
+                                                          ? 'bg-red-500/20 border-2 border-red-500/50 text-red-200'
+                                                          : 'bg-white/5 border border-white/10 text-white/60'
+                                                      : isSelected
+                                                        ? 'bg-purple-500/30 border-2 border-purple-400 text-white'
+                                                        : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/80'
+                                                  }`}
+                                                >
+                                                  <span className="mr-2 opacity-60">{String.fromCharCode(65 + optIdx)}.</span>
+                                                  {option}
+                                                  {isCompleted && isCorrectAnswer && <span className="ml-2">✓</span>}
+                                                  {isCompleted && isUserAnswer && !isCorrectAnswer && <span className="ml-2">✗</span>}
+                                                </button>
+                                              );
+                                            })
+                                          ) : (
+                                            <div>
+                                              {isCompleted ? (
+                                                <div className="space-y-2">
+                                                  <div className={`px-3 py-2 rounded-lg ${
+                                                    isCorrect ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
+                                                  }`}>
+                                                    <p className="text-xs text-white/60 mb-1">Your answer:</p>
+                                                    <p className={`text-sm ${isCorrect ? 'text-green-300' : 'text-red-300'}`}>
+                                                      {userAnswer?.userAnswer || 'No answer'}
+                                                    </p>
+                                                  </div>
+                                                  {!isCorrect && (
+                                                    <div className="px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                                                      <p className="text-xs text-white/60 mb-1">Correct answer:</p>
+                                                      <p className="text-sm text-green-300">{q.correctAnswer}</p>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <textarea
+                                                  value={userAnswers[q.id] || ''}
+                                                  onChange={(e) => handleQuizAnswerChange(msg.quizSessionId!, q.id, e.target.value)}
+                                                  placeholder="Type your answer..."
+                                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                                                  rows={2}
+                                                />
+                                              )}
+                                            </div>
+                                          )}
+                                          
+                                          {/* Explanation (shown after completion) */}
+                                          {isCompleted && q.explanation && (
+                                            <div className="px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 mt-2">
+                                              <p className="text-xs text-white/60 mb-1">💡 Explanation:</p>
+                                              <p className="text-sm text-blue-200">{q.explanation}</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  
+                                  {/* Submit Button or Results Summary */}
+                                  {!isCompleted ? (
+                                    <button
+                                      onClick={() => handleInlineQuizSubmit(msg.quizSessionId!)}
+                                      className="w-full mt-4 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 border border-green-400 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-2"
+                                    >
+                                      <Send className="w-4 h-4" />
+                                      Submit Quiz
+                                    </button>
+                                  ) : (
+                                    <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-white font-bold text-lg">Final Score</p>
+                                          <p className="text-white/60 text-sm">{quiz.totalQuestions} questions</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-3xl font-bold text-white">{quiz.score}%</p>
+                                          <p className="text-sm text-white/60">
+                                            {quiz.answers?.filter((a: any) => a.isCorrect).length} / {quiz.totalQuestions} correct
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </>
                         ) : (
                           <div className="whitespace-pre-wrap break-words text-sm md:text-base">
@@ -878,19 +1248,71 @@ export default function Home() {
         {/* Input Area */}
         <div className="border-t border-white/10 p-2 md:p-3 safe-area-bottom">
           <div className="w-full max-w-4xl mx-auto px-2 md:px-4">
+            {/* Tools Dropdown */}
+            {showTools && (
+              <div className="mb-2 bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs text-white/60 mb-2">
+                  <Wrench size={14} />
+                  <span className="font-medium">Select Tools</span>
+                </div>
+                
+                {/* Web Search Option */}
+                <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                    webSearchEnabled
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white/10 text-white/60'
+                  }`}>
+                    <Globe size={18} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">Web Search</div>
+                    <div className="text-xs text-white/60">Search the internet for information</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={webSearchEnabled}
+                    onChange={(e) => setWebSearchEnabled(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                </label>
+
+                {/* Quiz Generator Option */}
+                <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                    enableQuiz
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-white/10 text-white/60'
+                  }`}>
+                    <Brain size={18} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">Quiz Generator</div>
+                    <div className="text-xs text-white/60">Generate questions from conversation</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={enableQuiz}
+                    onChange={(e) => setEnableQuiz(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                </label>
+              </div>
+            )}
+
             {/* Unified Input Container - Single rounded rectangle */}
             <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl focus-within:border-white/30 transition-colors">
-              {/* Search Icon - Inside Left */}
+              {/* Tools Button - Inside Left */}
               <button
-                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                onClick={() => setShowTools(!showTools)}
                 className={`ml-3 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-colors ${
-                  webSearchEnabled 
-                    ? 'bg-white text-black hover:bg-white/90' 
+                  showTools || webSearchEnabled || enableQuiz
+                    ? 'bg-purple-500 text-white hover:bg-purple-600' 
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
-                title={webSearchEnabled ? 'Web search enabled' : 'Web search disabled'}
+                title="Tools"
               >
-                <Search size={14} />
+                <Wrench size={14} />
               </button>
               
               {/* Input Field - Seamless integration */}
@@ -911,6 +1333,24 @@ export default function Home() {
                 className="flex-1 bg-transparent border-0 px-3 py-2.5 text-sm resize-none focus:outline-none scrollbar-hide text-white placeholder-white/40"
                 style={{ minHeight: '38px', maxHeight: '120px', overflow: 'hidden' }}
               />
+              
+              {/* Active Tool Indicators */}
+              {(webSearchEnabled || enableQuiz) && (
+                <div className="mr-2 flex items-center gap-1.5 flex-shrink-0">
+                  {webSearchEnabled && (
+                    <div className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md flex items-center gap-1">
+                      <Globe size={10} className="text-blue-400" />
+                      <span className="text-xs text-blue-300">Web</span>
+                    </div>
+                  )}
+                  {enableQuiz && (
+                    <div className="px-2 py-1 bg-purple-500/20 border border-purple-500/30 rounded-md flex items-center gap-1">
+                      <Brain size={10} className="text-purple-400" />
+                      <span className="text-xs text-purple-300">Quiz</span>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Model Selector - Inside Right (before send button) */}
               <div className="mr-2 flex-shrink-0">
@@ -936,6 +1376,52 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Quiz Components */}
+      {enableQuiz && conversationId && conversationId !== 'new' && token && (
+        <QuizGenerator
+          conversationId={conversationId}
+          token={token}
+          onQuizGenerated={handleQuizGenerated}
+        />
+      )}
+
+      {activeQuiz && (() => {
+        console.log('[Quiz] Rendering QuizView modal with activeQuiz:', activeQuiz);
+        return (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <QuizView
+                quizSessionId={activeQuiz.quizSessionId}
+                topic={activeQuiz.topic}
+                questions={activeQuiz.questions}
+                onSubmit={handleQuizSubmit}
+                onClose={() => setActiveQuiz(null)}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
+      {quizResults && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <QuizResults
+              topic={quizResults.topic}
+              score={quizResults.score}
+              totalPoints={quizResults.totalPoints}
+              questions={quizResults.questions}
+              answers={quizResults.answers}
+              completedAt={quizResults.completedAt}
+              onRetake={() => {
+                setQuizResults(null);
+                setEnableQuiz(true);
+              }}
+              onClose={() => setQuizResults(null)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Dialogs */}
       <ConfirmDialog

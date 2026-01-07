@@ -9,6 +9,8 @@ export interface Message {
   conversationId: string;
   role: 'system' | 'user' | 'assistant';
   content: string;
+  messageType?: string; // 'text' | 'quiz'
+  quizSessionId?: string; // Link to quiz if messageType is 'quiz'
   retrievedDocs?: any;
   thoughtTags?: string; // Comma-separated thought tags
   thinking?: string; // AI reasoning from <think> tags
