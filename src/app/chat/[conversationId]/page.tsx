@@ -47,6 +47,15 @@ export default function Home() {
   const [quizResults, setQuizResults] = useState<any>(null);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({});
   const [loadedQuizzes, setLoadedQuizzes] = useState<Record<string, any>>({});
+  const [quizConfig, setQuizConfig] = useState({
+    questionCount: 5,
+    questionTypes: ['mcq', 'true-false'] as string[],
+    difficulty: 'medium' as string,
+    description: ''
+  });
+  const [showQuizConfigForm, setShowQuizConfigForm] = useState(false);
+  const [quizPrompt, setQuizPrompt] = useState('');
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   
   // Load selected model from localStorage on mount
   useEffect(() => {
@@ -246,6 +255,28 @@ export default function Home() {
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading || !user) return;
+
+    // If quiz mode is enabled, add user message and show config form as AI response
+    if (enableQuiz && conversationId && conversationId !== 'new') {
+      const userMessage = inputMessage.trim();
+      
+      // Add user message
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        conversationId: conversationId,
+        role: 'user',
+        content: userMessage,
+        sequenceNumber: messages.length + 1,
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, userMsg]);
+      
+      // Store prompt and show config form
+      setQuizPrompt(userMessage);
+      setShowQuizConfigForm(true);
+      setInputMessage('');
+      return;
+    }
 
     const userMessage = inputMessage.trim();
     setInputMessage('');
@@ -942,42 +973,30 @@ export default function Home() {
                                     return (
                                       <div 
                                         key={q.id}
-                                        className={`p-4 rounded-xl border ${
-                                          isCompleted
-                                            ? isCorrect
-                                              ? 'bg-green-500/5 border-green-500/30'
-                                              : 'bg-red-500/5 border-red-500/30'
-                                            : 'bg-white/5 border-white/10'
-                                        }`}
+                                        className="pb-4 mb-4 border-b border-white/10 last:border-b-0"
                                       >
                                         {/* Question Header */}
                                         <div className="flex items-start gap-3 mb-3">
-                                          <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-500/20 border border-purple-500/40 rounded text-purple-300 font-bold text-xs flex-shrink-0">
+                                          <span className="inline-flex items-center justify-center w-7 h-7 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg text-white font-bold text-sm flex-shrink-0">
                                             {idx + 1}
                                           </span>
                                           <div className="flex-1">
-                                            <p className="text-white font-medium">{q.questionText}</p>
-                                            <div className="mt-1 flex items-center gap-2">
-                                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                q.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
-                                                q.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                                                'bg-red-500/20 text-red-300'
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
+                                                q.difficulty === 'easy' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
+                                                q.difficulty === 'hard' ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white' :
+                                                'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
                                               }`}>
                                                 {q.difficulty}
                                               </span>
-                                              {isCompleted && (
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                  isCorrect ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
-                                                }`}>
-                                                  {isCorrect ? '✓ Correct' : '✗ Wrong'}
-                                                </span>
-                                              )}
+                                              <span className="text-xs text-white/40">{q.points} pts</span>
                                             </div>
+                                            <p className="text-sm text-white">{q.questionText}</p>
                                           </div>
                                         </div>
 
                                         {/* Answer Options/Input */}
-                                        <div className="space-y-2 ml-9">
+                                        <div className="space-y-2 ml-10">
                                           {(q.questionType === 'mcq' || q.questionType === 'true-false') && q.options ? (
                                             q.options.map((option: string, optIdx: number) => {
                                               const isSelected = userAnswers[q.id] === option;
@@ -992,19 +1011,16 @@ export default function Home() {
                                                   className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
                                                     isCompleted
                                                       ? isCorrectAnswer
-                                                        ? 'bg-green-500/20 border-2 border-green-500/50 text-green-200'
+                                                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 text-white font-medium'
                                                         : isUserAnswer
-                                                          ? 'bg-red-500/20 border-2 border-red-500/50 text-red-200'
-                                                          : 'bg-white/5 border border-white/10 text-white/60'
+                                                          ? 'bg-gradient-to-r from-red-500/20 to-rose-500/20 border border-red-500/50 text-white'
+                                                          : 'border border-white/10 text-white/50'
                                                       : isSelected
-                                                        ? 'bg-purple-500/30 border-2 border-purple-400 text-white'
-                                                        : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white/80'
+                                                        ? 'bg-white/10 border border-white/30 text-white'
+                                                        : 'border border-white/10 text-white/70 hover:bg-white/5 hover:border-white/20'
                                                   }`}
                                                 >
-                                                  <span className="mr-2 opacity-60">{String.fromCharCode(65 + optIdx)}.</span>
                                                   {option}
-                                                  {isCompleted && isCorrectAnswer && <span className="ml-2">✓</span>}
-                                                  {isCompleted && isUserAnswer && !isCorrectAnswer && <span className="ml-2">✗</span>}
                                                 </button>
                                               );
                                             })
@@ -1012,18 +1028,20 @@ export default function Home() {
                                             <div>
                                               {isCompleted ? (
                                                 <div className="space-y-2">
-                                                  <div className={`px-3 py-2 rounded-lg ${
-                                                    isCorrect ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'
-                                                  }`}>
-                                                    <p className="text-xs text-white/60 mb-1">Your answer:</p>
-                                                    <p className={`text-sm ${isCorrect ? 'text-green-300' : 'text-red-300'}`}>
+                                                  <div>
+                                                    <p className="text-xs text-white/50 mb-1">Your answer:</p>
+                                                    <p className={`text-sm inline-block px-2 py-0.5 rounded ${
+                                                      isCorrect 
+                                                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-white' 
+                                                        : 'bg-gradient-to-r from-red-500/20 to-rose-500/20 text-white'
+                                                    }`}>
                                                       {userAnswer?.userAnswer || 'No answer'}
                                                     </p>
                                                   </div>
                                                   {!isCorrect && (
-                                                    <div className="px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/30">
-                                                      <p className="text-xs text-white/60 mb-1">Correct answer:</p>
-                                                      <p className="text-sm text-green-300">{q.correctAnswer}</p>
+                                                    <div>
+                                                      <p className="text-xs text-white/50 mb-1">Correct answer:</p>
+                                                      <p className="text-sm text-green-400">{q.correctAnswer}</p>
                                                     </div>
                                                   )}
                                                 </div>
@@ -1032,7 +1050,7 @@ export default function Home() {
                                                   value={userAnswers[q.id] || ''}
                                                   onChange={(e) => handleQuizAnswerChange(msg.quizSessionId!, q.id, e.target.value)}
                                                   placeholder="Type your answer..."
-                                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                                                  className="w-full px-3 py-2 bg-black border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:border-white/30 resize-none"
                                                   rows={2}
                                                 />
                                               )}
@@ -1041,9 +1059,14 @@ export default function Home() {
                                           
                                           {/* Explanation (shown after completion) */}
                                           {isCompleted && q.explanation && (
-                                            <div className="px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30 mt-2">
-                                              <p className="text-xs text-white/60 mb-1">💡 Explanation:</p>
-                                              <p className="text-sm text-blue-200">{q.explanation}</p>
+                                            <div className="mt-3 pt-3 border-t border-white/10">
+                                              <div className="flex items-start gap-2">
+                                                <HelpCircle className="w-4 h-4 text-white/50 flex-shrink-0 mt-0.5" />
+                                                <div>
+                                                  <p className="text-xs text-white/50 mb-1">Explanation</p>
+                                                  <p className="text-sm text-white/70">{q.explanation}</p>
+                                                </div>
+                                              </div>
                                             </div>
                                           )}
                                         </div>
@@ -1055,21 +1078,21 @@ export default function Home() {
                                   {!isCompleted ? (
                                     <button
                                       onClick={() => handleInlineQuizSubmit(msg.quizSessionId!)}
-                                      className="w-full mt-4 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 border border-green-400 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-2"
+                                      className="w-full mt-4 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-2"
                                     >
                                       <Send className="w-4 h-4" />
                                       Submit Quiz
                                     </button>
                                   ) : (
-                                    <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40">
+                                    <div className="mt-4 pt-4 border-t-2 border-white/20">
                                       <div className="flex items-center justify-between">
                                         <div>
-                                          <p className="text-white font-bold text-lg">Final Score</p>
-                                          <p className="text-white/60 text-sm">{quiz.totalQuestions} questions</p>
+                                          <p className="text-white font-bold text-base">Final Score</p>
+                                          <p className="text-white/50 text-xs">{quiz.totalQuestions} questions</p>
                                         </div>
                                         <div className="text-right">
-                                          <p className="text-3xl font-bold text-white">{quiz.score}%</p>
-                                          <p className="text-sm text-white/60">
+                                          <p className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">{quiz.score}%</p>
+                                          <p className="text-xs text-white/50">
                                             {quiz.answers?.filter((a: any) => a.isCorrect).length} / {quiz.totalQuestions} correct
                                           </p>
                                         </div>
@@ -1239,6 +1262,206 @@ export default function Home() {
                   </div>
                 </div>
               )}
+
+              {/* Quiz Configuration Form - Inline Message Style */}
+              {showQuizConfigForm && (
+                <div className="mb-4 md:mb-8 flex gap-2 md:gap-4">
+                  <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-xs font-semibold">AI</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1 ml-1">Kai</div>
+                    <div className="bg-transparent text-white rounded-2xl">
+                      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-xl p-4">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                            <Brain className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-base font-bold text-white">Configure Your Quiz</h3>
+                            <p className="text-xs text-white/60 mt-0.5">Customize the quiz settings below</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {/* Question Types */}
+                          <div>
+                            <label className="text-xs text-white/70 mb-2 block font-medium">Question Types</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { value: 'mcq', label: 'Multiple Choice' },
+                                { value: 'true-false', label: 'True/False' },
+                                { value: 'short-answer', label: 'Short Answer' }
+                              ].map(type => (
+                                <button
+                                  key={type.value}
+                                  onClick={() => {
+                                    setQuizConfig(prev => {
+                                      const types = prev.questionTypes.includes(type.value)
+                                        ? prev.questionTypes.filter(t => t !== type.value)
+                                        : [...prev.questionTypes, type.value];
+                                      return { ...prev, questionTypes: types.length > 0 ? types : [type.value] };
+                                    });
+                                  }}
+                                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                                    quizConfig.questionTypes.includes(type.value)
+                                      ? 'bg-blue-500 text-white border-2 border-blue-400'
+                                      : 'bg-white/5 text-white/60 border-2 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                  }`}
+                                >
+                                  {type.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Number of Questions */}
+                          <div>
+                            <label className="text-xs text-white/70 mb-2 block font-medium">Number of Questions</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[5, 10, 15].map(count => (
+                                <button
+                                  key={count}
+                                  onClick={() => setQuizConfig(prev => ({ ...prev, questionCount: count }))}
+                                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                                    quizConfig.questionCount === count
+                                      ? 'bg-purple-500 text-white border-2 border-purple-400'
+                                      : 'bg-white/5 text-white/60 border-2 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                  }`}
+                                >
+                                  {count}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Difficulty */}
+                          <div>
+                            <label className="text-xs text-white/70 mb-2 block font-medium">Difficulty Level</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { value: 'easy', label: 'Easy', color: 'bg-green-500', border: 'border-green-400' },
+                                { value: 'medium', label: 'Medium', color: 'bg-yellow-500', border: 'border-yellow-400' },
+                                { value: 'hard', label: 'Hard', color: 'bg-red-500', border: 'border-red-400' }
+                              ].map(diff => (
+                                <button
+                                  key={diff.value}
+                                  onClick={() => setQuizConfig(prev => ({ ...prev, difficulty: diff.value }))}
+                                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                                    quizConfig.difficulty === diff.value
+                                      ? `${diff.color} text-white border-2 ${diff.border}`
+                                      : 'bg-white/5 text-white/60 border-2 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                  }`}
+                                >
+                                  {diff.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Generate Button */}
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={() => {
+                                setShowQuizConfigForm(false);
+                                setQuizPrompt('');
+                                setMessages(prev => prev.slice(0, -1)); // Remove user message
+                                setQuizConfig({ questionCount: 5, questionTypes: ['mcq', 'true-false'], difficulty: 'medium', description: '' });
+                              }}
+                              className="flex-1 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm font-medium hover:bg-white/10 transition-all"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (quizConfig.questionTypes.length === 0) {
+                                  alert('Please select at least one question type');
+                                  return;
+                                }
+                                
+                                setShowQuizConfigForm(false);
+                                setIsGeneratingQuiz(true);
+                                
+                                try {
+                                  const response = await fetch(`http://localhost:3001/api/conversations/${conversationId}/generate-quiz`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({
+                                      questionCount: quizConfig.questionCount,
+                                      questionTypes: quizConfig.questionTypes,
+                                      difficulty: quizConfig.difficulty,
+                                      description: quizPrompt
+                                    }),
+                                  });
+                                  if (!response.ok) throw new Error('Failed to generate quiz');
+                                  const quiz = await response.json();
+                                  
+                                  setLoadedQuizzes(prev => ({
+                                    ...prev,
+                                    [quiz.data.quizSessionId]: quiz.data
+                                  }));
+                                  setEnableQuiz(false);
+                                  setQuizPrompt('');
+                                  setQuizConfig({ questionCount: 5, questionTypes: ['mcq', 'true-false'], difficulty: 'medium', description: '' });
+                                  
+                                  // Reload messages to show quiz
+                                  setTimeout(() => {
+                                    if (conversationId && conversationId !== 'new') {
+                                      loadMessages(conversationId);
+                                    }
+                                    setIsGeneratingQuiz(false);
+                                  }, 500);
+                                } catch (error) {
+                                  console.error('Failed to generate quiz:', error);
+                                  alert('Failed to generate quiz. Please try again.');
+                                  setIsGeneratingQuiz(false);
+                                }
+                              }}
+                              disabled={isGeneratingQuiz}
+                              className="flex-1 py-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              {isGeneratingQuiz ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <Brain className="w-4 h-4" />
+                                  Generate
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isGeneratingQuiz && (
+                <div className="mb-4 md:mb-8 flex gap-2 md:gap-4">
+                  <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-semibold">AI</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1 ml-1">Kai</div>
+                    <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-2xl px-3 py-3 md:px-4 md:py-4">
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                        <div>
+                          <p className="text-sm font-medium text-white">Generating Quiz...</p>
+                          <p className="text-xs text-white/60 mt-0.5">Creating {quizConfig.questionCount} {quizConfig.difficulty} questions</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div ref={messagesEndRef} />
             </div>
@@ -1250,7 +1473,7 @@ export default function Home() {
           <div className="w-full max-w-4xl mx-auto px-2 md:px-4">
             {/* Tools Dropdown */}
             {showTools && (
-              <div className="mb-2 bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
+              <div className="mb-2 bg-white/5 border border-white/10 rounded-xl p-3">
                 <div className="flex items-center gap-2 text-xs text-white/60 mb-2">
                   <Wrench size={14} />
                   <span className="font-medium">Select Tools</span>
@@ -1273,27 +1496,6 @@ export default function Home() {
                     type="checkbox"
                     checked={webSearchEnabled}
                     onChange={(e) => setWebSearchEnabled(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                </label>
-
-                {/* Quiz Generator Option */}
-                <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                    enableQuiz
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-white/10 text-white/60'
-                  }`}>
-                    <Brain size={18} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">Quiz Generator</div>
-                    <div className="text-xs text-white/60">Generate questions from conversation</div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={enableQuiz}
-                    onChange={(e) => setEnableQuiz(e.target.checked)}
                     className="w-4 h-4"
                   />
                 </label>
@@ -1343,13 +1545,22 @@ export default function Home() {
                       <span className="text-xs text-blue-300">Web</span>
                     </div>
                   )}
-                  {enableQuiz && (
-                    <div className="px-2 py-1 bg-purple-500/20 border border-purple-500/30 rounded-md flex items-center gap-1">
-                      <Brain size={10} className="text-purple-400" />
-                      <span className="text-xs text-purple-300">Quiz</span>
-                    </div>
-                  )}
                 </div>
+              )}
+              
+              {/* Quiz Button - Right Side */}
+              {conversationId && conversationId !== 'new' && (
+                <button
+                  onClick={() => setEnableQuiz(!enableQuiz)}
+                  className={`mr-2 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all ${
+                    enableQuiz
+                      ? 'bg-purple-500 text-white hover:bg-purple-600'
+                      : 'bg-white/10 text-white/60 hover:bg-white/20'
+                  }`}
+                  title="Generate Quiz"
+                >
+                  <Brain size={14} />
+                </button>
               )}
               
               {/* Model Selector - Inside Right (before send button) */}
@@ -1377,15 +1588,203 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Quiz Components */}
-      {enableQuiz && conversationId && conversationId !== 'new' && token && (
-        <QuizGenerator
-          conversationId={conversationId}
-          token={token}
-          onQuizGenerated={handleQuizGenerated}
-        />
+      {/* Quiz Configuration Form - Inline in messages */}
+      {showQuizConfigForm && (
+        <div className="hidden"></div>
+      )}
+      {/* Actual form is now rendered inline in messages - see below */}
+      
+      {/* Old modal form - keeping structure for reference but hidden */}
+      {false && showQuizConfigForm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-2xl bg-gradient-to-br from-gray-900 to-black border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-white">Configure Quiz</h2>
+                <p className="text-sm text-white/60 mt-0.5">Customize your quiz settings</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowQuizConfigForm(false);
+                  setQuizPrompt('');
+                  setQuizConfig({ questionCount: 5, questionTypes: ['mcq', 'true-false'], difficulty: 'medium', description: '' });
+                }}
+                className="text-white/60 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* User's Prompt Display */}
+              <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <MessageSquare className="w-4 h-4 text-purple-400" />
+                  <label className="text-xs text-white/70 font-medium">Your Prompt</label>
+                </div>
+                <p className="text-sm text-white">{quizPrompt}</p>
+              </div>
+
+              {/* Question Types */}
+              <div>
+                <label className="text-sm text-white/70 mb-2 block font-medium">Question Types</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'mcq', label: 'Multiple Choice', icon: 'list' },
+                    { value: 'true-false', label: 'True/False', icon: 'check-circle' },
+                    { value: 'short-answer', label: 'Short Answer', icon: 'edit' }
+                  ].map(type => (
+                    <button
+                      key={type.value}
+                      onClick={() => {
+                        setQuizConfig(prev => {
+                          const types = prev.questionTypes.includes(type.value)
+                            ? prev.questionTypes.filter(t => t !== type.value)
+                            : [...prev.questionTypes, type.value];
+                          return { ...prev, questionTypes: types.length > 0 ? types : [type.value] };
+                        });
+                      }}
+                      className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                        quizConfig.questionTypes.includes(type.value)
+                          ? 'bg-blue-500 text-white border-2 border-blue-400'
+                          : 'bg-white/5 text-white/60 border-2 border-white/10 hover:bg-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Number of Questions */}
+              <div>
+                <label className="text-sm text-white/70 mb-2 block font-medium">Number of Questions</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[5, 10, 15].map(count => (
+                    <button
+                      key={count}
+                      onClick={() => setQuizConfig(prev => ({ ...prev, questionCount: count }))}
+                      className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                        quizConfig.questionCount === count
+                          ? 'bg-purple-500 text-white border-2 border-purple-400'
+                          : 'bg-white/5 text-white/60 border-2 border-white/10 hover:bg-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      {count} Questions
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <label className="text-sm text-white/70 mb-2 block font-medium">Difficulty Level</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'easy', label: 'Easy', color: 'bg-green-500', border: 'border-green-400' },
+                    { value: 'medium', label: 'Medium', color: 'bg-yellow-500', border: 'border-yellow-400' },
+                    { value: 'hard', label: 'Hard', color: 'bg-red-500', border: 'border-red-400' }
+                  ].map(diff => (
+                    <button
+                      key={diff.value}
+                      onClick={() => setQuizConfig(prev => ({ ...prev, difficulty: diff.value }))}
+                      className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                        quizConfig.difficulty === diff.value
+                          ? `${diff.color} text-white border-2 ${diff.border}`
+                          : 'bg-white/5 text-white/60 border-2 border-white/10 hover:bg-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      {diff.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Generate Button */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowQuizConfigForm(false);
+                    setQuizPrompt('');
+                    setQuizConfig({ questionCount: 5, questionTypes: ['mcq', 'true-false'], difficulty: 'medium', description: '' });
+                  }}
+                  className="flex-1 py-3 bg-white/5 border border-white/10 rounded-lg text-white font-medium hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (quizConfig.questionTypes.length === 0) {
+                      alert('Please select at least one question type');
+                      return;
+                    }
+                    
+                    setShowQuizConfigForm(false);
+                    setIsGeneratingQuiz(true);
+                    
+                    try {
+                      const response = await fetch(`http://localhost:3001/api/conversations/${conversationId}/generate-quiz`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          questionCount: quizConfig.questionCount,
+                          questionTypes: quizConfig.questionTypes,
+                          difficulty: quizConfig.difficulty,
+                          description: quizPrompt
+                        }),
+                      });
+                      if (!response.ok) throw new Error('Failed to generate quiz');
+                      const quiz = await response.json();
+                      
+                      setLoadedQuizzes(prev => ({
+                        ...prev,
+                        [quiz.data.quizSessionId]: quiz.data
+                      }));
+                      setEnableQuiz(false);
+                      setQuizPrompt('');
+                      setQuizConfig({ questionCount: 5, questionTypes: ['mcq', 'true-false'], difficulty: 'medium', description: '' });
+                      
+                      // Reload messages to show quiz
+                      setTimeout(() => {
+                        if (conversationId && conversationId !== 'new') {
+                          loadMessages(conversationId);
+                        }
+                        setIsGeneratingQuiz(false);
+                      }, 500);
+                    } catch (error) {
+                      console.error('Failed to generate quiz:', error);
+                      alert('Failed to generate quiz. Please try again.');
+                      setIsGeneratingQuiz(false);
+                    }
+                  }}
+                  disabled={isGeneratingQuiz}
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isGeneratingQuiz ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="w-4 h-4" />
+                      Generate Quiz
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* Quiz Components - Only keep results modal */}
       {activeQuiz && (() => {
         console.log('[Quiz] Rendering QuizView modal with activeQuiz:', activeQuiz);
         return (

@@ -79,7 +79,7 @@ export default function QuizView({ quizSessionId, topic, questions, onSubmit, on
       <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-b border-purple-500/30 px-4 md:px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-white">📝 Quiz: {topic}</h3>
+            <h3 className="text-lg font-bold text-white">Quiz: {topic}</h3>
             <p className="text-sm text-purple-200">
               Question {currentIndex + 1} of {questions.length}
             </p>
