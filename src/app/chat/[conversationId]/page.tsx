@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { useRouter, useParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check, Wrench, Brain, Globe } from 'lucide-react';
@@ -17,9 +18,14 @@ import ModelSelector from '@/components/ModelSelector';
 import QuizGenerator from '@/components/QuizGenerator';
 import QuizView from '@/components/QuizView';
 import QuizResults from '@/components/QuizResults';
+import StudyPlanGenerator from '@/components/StudyPlanGenerator';
+import StudyPlanForm from '@/components/StudyPlanForm';
+import StudyPlanView from '@/components/StudyPlanView';
+import { apiClient } from '@/lib/api';
 
 export default function Home() {
   const { user, token, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const { showNotification } = useNotification();
   const router = useRouter();
   const params = useParams();
   const conversationId = params.conversationId as string;
@@ -47,6 +53,7 @@ export default function Home() {
   const [quizResults, setQuizResults] = useState<any>(null);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({});
   const [loadedQuizzes, setLoadedQuizzes] = useState<Record<string, any>>({});
+  const [loadedStudyPlans, setLoadedStudyPlans] = useState<Record<string, any>>({});
   const [quizConfig, setQuizConfig] = useState({
     questionCount: 5,
     questionTypes: ['mcq', 'true-false'] as string[],
@@ -56,6 +63,12 @@ export default function Home() {
   const [showQuizConfigForm, setShowQuizConfigForm] = useState(false);
   const [quizPrompt, setQuizPrompt] = useState('');
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [showStudyPlanGenerator, setShowStudyPlanGenerator] = useState(false);
+  const [showInlineStudyPlanForm, setShowInlineStudyPlanForm] = useState(false);
+  const [studyPlan, setStudyPlan] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const previousUnreadCountRef = useRef<number>(0);
   
   // Load selected model from localStorage on mount
   useEffect(() => {
@@ -90,16 +103,54 @@ export default function Home() {
   useEffect(() => {
     if (user?.user?.id) {
       loadConversations();
+      loadNotifications();
     }
   }, [user]);
+
+  // Poll notifications every 10 seconds
+  useEffect(() => {
+    if (!user?.user?.id) return;
+    
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 10000); // Poll every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [user?.user?.id]);
+
+  // Reload notifications when messages change (new study plan or quiz completed)
+  useEffect(() => {
+    if (user?.user?.id && messages.length > 0) {
+      // Check if there are new study plan or quiz messages
+      const hasAsyncMessages = messages.some(m => 
+        m.messageType === 'study-plan' || m.messageType === 'quiz'
+      );
+      if (hasAsyncMessages) {
+        loadNotifications();
+      }
+    }
+  }, [messages.length, user?.user?.id]);
 
   // Load quizzes when token becomes available and there are messages with quizzes
   useEffect(() => {
     if (token && messages.length > 0) {
+      console.log('[Messages] Total messages:', messages.length);
+      console.log('[Messages] All message types:', messages.map(m => ({ id: m.id, type: m.messageType, quizId: m.quizSessionId, studyPlanId: (m as any).studyPlanId })));
+      
       const quizMessages = messages.filter((m: Message) => m.messageType === 'quiz' && m.quizSessionId);
       if (quizMessages.length > 0) {
         console.log('[Quiz] Token available, loading quizzes for', quizMessages.length, 'messages');
         loadQuizzesForMessages(quizMessages);
+      }
+      
+      const studyPlanMessages = messages.filter((m: Message) => m.messageType === 'study-plan' && (m as any).studyPlanId);
+      console.log('[StudyPlan] Found study plan messages:', studyPlanMessages.length);
+      if (studyPlanMessages.length > 0) {
+        console.log('[StudyPlan] Token available, loading study plans for', studyPlanMessages.length, 'messages');
+        console.log('[StudyPlan] Study plan message details:', studyPlanMessages.map(m => ({ id: m.id, studyPlanId: (m as any).studyPlanId })));
+        loadStudyPlansForMessages(studyPlanMessages);
+      } else {
+        console.log('[StudyPlan] No study plan messages found in current messages');
       }
     }
   }, [token, messages]);
@@ -141,6 +192,67 @@ export default function Home() {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
+    }
+  };
+
+  const loadStudyPlansForMessages = async (studyPlanMessages: Message[]) => {
+    const plansToLoad: Record<string, any> = {};
+    
+    for (const msg of studyPlanMessages) {
+      const studyPlanId = (msg as any).studyPlanId;
+      console.log('[StudyPlan] Processing message:', msg.id, 'studyPlanId:', studyPlanId, 'already loaded:', !!loadedStudyPlans[studyPlanId]);
+      if (studyPlanId && !loadedStudyPlans[studyPlanId]) {
+        console.log('[StudyPlan] Fetching plan data for:', studyPlanId);
+        try {
+          const response = await fetch(`http://localhost:3001/api/study-plans/status/${studyPlanId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          console.log('[StudyPlan] Response status:', response.status);
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[StudyPlan] Response data:', data);
+            if (data.status === 'completed' && data.plan) {
+              console.log('[StudyPlan] Loaded plan data for', studyPlanId, 'plan:', data.plan);
+              // Ensure we have the complete plan structure with subject and goal
+              const planWithMetadata = {
+                id: data.plan.id,
+                subject: data.plan.subject,
+                goal: data.plan.goal,
+                content: typeof data.plan.content === 'string' ? JSON.parse(data.plan.content) : data.plan.content
+              };
+              console.log('[StudyPlan] Structured plan:', planWithMetadata);
+              plansToLoad[studyPlanId] = planWithMetadata;
+            } else {
+              console.log('[StudyPlan] Plan not ready yet, status:', data.status);
+            }
+          } else {
+            console.error('[StudyPlan] Failed to load plan:', studyPlanId, response.status);
+          }
+        } catch (error) {
+          console.error('[StudyPlan] Error loading plan:', studyPlanId, error);
+        }
+      }
+    }
+    
+    // Update all loaded plans at once
+    if (Object.keys(plansToLoad).length > 0) {
+      console.log('[StudyPlan] Setting loaded plans:', Object.keys(plansToLoad), 'with data:', plansToLoad);
+      setLoadedStudyPlans(prev => {
+        const updated = {
+          ...prev,
+          ...plansToLoad
+        };
+        console.log('[StudyPlan] State updated. Previous:', Object.keys(prev), 'New:', Object.keys(updated));
+        return updated;
+      });
+      // Scroll to bottom after plans load
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      console.log('[StudyPlan] No plans to load');
     }
   };
 
@@ -211,6 +323,11 @@ export default function Home() {
     try {
       const msgs = await aiAPI.getMessages(conversationId);
       console.log('[Messages] Loaded', msgs.length, 'messages');
+      console.log('[Messages] Token data check:', msgs.map((m: Message) => ({
+        id: m.id,
+        role: m.role,
+        tokensUsed: m.tokensUsed
+      })));
       
       // Log quiz messages
       const quizMessages = msgs.filter((m: Message) => m.messageType === 'quiz');
@@ -220,10 +337,61 @@ export default function Home() {
         messageType: m.messageType
       })));
       
+      // Log study plan messages
+      const studyPlanMessages = msgs.filter((m: Message) => m.messageType === 'study-plan');
+      console.log('[Messages] Found', studyPlanMessages.length, 'study plan messages:', studyPlanMessages.map((m: any) => ({
+        id: m.id,
+        studyPlanId: m.studyPlanId,
+        messageType: m.messageType,
+        content: m.content
+      })));
+      
       setMessages(msgs);
-      // Quiz loading will happen in useEffect when token is available
+      // Quiz and study plan loading will happen in useEffect when token is available
     } catch (error) {
       console.error('Failed to load messages:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      if (!user?.user?.id) return;
+      console.log('[Notifications] Loading for user:', user.user.id);
+      const response = await apiClient.get<any>(`/api/notifications?userId=${user.user.id}`);
+      console.log('[Notifications] Response:', response);
+      
+      // Backend returns { success, message, data: [...], meta: { unreadCount, ... } }
+      const newNotifications = response.data || [];
+      const newUnreadCount = response.meta?.unreadCount || 0;
+      
+      console.log('[Notifications] Loaded', newNotifications.length, 'notifications, unread:', newUnreadCount);
+      console.log('[Notifications] Previous cached count:', previousUnreadCountRef.current, 'New count:', newUnreadCount);
+      
+      // Show toast notification ONLY if unread count increased from cached value
+      // This prevents showing toast on every poll for the same notifications
+      if (newUnreadCount > previousUnreadCountRef.current && previousUnreadCountRef.current > 0) {
+        const latestNotification = newNotifications.find((n: any) => !n.isRead);
+        if (latestNotification) {
+          showNotification('info', latestNotification.message || 'You have a new notification');
+        }
+      }
+      
+      // Update cached count
+      previousUnreadCountRef.current = newUnreadCount;
+      
+      setNotifications(newNotifications);
+      setUnreadCount(newUnreadCount);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await apiClient.patch(`/api/notifications/${notificationId}/read`, { userId: user?.user?.id });
+      loadNotifications();
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -569,7 +737,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Syllabus Button */
+        {/* Syllabus Button */}
         <div className="p-3 border-b border-white/10">
           <button
             onClick={() => router.push('/syllabus')}
@@ -580,7 +748,7 @@ export default function Home() {
           </button>
         </div>
 
-        }{/* Conversation List */}
+        {/* Conversation List */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <style jsx>{`
             .scrollbar-hide::-webkit-scrollbar {
@@ -726,6 +894,72 @@ export default function Home() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications Section */}
+        <div className="border-t border-white/10">
+          <div className="p-3">
+            <div className="bg-black border border-white/20 rounded-lg overflow-hidden">
+              {/* Notifications Header */}
+              <button
+                onClick={() => setIsConversationsExpanded(!isConversationsExpanded)}
+                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-2 text-white/80">
+                  <div className="relative">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    {unreadCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </div>
+                    )}
+                  </div>
+                  <span className="font-medium text-sm">Notifications</span>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`text-white/60 transition-transform ${
+                    isConversationsExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Notifications List */}
+              {isConversationsExpanded && (
+                <div className="px-2 py-2 space-y-1 max-h-60 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="text-xs text-white/40 py-4 text-center">
+                      No notifications
+                    </div>
+                  ) : (
+                    notifications.slice(0, 10).map((notif: any) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => markNotificationAsRead(notif.id)}
+                        className={`p-2.5 rounded-lg cursor-pointer transition-colors ${
+                          notif.isRead
+                            ? 'bg-white/5 hover:bg-white/10'
+                            : 'bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30'
+                        }`}
+                      >
+                        <div className="text-xs font-semibold text-white mb-1">
+                          {notif.title}
+                        </div>
+                        <div className="text-xs text-white/60 leading-snug">
+                          {notif.message}
+                        </div>
+                        <div className="text-[10px] text-white/40 mt-1.5">
+                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -943,7 +1177,7 @@ export default function Home() {
                             )}
                             
                             {/* Main Content */}
-                            {msg.messageType !== 'quiz' && (
+                            {msg.messageType !== 'quiz' && msg.messageType !== 'study-plan' && (
                               <div className="text-sm md:text-base markdown-content max-w-full overflow-hidden">
                                 <MarkdownRenderer content={msg.content} />
                               </div>
@@ -1161,6 +1395,40 @@ export default function Home() {
                                 </div>
                               );
                             })()}
+                            
+                            {/* Study Plan Message - Display plan inline */}
+                            {(() => {
+                              console.log('[Render Check] Message:', msg.id, 'Type:', msg.messageType, 'Has studyPlanId:', !!(msg as any).studyPlanId);
+                              
+                              if (msg.messageType === 'study-plan' && (msg as any).studyPlanId) {
+                                const studyPlanId = (msg as any).studyPlanId;
+                                console.log('[StudyPlan Render] ✅ Found study plan message:', msg.id, 'studyPlanId:', studyPlanId);
+                                console.log('[StudyPlan Render] All loaded plans:', Object.keys(loadedStudyPlans));
+                                console.log('[StudyPlan Render] Has plan data:', !!loadedStudyPlans[studyPlanId]);
+                                console.log('[StudyPlan Render] Plan data:', loadedStudyPlans[studyPlanId]);
+                                
+                                if (!loadedStudyPlans[studyPlanId]) {
+                                  console.log('[StudyPlan Render] ⏳ Plan not loaded yet, showing loading state');
+                                  return (
+                                    <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                                      <p className="text-white/60 text-sm">Loading study plan...</p>
+                                    </div>
+                                  );
+                                }
+                                
+                                const plan = loadedStudyPlans[studyPlanId];
+                                console.log('[StudyPlan Render] ✅ Rendering plan with', plan.phases?.length, 'phases');
+                                console.log('[StudyPlan Render] Plan content:', plan);
+                                
+                                return (
+                                  <div className="mt-4">
+                                    <StudyPlanView plan={plan} />
+                                  </div>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
                           </>
                         ) : (
                           <div className="whitespace-pre-wrap break-words text-sm md:text-base">
@@ -1318,6 +1586,33 @@ export default function Home() {
                         <div className="w-2 h-2 bg-pink-500/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Study Plan Form - Inline Message Style */}
+              {showInlineStudyPlanForm && conversationId && conversationId !== 'new' && (
+                <div className="mb-4 md:mb-8 flex gap-2 md:gap-4">
+                  <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-xs font-semibold">AI</span>
+                  </div>
+                  <div className="flex-1 max-w-3xl">
+                    <div className="text-xs text-gray-500 mb-1 ml-1">Kai</div>
+                    <StudyPlanForm
+                      conversationId={conversationId}
+                      onClose={() => setShowInlineStudyPlanForm(false)}
+                      onComplete={(plan) => {
+                        setStudyPlan(plan);
+                        setShowInlineStudyPlanForm(false);
+                        // Reload messages to show the study plan
+                        setTimeout(() => {
+                          if (conversationId && conversationId !== 'new') {
+                            loadMessages(conversationId);
+                            loadNotifications();
+                          }
+                        }, 500);
+                      }}
+                    />
                   </div>
                 </div>
               )}
@@ -1522,6 +1817,19 @@ export default function Home() {
                 </div>
               )}
               
+              {/* Study Plan Display - Inline after messages */}
+              {studyPlan && studyPlan.content && (
+                <div className="mb-4 md:mb-8 flex gap-2 md:gap-4">
+                  <div className="w-7 h-7 md:w-8 md:h-8 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-xs font-semibold">AI</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1 ml-1">Kai</div>
+                    <StudyPlanView plan={studyPlan} />
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -1619,6 +1927,17 @@ export default function Home() {
                   title="Generate Quiz"
                 >
                   <Brain size={14} />
+                </button>
+              )}
+              
+              {/* Study Plan Button - Right Side */}
+              {conversationId && conversationId !== 'new' && (
+                <button
+                  onClick={() => setShowInlineStudyPlanForm(true)}
+                  className="mr-2 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all bg-white/10 text-white/60 hover:bg-white/20"
+                  title="Create Study Plan"
+                >
+                  <BookOpen size={14} />
                 </button>
               )}
               
@@ -1879,6 +2198,24 @@ export default function Home() {
             />
           </div>
         </div>
+      )}
+
+      {/* Study Plan Generator Modal */}
+      {showStudyPlanGenerator && conversationId && conversationId !== 'new' && (
+        <StudyPlanGenerator
+          conversationId={conversationId}
+          onClose={() => setShowStudyPlanGenerator(false)}
+          onComplete={(plan) => {
+            setStudyPlan(plan);
+            setShowStudyPlanGenerator(false);
+            // Reload messages to show the study plan
+            setTimeout(() => {
+              if (conversationId && conversationId !== 'new') {
+                loadMessages(conversationId);
+              }
+            }, 500);
+          }}
+        />
       )}
 
       {/* Confirmation Dialogs */}

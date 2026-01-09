@@ -180,3 +180,74 @@ export const signupAPI = {
   },
 };
 
+// Study Plan API endpoints
+export const studyPlanAPI = {
+  // Generate study plan
+  generate: async (data: { conversationId: string; subject: string; goal: string }) => {
+    const token = getAuthToken();
+    const response = await fetch('http://localhost:3001/api/study-plans/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Poll for status
+  getStatus: async (planId: string) => {
+    const token = getAuthToken();
+    const response = await fetch(`http://localhost:3001/api/study-plans/status/${planId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Get by conversation
+  getByConversation: async (conversationId: string) => {
+    const token = getAuthToken();
+    const response = await fetch(`http://localhost:3001/api/study-plans/conversation/${conversationId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Get job status
+  getJobStatus: async (planId: string) => {
+    const token = getAuthToken();
+    const response = await fetch(`http://localhost:3001/api/study-plans/job/${planId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+};
