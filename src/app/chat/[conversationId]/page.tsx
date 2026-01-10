@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useRouter, useParams } from 'next/navigation';
+import Image from 'next/image';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
 import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check, Wrench, Brain, Globe, ListChecks, GraduationCap, BookMarked } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -70,6 +71,17 @@ export default function Home() {
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [chatIllustration, setChatIllustration] = useState('');
+  
+  // Pick random chat illustration on mount
+  useEffect(() => {
+    const illustrations = [
+      '/forChatScreen/Chat bot-bro.png',
+      '/forChatScreen/Typing-cuate.png'
+    ];
+    const randomIndex = Math.floor(Math.random() * illustrations.length);
+    setChatIllustration(illustrations[randomIndex]);
+  }, []);
   
   // Load selected model from localStorage on mount
   useEffect(() => {
@@ -1247,9 +1259,19 @@ export default function Home() {
         <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-4 md:p-8 text-center">
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center mb-3 md:mb-4">
-                <MessageSquare size={24} className="text-white/40 md:w-8 md:h-8" />
-              </div>
+              {chatIllustration && (
+                <>
+                  <div className="relative w-full max-w-md aspect-square mb-6">
+                    <Image
+                      src={chatIllustration}
+                      alt="Chat Illustration"
+                      fill
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
+                </>
+              )}
               <h2 className="text-xl md:text-2xl font-semibold mb-2">Start a conversation</h2>
               <p className="text-white/60 text-sm md:text-base max-w-md px-4">
                 Ask me anything! I can help you with your studies, answer questions, or just chat.
