@@ -83,8 +83,11 @@ export const aiAPI = {
   },
 
   // Get user conversations
-  async getConversations(userId: string): Promise<Conversation[]> {
-    const response = await apiClient.get<ApiResponse<Conversation[]>>(`/api/ai/conversations?userId=${userId}`);
+  async getConversations(userId?: string): Promise<Conversation[]> {
+    const endpoint = userId 
+      ? `/api/ai/conversations?userId=${userId}`
+      : '/api/ai/conversations';
+    const response = await apiClient.get<ApiResponse<Conversation[]>>(endpoint);
     return response.data;
   },
 

@@ -45,7 +45,6 @@ export default function Home() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const [isConversationsExpanded, setIsConversationsExpanded] = useState(true);
-  const [isNotificationsExpanded, setIsNotificationsExpanded] = useState(true);
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -67,9 +66,6 @@ export default function Home() {
   const [showStudyPlanGenerator, setShowStudyPlanGenerator] = useState(false);
   const [showInlineStudyPlanForm, setShowInlineStudyPlanForm] = useState(false);
   const [studyPlan, setStudyPlan] = useState<any>(null);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const previousUnreadCountRef = useRef<number>(0);
   const [showContentMenu, setShowContentMenu] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -108,33 +104,10 @@ export default function Home() {
   useEffect(() => {
     if (user?.user?.id) {
       loadConversations();
-      loadNotifications();
     }
   }, [user]);
 
-  // Poll notifications every 10 seconds
-  useEffect(() => {
-    if (!user?.user?.id) return;
-    
-    const interval = setInterval(() => {
-      loadNotifications();
-    }, 10000); // Poll every 10 seconds
-    
-    return () => clearInterval(interval);
-  }, [user?.user?.id]);
 
-  // Reload notifications when messages change (new study plan or quiz completed)
-  useEffect(() => {
-    if (user?.user?.id && messages.length > 0) {
-      // Check if there are new study plan or quiz messages
-      const hasAsyncMessages = messages.some(m => 
-        m.messageType === 'study-plan' || m.messageType === 'quiz'
-      );
-      if (hasAsyncMessages) {
-        loadNotifications();
-      }
-    }
-  }, [messages.length, user?.user?.id]);
 
   // Scroll detection for showing/hiding scroll-to-bottom button
   useEffect(() => {
@@ -382,43 +355,11 @@ export default function Home() {
     }
   };
 
-  const loadNotifications = async () => {
-    try {
-      if (!user?.user?.id) return;
-      console.log('[Notifications] Loading for user:', user.user.id);
-      const response = await apiClient.get<any>(`/api/notifications?userId=${user.user.id}`);
-      console.log('[Notifications] Response:', response);
-      
-      // Backend returns { success, message, data: [...], meta: { unreadCount, ... } }
-      const newNotifications = response.data || [];
-      const newUnreadCount = response.meta?.unreadCount || 0;
-      
-      console.log('[Notifications] Loaded', newNotifications.length, 'notifications, unread:', newUnreadCount);
-      console.log('[Notifications] Previous cached count:', previousUnreadCountRef.current, 'New count:', newUnreadCount);
-      
-      // Show toast notification ONLY if unread count increased from cached value
-      // This prevents showing toast on every poll for the same notifications
-      if (newUnreadCount > previousUnreadCountRef.current && previousUnreadCountRef.current > 0) {
-        const latestNotification = newNotifications.find((n: any) => !n.isRead);
-        if (latestNotification) {
-          showNotification('info', latestNotification.message || 'You have a new notification');
-        }
-      }
-      
-      // Update cached count
-      previousUnreadCountRef.current = newUnreadCount;
-      
-      setNotifications(newNotifications);
-      setUnreadCount(newUnreadCount);
-    } catch (error) {
-      console.error('Failed to load notifications:', error);
-    }
-  };
+
 
   const markNotificationAsRead = async (notificationId: string) => {
     try {
       await apiClient.patch(`/api/notifications/${notificationId}/read`, { userId: user?.user?.id });
-      loadNotifications();
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
     }
@@ -973,72 +914,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Notifications Section */}
-        <div className="border-t border-white/10">
-          <div className="p-3">
-            <div className="bg-black border border-white/20 rounded-lg overflow-hidden">
-              {/* Notifications Header */}
-              <button
-                onClick={() => setIsNotificationsExpanded(!isNotificationsExpanded)}
-                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
-              >
-                <div className="flex items-center gap-2 text-white/80">
-                  <div className="relative">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    {unreadCount > 0 && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </div>
-                    )}
-                  </div>
-                  <span className="font-medium text-sm">Notifications</span>
-                </div>
-                <ChevronDown
-                  size={16}
-                  className={`text-white/60 transition-transform ${
-                    isNotificationsExpanded ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {/* Notifications List */}
-              {isNotificationsExpanded && (
-                <div className="px-2 py-2 space-y-1 max-h-60 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="text-xs text-white/40 py-4 text-center">
-                      No notifications
-                    </div>
-                  ) : (
-                    notifications.slice(0, 10).map((notif: any) => (
-                      <div
-                        key={notif.id}
-                        onClick={() => markNotificationAsRead(notif.id)}
-                        className={`p-2.5 rounded-lg cursor-pointer transition-colors ${
-                          notif.isRead
-                            ? 'bg-white/5 hover:bg-white/10'
-                            : 'bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30'
-                        }`}
-                      >
-                        <div className="text-xs font-semibold text-white mb-1">
-                          {notif.title}
-                        </div>
-                        <div className="text-xs text-white/60 leading-snug">
-                          {notif.message}
-                        </div>
-                        <div className="text-[10px] text-white/40 mt-1.5">
-                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1846,7 +1721,6 @@ export default function Home() {
                         setTimeout(() => {
                           if (conversationId && conversationId !== 'new') {
                             loadMessages(conversationId);
-                            loadNotifications();
                           }
                         }, 500);
                       }}

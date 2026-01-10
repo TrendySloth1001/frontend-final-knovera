@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setAuthToken, setTempToken } from '@/lib/api';
 import { decodeToken, isTempToken } from '@/lib/token';
@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
-export default function CallbackPage() {
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
@@ -117,5 +117,17 @@ export default function CallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
   );
 }

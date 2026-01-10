@@ -59,7 +59,7 @@ export default function ProfilePage() {
   const studentProfile = !isTeacher ? (profile as StudentProfile) : null;
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black overflow-y-auto">
       {/* Top Navigation Bar */}
       <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-sm border-b border-white/10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">

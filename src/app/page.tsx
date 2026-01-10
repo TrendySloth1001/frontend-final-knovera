@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
@@ -13,7 +13,7 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
-export default function Home() {
+function HomeContent() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -811,3 +811,14 @@ export default function Home() {
   );
 }
 
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
+  );
+}
