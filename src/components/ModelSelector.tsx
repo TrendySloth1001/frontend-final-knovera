@@ -124,7 +124,7 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute bottom-full right-0 mb-2 w-48 max-h-80 overflow-y-auto custom-scrollbar bg-black border border-white/20 rounded-lg shadow-xl z-50">
+        <div className="absolute top-full right-0 mt-2 w-48 max-h-80 overflow-y-auto custom-scrollbar bg-black border border-white/20 rounded-lg shadow-xl z-[100]">
           <div className="sticky top-0 bg-black border-b border-white/10 px-3 py-2">
             <div className="flex items-center gap-2">
               <Cpu size={14} className="text-white/60" />

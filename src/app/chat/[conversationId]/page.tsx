@@ -9,12 +9,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useRouter, useParams } from 'next/navigation';
 import { aiAPI, type Conversation, type Message } from '@/lib/ai-api';
-import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check, Wrench, Brain, Globe } from 'lucide-react';
+import { Send, Plus, Trash2, Search, Menu, X, MessageSquare, Loader2, User, Database, Coins, BookOpen, ChevronDown, HelpCircle, Copy, Check, Wrench, Brain, Globe, ListChecks, GraduationCap, BookMarked } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import ThinkingBlock from '@/components/ThinkingBlock';
 import { VectorVisualizer } from '@/components/VectorVisualizer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import ModelSelector from '@/components/ModelSelector';
+import ToolsSelector from '@/components/ToolsSelector';
 import QuizGenerator from '@/components/QuizGenerator';
 import QuizView from '@/components/QuizView';
 import QuizResults from '@/components/QuizResults';
@@ -48,7 +49,6 @@ export default function Home() {
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [showTools, setShowTools] = useState(false);
   const [enableQuiz, setEnableQuiz] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<any>(null);
   const [quizResults, setQuizResults] = useState<any>(null);
@@ -70,6 +70,10 @@ export default function Home() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const previousUnreadCountRef = useRef<number>(0);
+  const [showContentMenu, setShowContentMenu] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   // Load selected model from localStorage on mount
   useEffect(() => {
@@ -131,6 +135,27 @@ export default function Home() {
       }
     }
   }, [messages.length, user?.user?.id]);
+
+  // Scroll detection for showing/hiding scroll-to-bottom button
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Show button if scrolled up more than 200px from bottom and have messages
+      setShowScrollToBottom(distanceFromBottom > 200 && messages.length > 3);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check initial state
+
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [messages.length]);
 
   // Load quizzes when token becomes available and there are messages with quizzes
   useEffect(() => {
@@ -429,6 +454,10 @@ export default function Home() {
     }
   };
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading || !user) return;
 
@@ -708,6 +737,52 @@ export default function Home() {
         c.topic?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : conversations;
+
+  // Scroll to a specific message by ID
+  const scrollToMessage = (messageId: string) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the message briefly
+      element.classList.add('ring-2', 'ring-purple-500/50');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-purple-500/50');
+      }, 2000);
+    }
+    setShowContentMenu(false);
+  };
+
+  // Get all quizzes and study plans from messages
+  const contentItems = messages
+    .map((msg, index) => {
+      if (msg.messageType === 'quiz' && msg.quizSessionId) {
+        const quiz = loadedQuizzes[msg.quizSessionId];
+        return {
+          type: 'quiz' as const,
+          id: msg.id,
+          messageId: msg.id,
+          quizId: msg.quizSessionId,
+          topic: quiz?.topic || 'Quiz',
+          sequence: msg.sequenceNumber || index,
+          createdAt: msg.createdAt,
+        };
+      }
+      if (msg.messageType === 'study-plan' && (msg as any).studyPlanId) {
+        const plan = loadedStudyPlans[(msg as any).studyPlanId];
+        return {
+          type: 'plan' as const,
+          id: msg.id,
+          messageId: msg.id,
+          planId: (msg as any).studyPlanId,
+          subject: plan?.subject || 'Study Plan',
+          sequence: msg.sequenceNumber || index,
+          createdAt: msg.createdAt,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a?.sequence || 0) - (b?.sequence || 0));
 
   if (authLoading) {
     return (
@@ -1119,23 +1194,182 @@ export default function Home() {
           </button>
           <div className="flex-1"></div>
           
-          {/* Total Token Count */}
-          {messages.length > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-xs font-medium">
-              <Coins className="w-3.5 h-3.5" />
-              <span>{totalTokens.toLocaleString()}</span>
+          {/* Content Menu - Quizzes & Study Plans */}
+          {contentItems.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setShowContentMenu(!showContentMenu)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium hover:bg-purple-500/20 transition-colors"
+              >
+                <BookMarked className="w-3.5 h-3.5" />
+                <span>{contentItems.length}</span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${showContentMenu ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showContentMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowContentMenu(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-black border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div className="p-3 border-b border-white/10 bg-white/5">
+                      <h3 className="text-sm font-semibold">Generated Content</h3>
+                      <p className="text-xs text-white/60 mt-0.5">Click to jump to location</p>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                      {contentItems.map((item) => (
+                        <button
+                          key={item!.id}
+                          onClick={() => scrollToMessage(item!.messageId)}
+                          className="w-full px-3 py-2.5 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors text-left"
+                        >
+                          <div className="flex items-start gap-2">
+                            {item!.type === 'quiz' ? (
+                              <ListChecks className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <GraduationCap className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-white truncate">
+                                {item!.type === 'quiz' ? item!.topic : item!.subject}
+                              </div>
+                              <div className="text-xs text-white/50 mt-0.5">
+                                {item!.type === 'quiz' ? 'Quiz' : 'Study Plan'} • #{item!.sequence}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
           
-          {/* Model Selector */}
-          <ModelSelector 
-            selectedModel={selectedModel}
-            onModelChange={handleModelChange}
-          />
+          {/* Right side controls group - Desktop: all visible, Mobile: collapsed */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Total Token Count - Hidden on mobile */}
+            {messages.length > 0 && (
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-xs font-medium">
+                <Coins className="w-3.5 h-3.5" />
+                <span>{totalTokens.toLocaleString()}</span>
+              </div>
+            )}
+            
+            {/* Tools Selector - Hidden on mobile */}
+            <div className="hidden md:block">
+              <ToolsSelector
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchChange={setWebSearchEnabled}
+                enableQuiz={enableQuiz}
+                onEnableQuizChange={setEnableQuiz}
+              />
+            </div>
+            
+            {/* Model Selector - Hidden on mobile */}
+            <div className="hidden md:block">
+              <ModelSelector 
+                selectedModel={selectedModel}
+                onModelChange={handleModelChange}
+              />
+            </div>
+            
+            {/* Mobile: Combined menu button */}
+            <div className="md:hidden relative">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors relative"
+              >
+                <div className="flex items-center gap-1">
+                  {(webSearchEnabled || enableQuiz) && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full"></span>
+                  )}
+                  <ChevronDown size={18} className={`transition-transform ${showMobileMenu ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+              
+              {/* Mobile dropdown menu */}
+              {showMobileMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowMobileMenu(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-black border border-white/20 rounded-lg shadow-xl z-[100] overflow-hidden">
+                    {/* Token Count */}
+                    {messages.length > 0 && (
+                      <div className="px-3 py-2 border-b border-white/10">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white/60">Total Tokens</span>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-xs font-medium">
+                            <Coins className="w-3 h-3" />
+                            <span>{totalTokens.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Model Selection */}
+                    <div className="px-3 py-2 border-b border-white/10">
+                      <div className="text-xs text-white/60 mb-2">AI Model</div>
+                      <ModelSelector 
+                        selectedModel={selectedModel}
+                        onModelChange={handleModelChange}
+                      />
+                    </div>
+                    
+                    {/* Tools Section */}
+                    <div className="px-3 py-2">
+                      <div className="text-xs text-white/60 mb-2">Tools</div>
+                      <div className="space-y-2">
+                        {/* Web Search Toggle */}
+                        <button
+                          onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                          className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
+                            webSearchEnabled
+                              ? 'bg-blue-500/20 border border-blue-500/40'
+                              : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Globe size={16} className={webSearchEnabled ? 'text-blue-400' : 'text-white/60'} />
+                            <span className={`text-sm ${webSearchEnabled ? 'text-blue-200' : 'text-white'}`}>Web Search</span>
+                          </div>
+                          {webSearchEnabled && (
+                            <span className="px-1.5 py-0.5 bg-blue-500 text-white text-[10px] font-bold rounded">ON</span>
+                          )}
+                        </button>
+                        
+                        {/* Quiz Mode Toggle */}
+                        <button
+                          onClick={() => setEnableQuiz(!enableQuiz)}
+                          className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
+                            enableQuiz
+                              ? 'bg-purple-500/20 border border-purple-500/40'
+                              : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Brain size={16} className={enableQuiz ? 'text-purple-400' : 'text-white/60'} />
+                            <span className={`text-sm ${enableQuiz ? 'text-purple-200' : 'text-white'}`}>Quiz Mode</span>
+                          </div>
+                          {enableQuiz && (
+                            <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] font-bold rounded">ON</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-4 md:p-8 text-center">
               <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center mb-3 md:mb-4">
@@ -1149,7 +1383,7 @@ export default function Home() {
           ) : (
             <div className="w-full px-3 md:px-6 lg:px-12 py-4 md:py-6">
               {messages.map((msg, idx) => (
-                <div key={msg.id}>
+                <div key={msg.id} id={`message-${msg.id}`} className="scroll-mt-20 transition-all duration-300">
                   <div
                     className={`mb-4 md:mb-6 flex gap-2 md:gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}
                   >
@@ -1842,52 +2076,19 @@ export default function Home() {
         {/* Input Area */}
         <div className="border-t border-white/10 p-2 md:p-3 safe-area-bottom">
           <div className="w-full max-w-4xl mx-auto px-2 md:px-4">
-            {/* Tools Dropdown */}
-            {showTools && (
-              <div className="mb-2 bg-white/5 border border-white/10 rounded-xl p-3">
-                <div className="flex items-center gap-2 text-xs text-white/60 mb-2">
-                  <Wrench size={14} />
-                  <span className="font-medium">Select Tools</span>
-                </div>
-                
-                {/* Web Search Option */}
-                <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                    webSearchEnabled
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/10 text-white/60'
-                  }`}>
-                    <Globe size={18} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-white">Web Search</div>
-                    <div className="text-xs text-white/60">Search the internet for information</div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={webSearchEnabled}
-                    onChange={(e) => setWebSearchEnabled(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                </label>
-              </div>
+            {/* Scroll to Bottom Button */}
+            {showScrollToBottom && (
+              <button
+                onClick={scrollToBottom}
+                className="absolute bottom-20 left-4 w-10 h-10 bg-purple-500 hover:bg-purple-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 z-10"
+                title="Scroll to bottom"
+              >
+                <ChevronDown size={20} />
+              </button>
             )}
 
             {/* Unified Input Container - Single rounded rectangle */}
             <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl focus-within:border-white/30 transition-colors">
-              {/* Tools Button - Inside Left */}
-              <button
-                onClick={() => setShowTools(!showTools)}
-                className={`ml-3 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-colors ${
-                  showTools || webSearchEnabled || enableQuiz
-                    ? 'bg-purple-500 text-white hover:bg-purple-600' 
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                title="Tools"
-              >
-                <Wrench size={14} />
-              </button>
-              
               {/* Input Field - Seamless integration */}
               <textarea
                 ref={inputRef}
@@ -1901,57 +2102,40 @@ export default function Home() {
                   }
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Type your message..."
+                placeholder={enableQuiz ? "Describe the quiz you want to generate..." : "Type your message..."}
                 rows={1}
                 className="flex-1 bg-transparent border-0 px-3 py-2.5 text-sm resize-none focus:outline-none scrollbar-hide text-white placeholder-white/40"
                 style={{ minHeight: '38px', maxHeight: '120px', overflow: 'hidden' }}
               />
               
-              {/* Active Tool Indicators */}
+              {/* Active Tool Indicators - Compact badges */}
               {(webSearchEnabled || enableQuiz) && (
-                <div className="mr-2 flex items-center gap-1.5 flex-shrink-0">
+                <div className="mr-2 flex items-center gap-1 flex-shrink-0">
                   {webSearchEnabled && (
-                    <div className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md flex items-center gap-1">
+                    <div className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded flex items-center gap-1">
                       <Globe size={10} className="text-blue-400" />
-                      <span className="text-xs text-blue-300">Web</span>
+                      <span className="text-[10px] text-blue-300 font-medium">Web</span>
+                    </div>
+                  )}
+                  {enableQuiz && (
+                    <div className="px-1.5 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded flex items-center gap-1">
+                      <Brain size={10} className="text-purple-400" />
+                      <span className="text-[10px] text-purple-300 font-medium">Quiz</span>
                     </div>
                   )}
                 </div>
               )}
               
-              {/* Quiz Button - Right Side */}
-              {conversationId && conversationId !== 'new' && (
-                <button
-                  onClick={() => setEnableQuiz(!enableQuiz)}
-                  className={`mr-2 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all ${
-                    enableQuiz
-                      ? 'bg-purple-500 text-white hover:bg-purple-600'
-                      : 'bg-white/10 text-white/60 hover:bg-white/20'
-                  }`}
-                  title="Generate Quiz"
-                >
-                  <Brain size={14} />
-                </button>
-              )}
-              
-              {/* Study Plan Button - Right Side */}
+              {/* Study Plan Button - Quick access */}
               {conversationId && conversationId !== 'new' && (
                 <button
                   onClick={() => setShowInlineStudyPlanForm(true)}
-                  className="mr-2 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all bg-white/10 text-white/60 hover:bg-white/20"
+                  className="mr-2 flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
                   title="Create Study Plan"
                 >
                   <BookOpen size={14} />
                 </button>
               )}
-              
-              {/* Model Selector - Inside Right (before send button) */}
-              <div className="mr-2 flex-shrink-0">
-                <ModelSelector 
-                  selectedModel={selectedModel}
-                  onModelChange={handleModelChange}
-                />
-              </div>
               
               {/* Send Button - Inside Right */}
               <button
