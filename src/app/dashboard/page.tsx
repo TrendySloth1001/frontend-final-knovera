@@ -79,6 +79,12 @@ export default function Dashboard() {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [teacherProfileLoading, setTeacherProfileLoading] = useState(false);
+  const [showFollowingDrawer, setShowFollowingDrawer] = useState(false);
+  const [followingList, setFollowingList] = useState<any[]>([]);
+  const [followingListLoading, setFollowingListLoading] = useState(false);
+  const [showFollowersDrawer, setShowFollowersDrawer] = useState(false);
+  const [followersList, setFollowersList] = useState<any[]>([]);
+  const [followersListLoading, setFollowersListLoading] = useState(false);
 
   const illustrations = [
     '/illustrations/Analysis-bro.png',
@@ -410,6 +416,39 @@ export default function Dashboard() {
     window.location.hash = '';
     setSelectedTeacher(null);
     setSelectedTeacherId(null);
+  };
+
+  // Load following list
+  const loadFollowingList = async () => {
+    try {
+      setFollowingListLoading(true);
+      const response: any = await teacherApi.getAll({ limit: 100 });
+      // Filter only teachers that the user is following
+      const following = response.data.teachers.filter((t: any) => t.isFollowing);
+      setFollowingList(following);
+      setShowFollowingDrawer(true);
+    } catch (error) {
+      console.error('Failed to load following list:', error);
+      showNotification('error', 'Failed to load following list');
+    } finally {
+      setFollowingListLoading(false);
+    }
+  };
+
+  // Load followers list
+  const loadFollowersList = async (teacherId: string) => {
+    try {
+      setFollowersListLoading(true);
+      // Call API to get followers of a specific teacher
+      const response = await apiClient.get<any>(`/api/teachers/${teacherId}/followers`);
+      setFollowersList(response.data || []);
+      setShowFollowersDrawer(true);
+    } catch (error) {
+      console.error('Failed to load followers list:', error);
+      showNotification('error', 'Failed to load followers list');
+    } finally {
+      setFollowersListLoading(false);
+    }
   };
 
   // Sidebar item component
@@ -1173,16 +1212,32 @@ export default function Dashboard() {
                     {/* Followers/Following Stats */}
                     <div className="flex items-center space-x-4 mt-3">
                       {user.user.role === 'TEACHER' && user.profile && (
-                        <div className="text-sm">
-                          <span className="text-white font-semibold">{(user.profile as any).followersCount || 0}</span>
-                          <span className="text-neutral-500 ml-1">Followers</span>
-                        </div>
+                        <>
+                          <button
+                            onClick={() => loadFollowersList(user.user.id)}
+                            className="text-sm hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-white font-semibold">{(user.profile as any).followersCount || 0}</span>
+                            <span className="text-neutral-500 ml-1">Followers</span>
+                          </button>
+                          <span className="text-neutral-700">•</span>
+                          <button
+                            onClick={loadFollowingList}
+                            className="text-sm hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-white font-semibold">{(user.profile as any).followingCount || 0}</span>
+                            <span className="text-neutral-500 ml-1">Following</span>
+                          </button>
+                        </>
                       )}
                       {user.user.role === 'STUDENT' && user.profile && (
-                        <div className="text-sm">
+                        <button
+                          onClick={loadFollowingList}
+                          className="text-sm hover:opacity-80 transition-opacity"
+                        >
                           <span className="text-white font-semibold">{(user.profile as any).followingCount || 0}</span>
                           <span className="text-neutral-500 ml-1">Following</span>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1399,12 +1454,27 @@ export default function Dashboard() {
                     <p className="text-sm text-neutral-400 mb-3">{selectedTeacher.specialization}</p>
                   )}
                   
-                  {/* Followers */}
+                  {/* Followers & Following */}
                   <div className="flex items-center justify-center sm:justify-start space-x-4 mb-4">
-                    <div className="text-sm">
+                    <button
+                      onClick={() => loadFollowersList(selectedTeacher.id)}
+                      className="text-sm hover:opacity-80 transition-opacity"
+                    >
                       <span className="text-white font-semibold">{selectedTeacher.followersCount || 0}</span>
                       <span className="text-neutral-500 ml-1">Followers</span>
-                    </div>
+                    </button>
+                    {selectedTeacher.followingCount !== undefined && (
+                      <>
+                        <span className="text-neutral-700">•</span>
+                        <button
+                          onClick={loadFollowingList}
+                          className="text-sm hover:opacity-80 transition-opacity"
+                        >
+                          <span className="text-white font-semibold">{selectedTeacher.followingCount || 0}</span>
+                          <span className="text-neutral-500 ml-1">Following</span>
+                        </button>
+                      </>
+                    )}
                     {selectedTeacher.experience && (
                       <div className="flex items-center gap-1 text-sm text-neutral-400">
                         <Award size={14} />
@@ -1487,6 +1557,160 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+      </Drawer>
+
+      {/* Following List Drawer */}
+      <Drawer
+        isOpen={showFollowingDrawer}
+        onClose={() => setShowFollowingDrawer(false)}
+        title="Following"
+        width="md"
+      >
+        <div className="p-4 sm:p-6">
+          {followingListLoading ? (
+            <div className="text-center py-12">
+              <p className="text-neutral-500">Loading...</p>
+            </div>
+          ) : followingList.length > 0 ? (
+            <div className="space-y-0">
+              {followingList.map((teacher: any, index: number) => (
+                <div key={teacher.id}>
+                  <div className="py-4 hover:bg-neutral-950 transition-colors rounded-lg px-2">
+                    <div className="flex items-center justify-between">
+                      <div 
+                        className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
+                        onClick={() => {
+                          setShowFollowingDrawer(false);
+                          window.location.hash = `teacher/${teacher.id}`;
+                        }}
+                      >
+                        {/* Profile Picture */}
+                        <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                          {teacher.user.avatarUrl ? (
+                            <img src={teacher.user.avatarUrl} alt={teacher.user.displayName} className="w-full h-full object-cover" />
+                          ) : (
+                            teacher.user.displayName.substring(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        
+                        {/* Name and Experience */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-white truncate">{teacher.user.displayName}</h4>
+                          {teacher.experience && (
+                            <div className="flex items-center gap-1 text-xs text-neutral-400 mt-1">
+                              <Award size={12} />
+                              <span>{teacher.experience} years experience</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Follow Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFollowTeacher(teacher.id);
+                        }}
+                        className="ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700"
+                      >
+                        Following
+                      </button>
+                    </div>
+                  </div>
+                  {index < followingList.length - 1 && (
+                    <div className="border-b border-neutral-800"></div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Users size={48} className="mx-auto mb-4 text-neutral-700" />
+              <p className="text-neutral-500">Not following anyone yet</p>
+            </div>
+          )}
+        </div>
+      </Drawer>
+
+      {/* Followers List Drawer */}
+      <Drawer
+        isOpen={showFollowersDrawer}
+        onClose={() => setShowFollowersDrawer(false)}
+        title="Followers"
+        width="md"
+      >
+        <div className="p-4 sm:p-6">
+          {followersListLoading ? (
+            <div className="text-center py-12">
+              <p className="text-neutral-500">Loading...</p>
+            </div>
+          ) : followersList.length > 0 ? (
+            <div className="space-y-0">
+              {followersList.map((follower: any, index: number) => {
+                const isTeacher = follower.followerType === 'TEACHER';
+                const isFollowing = followingTeachers.has(follower.followerId);
+                
+                return (
+                  <div key={follower.id}>
+                    <div className="py-4 hover:bg-neutral-950 transition-colors rounded-lg px-2">
+                      <div className="flex items-center justify-between">
+                        <div 
+                          className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
+                          onClick={() => {
+                            if (isTeacher) {
+                              setShowFollowersDrawer(false);
+                              window.location.hash = `teacher/${follower.followerId}`;
+                            }
+                          }}
+                        >
+                          {/* Profile Picture */}
+                          <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-sm overflow-hidden flex-shrink-0">
+                            {follower.followerAvatar ? (
+                              <img src={follower.followerAvatar} alt={follower.followerName} className="w-full h-full object-cover" />
+                            ) : (
+                              follower.followerName.substring(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          
+                          {/* Name and Role */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-semibold text-white truncate">{follower.followerName}</h4>
+                            <p className="text-xs text-neutral-400 capitalize">{follower.followerType.toLowerCase()}</p>
+                          </div>
+                        </div>
+
+                        {/* Follow Button - Only show for teachers */}
+                        {isTeacher && follower.followerId !== user.user.id && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFollowTeacher(follower.followerId);
+                            }}
+                            className={`ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                              isFollowing
+                                ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                                : 'bg-white text-black hover:bg-neutral-200'
+                            }`}
+                          >
+                            {isFollowing ? 'Following' : 'Follow'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {index < followersList.length - 1 && (
+                      <div className="border-b border-neutral-800"></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Users size={48} className="mx-auto mb-4 text-neutral-700" />
+              <p className="text-neutral-500">No followers yet</p>
+            </div>
+          )}
+        </div>
       </Drawer>
     </div>
   );
