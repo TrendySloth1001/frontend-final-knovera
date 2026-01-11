@@ -251,3 +251,35 @@ export const studyPlanAPI = {
     return response.json();
   },
 };
+
+// Teacher Discovery API
+export const teacherApi = {
+  // Get all teachers with optional search/filter
+  getAll: async (params?: { search?: string; specialization?: string; limit?: number; offset?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.specialization) queryParams.append('specialization', params.specialization);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/api/teachers?${queryString}` : '/api/teachers';
+    
+    return apiClient.get(endpoint);
+  },
+
+  // Get single teacher profile
+  getById: async (teacherId: string) => {
+    return apiClient.get(`/api/teachers/${teacherId}`);
+  },
+
+  // Follow a teacher
+  follow: async (teacherId: string) => {
+    return apiClient.post(`/api/teachers/${teacherId}/follow`);
+  },
+
+  // Unfollow a teacher
+  unfollow: async (teacherId: string) => {
+    return apiClient.delete(`/api/teachers/${teacherId}/follow`);
+  },
+};

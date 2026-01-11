@@ -31,7 +31,8 @@ import {
   Award
 } from 'lucide-react';
 import { aiAPI } from '@/lib/ai-api';
-import { apiClient } from '@/lib/api';
+import { apiClient, teacherApi } from '@/lib/api';
+import Drawer from '@/components/Drawer';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -71,6 +72,13 @@ export default function Dashboard() {
     interests: null as string | null,
   });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [followingTeachers, setFollowingTeachers] = useState<Set<string>>(new Set());
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [teacherProfileLoading, setTeacherProfileLoading] = useState(false);
 
   const illustrations = [
     '/illustrations/Analysis-bro.png',
@@ -193,10 +201,16 @@ export default function Dashboard() {
 
   const markNotificationAsRead = async (notificationId: string) => {
     try {
+      // Optimistically update UI immediately
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Send request to backend
       await apiClient.patch(`/api/notifications/${notificationId}/read`, { userId: user?.user?.id });
-      loadNotifications();
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
+      // Reload on error to sync state
+      loadNotifications();
     }
   };
 
@@ -266,10 +280,145 @@ export default function Dashboard() {
     }
   };
 
+  // Load teachers for Community tab
+  const loadTeachers = async (search?: string) => {
+    try {
+      setTeachersLoading(true);
+      const response: any = await teacherApi.getAll({ search, limit: 50 });
+      setTeachers(response.data.teachers || []);
+      
+      // Track which teachers the current user is following
+      const following = new Set<string>();
+      response.data.teachers.forEach((teacher: any) => {
+        if (teacher.isFollowing) {
+          following.add(teacher.id);
+        }
+      });
+      setFollowingTeachers(following);
+    } catch (error) {
+      console.error('Failed to load teachers:', error);
+      showNotification('error', 'Failed to load teachers');
+    } finally {
+      setTeachersLoading(false);
+    }
+  };
+
+  // Load teacher profile
+  const loadTeacherProfile = async (teacherId: string) => {
+    try {
+      setTeacherProfileLoading(true);
+      const response: any = await teacherApi.getById(teacherId);
+      setSelectedTeacher(response.data);
+      setFollowingTeachers(prev => {
+        const next = new Set(prev);
+        if (response.data.isFollowing) {
+          next.add(teacherId);
+        }
+        return next;
+      });
+      // Drawer will open automatically when selectedTeacher is set
+    } catch (error: any) {
+      console.error('Failed to load teacher:', error);
+      showNotification('error', 'Failed to load teacher profile');
+      window.location.hash = '';
+    } finally {
+      setTeacherProfileLoading(false);
+    }
+  };
+
+  // Follow/unfollow teacher
+  const toggleFollowTeacher = async (teacherId: string) => {
+    try {
+      const isFollowing = followingTeachers.has(teacherId);
+      
+      if (isFollowing) {
+        await teacherApi.unfollow(teacherId);
+        setFollowingTeachers(prev => {
+          const next = new Set(prev);
+          next.delete(teacherId);
+          return next;
+        });
+        window.dispatchEvent(new CustomEvent('teacherFollowUpdate', { detail: { teacherId, isFollowing: false } }));
+        showNotification('success', 'Unfollowed teacher');
+      } else {
+        await teacherApi.follow(teacherId);
+        setFollowingTeachers(prev => new Set(prev).add(teacherId));
+        window.dispatchEvent(new CustomEvent('teacherFollowUpdate', { detail: { teacherId, isFollowing: true } }));
+        showNotification('success', 'Following teacher');
+      }
+    } catch (error: any) {
+      console.error('Follow/unfollow error:', error);
+      showNotification('error', error.message || 'Failed to update follow status');
+    }
+  };
+
+  // Load teachers when Community tab is active
+  useEffect(() => {
+    if (activeTab === 'Community') {
+      loadTeachers();
+    }
+  }, [activeTab]);
+
+  // Listen for follow state changes
+  useEffect(() => {
+    const handleFollowUpdate = (event: CustomEvent) => {
+      const { teacherId, isFollowing } = event.detail;
+      setFollowingTeachers(prev => {
+        const next = new Set(prev);
+        if (isFollowing) {
+          next.add(teacherId);
+        } else {
+          next.delete(teacherId);
+        }
+        return next;
+      });
+      setTeachers(prev => prev.map(t => 
+        t.id === teacherId 
+          ? { ...t, followersCount: t.followersCount + (isFollowing ? 1 : -1) }
+          : t
+      ));
+      if (selectedTeacher?.id === teacherId) {
+        setSelectedTeacher({ ...selectedTeacher, followersCount: selectedTeacher.followersCount + (isFollowing ? 1 : -1), isFollowing });
+      }
+    };
+
+    window.addEventListener('teacherFollowUpdate' as any, handleFollowUpdate);
+    return () => window.removeEventListener('teacherFollowUpdate' as any, handleFollowUpdate);
+  }, [selectedTeacher]);
+
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#teacher/')) {
+        const teacherId = hash.replace('#teacher/', '');
+        setSelectedTeacherId(teacherId);
+        loadTeacherProfile(teacherId);
+      } else {
+        setSelectedTeacherId(null);
+        setSelectedTeacher(null);
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Close drawer handler
+  const closeTeacherDrawer = () => {
+    window.location.hash = '';
+    setSelectedTeacher(null);
+    setSelectedTeacherId(null);
+  };
+
   // Sidebar item component
   const NavItem = ({ icon: Icon, label, onClick }: any) => (
     <div 
-      onClick={onClick}
+      onClick={() => {
+        onClick();
+        setShowMobileMenu(false);
+      }}
       className={`flex items-center space-x-4 py-3 cursor-pointer transition-colors duration-200 ${
         activeTab === label ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'
       }`}
@@ -329,7 +478,10 @@ export default function Dashboard() {
           <div className="relative">
             <div 
               className="flex items-center space-x-3 px-2 cursor-pointer hover:bg-neutral-800 rounded-lg p-2 transition-colors"
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMobileMenu(!showMobileMenu);
+              }}
             >
               <div className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs overflow-hidden">
                 {user.user.avatarUrl ? (
@@ -380,7 +532,7 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0">
         
         {/* Header */}
         <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:px-8">
@@ -401,7 +553,7 @@ export default function Dashboard() {
           <div className="flex items-center space-x-3 sm:space-x-6 text-neutral-400">
             <button 
               onClick={() => router.push('/chat/new')}
-              className="text-xs font-medium border border-neutral-800 px-2 sm:px-3 py-1.5 rounded-full hover:bg-white hover:text-black transition-all"
+              className="text-xs sm:text-sm font-medium border border-neutral-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-white hover:text-black transition-all whitespace-nowrap"
             >
               <span className="hidden sm:inline">New Chat</span>
               <span className="sm:hidden">+</span>
@@ -410,7 +562,7 @@ export default function Dashboard() {
         </header>
 
         {/* Dashboard Body */}
-        <section className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8 lg:space-y-12">
+        <section className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           
           {/* Show different content based on active tab */}
           {activeTab === 'Overview' && (
@@ -458,7 +610,7 @@ export default function Dashboard() {
 
               {notifications.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
                     <p className="text-sm text-neutral-400">{notifications.length} unread notification{notifications.length !== 1 ? 's' : ''}</p>
                     <button 
                       onClick={() => {
@@ -475,15 +627,15 @@ export default function Dashboard() {
                       <div 
                         key={notif.id} 
                         onClick={() => markNotificationAsRead(notif.id)}
-                        className="flex items-center justify-between py-5 border-b border-neutral-800 group cursor-pointer"
+                        className="flex items-start sm:items-center justify-between py-4 sm:py-5 border-b border-neutral-800 group cursor-pointer px-2 sm:px-0"
                       >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium group-hover:text-neutral-300 transition-colors">{notif.title}</span>
+                        <div className="flex flex-col flex-1 min-w-0 pr-4">
+                          <span className="text-sm font-medium group-hover:text-neutral-300 transition-colors truncate">{notif.title}</span>
                           <span className="text-xs text-neutral-500 mt-1">
                             {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString()}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                           <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                           <ArrowUpRight size={16} className="text-neutral-700 group-hover:text-white transition-colors" />
                         </div>
@@ -494,6 +646,118 @@ export default function Dashboard() {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-neutral-500">No unread notifications</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Community Tab */}
+          {activeTab === 'Community' && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setActiveTab('Overview')}
+                    className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                  <h3 className="text-xl font-semibold">Discover Teachers</h3>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative mb-4 sm:mb-6">
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-500" />
+                <input
+                  type="text"
+                  placeholder="Search by name or specialization..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    loadTeachers(e.target.value || undefined);
+                  }}
+                  className="w-full pl-10 pr-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
+                />
+              </div>
+
+              {/* Teachers Grid */}
+              {teachersLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-neutral-500">Loading teachers...</p>
+                </div>
+              ) : teachers.length > 0 ? (
+                <div className="space-y-0">
+                  {teachers.map((teacher: any, index: number) => {
+                    const isOwnProfile = user?.user.id === teacher.userId;
+                    const isFollowing = followingTeachers.has(teacher.id);
+                    
+                    return (
+                      <div key={teacher.id}>
+                        <div
+                          className="py-4 sm:py-6 hover:bg-neutral-950 transition-colors cursor-pointer px-2 sm:px-4 -mx-2 sm:-mx-4"
+                          onClick={() => window.location.hash = `teacher/${teacher.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                              {/* Profile Picture */}
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs sm:text-sm overflow-hidden flex-shrink-0">
+                                {teacher.user.avatarUrl ? (
+                                  <img src={teacher.user.avatarUrl} alt={teacher.user.displayName} className="w-full h-full object-cover" />
+                                ) : (
+                                  teacher.user.displayName.substring(0, 2).toUpperCase()
+                                )}
+                              </div>
+                              
+                              {/* Name and Experience */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm sm:text-base font-semibold text-white mb-1 truncate">{teacher.user.displayName}</h4>
+                                {teacher.experience && (
+                                  <div className="flex items-center gap-1 text-xs sm:text-sm text-neutral-400">
+                                    <Award size={14} />
+                                    <span>{teacher.experience} years experience</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Follow Button */}
+                            <div className="ml-2 sm:ml-4 flex-shrink-0">
+                              {!isOwnProfile ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFollowTeacher(teacher.id);
+                                  }}
+                                  className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                                    isFollowing
+                                      ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                                      : 'bg-white text-black hover:bg-neutral-200'
+                                  }`}
+                                >
+                                  {isFollowing ? 'Following' : 'Follow'}
+                                </button>
+                              ) : (
+                                <div className="px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium bg-neutral-900 text-neutral-500 border border-neutral-800 whitespace-nowrap">
+                                  You
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {index < teachers.length - 1 && (
+                          <div className="border-b border-neutral-800"></div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users size={48} className="mx-auto mb-4 text-neutral-700" />
+                  <p className="text-neutral-500">
+                    {searchQuery ? 'No teachers found matching your search' : 'No teachers available yet'}
+                  </p>
                 </div>
               )}
             </>
@@ -513,10 +777,10 @@ export default function Dashboard() {
               </div>
 
               {/* Settings Tabs */}
-              <div className="flex space-x-2 mb-6 border-b border-neutral-800">
+              <div className="flex space-x-1 sm:space-x-2 mb-4 sm:mb-6 border-b border-neutral-800 overflow-x-auto">
                 <button
                   onClick={() => setActiveSettingsTab('account')}
-                  className={`px-4 py-2 text-sm border-b-2 transition-colors ${
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
                     activeSettingsTab === 'account'
                       ? 'border-white text-white'
                       : 'border-transparent text-neutral-500 hover:text-white'
@@ -526,7 +790,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setActiveSettingsTab('ai')}
-                  className={`px-4 py-2 text-sm border-b-2 transition-colors ${
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
                     activeSettingsTab === 'ai'
                       ? 'border-white text-white'
                       : 'border-transparent text-neutral-500 hover:text-white'
@@ -536,7 +800,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setActiveSettingsTab('profile')}
-                  className={`px-4 py-2 text-sm border-b-2 transition-colors ${
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
                     activeSettingsTab === 'profile'
                       ? 'border-white text-white'
                       : 'border-transparent text-neutral-500 hover:text-white'
@@ -893,18 +1157,18 @@ export default function Dashboard() {
               </div>
 
               {/* Profile Header */}
-              <div className="border border-neutral-800 rounded-lg p-6 mb-4">
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-2xl overflow-hidden">
+              <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden flex-shrink-0">
                     {user.user.avatarUrl ? (
                       <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-white mb-1">{user.user.displayName}</h2>
-                    <p className="text-sm text-neutral-400 capitalize">{user.user.role}</p>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 truncate">{user.user.displayName}</h2>
+                    <p className="text-xs sm:text-sm text-neutral-400 capitalize">{user.user.role}</p>
                     
                     {/* Followers/Following Stats */}
                     <div className="flex items-center space-x-4 mt-3">
@@ -1109,6 +1373,121 @@ export default function Dashboard() {
 
         </section>
       </main>
+
+      {/* Teacher Profile Drawer */}
+      <Drawer
+        isOpen={!!selectedTeacher}
+        onClose={closeTeacherDrawer}
+        title="Teacher Profile"
+        width="md"
+      >
+        {selectedTeacher && (
+          <div className="p-4 sm:p-6">
+            {/* Profile Header */}
+            <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
+              <div className="flex flex-col items-center sm:items-start gap-4 mb-6">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                  {selectedTeacher.user.avatarUrl ? (
+                    <img src={selectedTeacher.user.avatarUrl} alt={selectedTeacher.user.displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white font-bold">{selectedTeacher.user.displayName.substring(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="flex-1 w-full text-center sm:text-left">
+                  <h2 className="text-2xl font-bold text-white mb-1 truncate">{selectedTeacher.user.displayName}</h2>
+                  {selectedTeacher.specialization && (
+                    <p className="text-sm text-neutral-400 mb-3">{selectedTeacher.specialization}</p>
+                  )}
+                  
+                  {/* Followers */}
+                  <div className="flex items-center justify-center sm:justify-start space-x-4 mb-4">
+                    <div className="text-sm">
+                      <span className="text-white font-semibold">{selectedTeacher.followersCount || 0}</span>
+                      <span className="text-neutral-500 ml-1">Followers</span>
+                    </div>
+                    {selectedTeacher.experience && (
+                      <div className="flex items-center gap-1 text-sm text-neutral-400">
+                        <Award size={14} />
+                        <span>{selectedTeacher.experience} years</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Follow Button */}
+                  {user.user.id !== selectedTeacher.userId && (
+                    <button
+                      onClick={() => toggleFollowTeacher(selectedTeacher.id)}
+                      className={`w-full px-6 py-2.5 rounded-lg font-medium transition-colors ${
+                        followingTeachers.has(selectedTeacher.id)
+                          ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                          : 'bg-white text-black hover:bg-neutral-200'
+                      }`}
+                    >
+                      {followingTeachers.has(selectedTeacher.id) ? 'Following' : 'Follow'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t border-neutral-800 pt-4">
+                {/* Only show email if viewing own profile */}
+                {user.user.id === selectedTeacher.userId && (
+                  <div className="flex items-center space-x-2 text-sm">
+                    <Mail size={16} className="text-neutral-500" />
+                    <span className="text-white truncate">{selectedTeacher.user.email}</span>
+                  </div>
+                )}
+                <div className="flex items-center space-x-2 text-sm">
+                  <Calendar size={16} className="text-neutral-500" />
+                  <span className="text-neutral-400">
+                    Member since {new Date(selectedTeacher.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Details */}
+            <div className="space-y-4">
+              {selectedTeacher.qualification && (
+                <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                      <GraduationCap size={18} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-neutral-500 mb-3">Qualifications</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTeacher.qualification.split(',').map((qual: string, index: number) => (
+                          <span 
+                            key={index}
+                            className="px-3 py-1.5 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-sm"
+                          >
+                            {qual.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedTeacher.bio && (
+                <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                      <BookOpen size={18} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-neutral-500 mb-2">About</p>
+                      <p className="text-sm text-white leading-relaxed">{selectedTeacher.bio}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }
