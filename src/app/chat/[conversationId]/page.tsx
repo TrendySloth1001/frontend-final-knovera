@@ -1020,16 +1020,6 @@ export default function Home() {
                 <div className="absolute bottom-full left-3 right-3 mb-2 bg-black border border-white/20 rounded-lg shadow-xl overflow-hidden z-40">
                   <button
                     onClick={() => {
-                      router.push('/profile');
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors flex items-center gap-2"
-                  >
-                    <User size={16} />
-                    Profile
-                  </button>
-                  <button
-                    onClick={() => {
                       router.push('/settings');
                       setShowProfileMenu(false);
                     }}

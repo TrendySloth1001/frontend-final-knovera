@@ -33,6 +33,7 @@ import {
 import { aiAPI } from '@/lib/ai-api';
 import { apiClient, teacherApi } from '@/lib/api';
 import Drawer from '@/components/Drawer';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -85,9 +86,10 @@ export default function Dashboard() {
   const [showFollowersDrawer, setShowFollowersDrawer] = useState(false);
   const [followersList, setFollowersList] = useState<any[]>([]);
   const [followersListLoading, setFollowersListLoading] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
 
   const illustrations = [
-    '/illustrations/Analysis-bro.png',
     '/illustrations/Exams-cuate.png',
     '/illustrations/Knowledge-cuate.png',
     '/illustrations/Learning-bro.png',
@@ -98,6 +100,25 @@ export default function Dashboard() {
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * illustrations.length);
     setCurrentIllustration(illustrations[randomIndex]);
+
+    // Set initial tab from URL hash
+    const hash = window.location.hash.slice(1);
+    if (hash && !hash.startsWith('teacher/')) {
+      const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
+      setActiveTab(tabName);
+    }
+
+    // Listen for hash changes
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && !hash.startsWith('teacher/')) {
+        const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
+        setActiveTab(tabName);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   useEffect(() => {
@@ -192,13 +213,15 @@ export default function Dashboard() {
       if (!user?.user?.id) return;
       const response = await apiClient.get<any>(`/api/notifications?userId=${user.user.id}`);
       
-      const newNotifications = response.data || [];
-      const newUnreadCount = response.meta?.unreadCount || 0;
+      const allNotifications = response.data || [];
+      // Filter to show only unread notifications
+      const unreadNotifications = allNotifications.filter((n: any) => !n.isRead);
+      const newUnreadCount = unreadNotifications.length;
       
       // Update cached count
       previousUnreadCountRef.current = newUnreadCount;
       
-      setNotifications(newNotifications);
+      setNotifications(unreadNotifications);
       setUnreadCount(newUnreadCount);
     } catch (error) {
       console.error('Failed to load notifications:', error);
@@ -398,6 +421,10 @@ export default function Dashboard() {
       const hash = window.location.hash;
       if (hash.startsWith('#teacher/')) {
         const teacherId = hash.replace('#teacher/', '');
+        // Ensure we're on the Community tab when viewing a teacher profile
+        if (activeTab !== 'Community') {
+          setActiveTab('Community');
+        }
         setSelectedTeacherId(teacherId);
         loadTeacherProfile(teacherId);
       } else {
@@ -409,7 +436,7 @@ export default function Dashboard() {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [activeTab]);
 
   // Close drawer handler
   const closeTeacherDrawer = () => {
@@ -451,6 +478,12 @@ export default function Dashboard() {
     }
   };
 
+  // Helper function to change tab and update URL hash
+  const changeTab = (tabName: string) => {
+    setActiveTab(tabName);
+    window.location.hash = tabName.toLowerCase();
+  };
+
   // Sidebar item component
   const NavItem = ({ icon: Icon, label, onClick }: any) => (
     <div 
@@ -458,8 +491,8 @@ export default function Dashboard() {
         onClick();
         setShowMobileMenu(false);
       }}
-      className={`flex items-center space-x-4 py-3 cursor-pointer transition-colors duration-200 ${
-        activeTab === label ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'
+      className={`flex items-center space-x-4 py-3 px-2 rounded-lg cursor-pointer transition-colors duration-200 ${
+        activeTab === label ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900'
       }`}
     >
       <Icon size={18} />
@@ -485,13 +518,13 @@ export default function Dashboard() {
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setShowMobileMenu(false)}
         />
       )}
       
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${
+      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${
         showMobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="flex items-center space-x-2 mb-10 px-2">
@@ -500,17 +533,17 @@ export default function Dashboard() {
         </div>
         
         <nav className="flex-1 space-y-1">
-          <NavItem icon={LayoutDashboard} label="Overview" onClick={() => setActiveTab('Overview')} />
+          <NavItem icon={LayoutDashboard} label="Overview" onClick={() => changeTab('Overview')} />
           <div className="relative">
-            <NavItem icon={Bell} label="Notifications" onClick={() => setActiveTab('Notifications')} />
+            <NavItem icon={Bell} label="Notifications" onClick={() => changeTab('Notifications')} />
             {unreadCount > 0 && (
               <div className="absolute top-2 right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </div>
             )}
           </div>
-          <NavItem icon={BarChart3} label="Analytics" onClick={() => setActiveTab('Analytics')} />
-          <NavItem icon={Users} label="Community" onClick={() => setActiveTab('Community')} />
+          <NavItem icon={BarChart3} label="Analytics" onClick={() => changeTab('Analytics')} />
+          <NavItem icon={Users} label="Community" onClick={() => changeTab('Community')} />
         </nav>
 
         <div className="pt-6 border-t border-neutral-800">
@@ -539,13 +572,13 @@ export default function Dashboard() {
             {showMobileMenu && (
               <>
                 <div 
-                  className="fixed inset-0 z-30" 
+                  className="fixed inset-1z-30" 
                   onClick={() => setShowMobileMenu(false)}
                 />
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl overflow-hidden z-40">
                   <button
                     onClick={() => {
-                      setActiveTab('Profile');
+                      changeTab('Profile');
                       setShowMobileMenu(false);
                     }}
                     className="w-full px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3 border-b border-neutral-800"
@@ -555,13 +588,25 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={() => {
-                      setActiveTab('Settings');
+                      changeTab('Settings');
                       setShowMobileMenu(false);
                     }}
-                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3"
+                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3 border-b border-neutral-800"
                   >
                     <Settings size={16} />
                     Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMobileMenu(false);
+                      setShowLogoutConfirm(true);
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
                   </button>
                 </div>
               </>
@@ -639,7 +684,7 @@ export default function Dashboard() {
             <>
               <div className="flex items-center space-x-3 mb-6">
                 <button
-                  onClick={() => setActiveTab('Overview')}
+                  onClick={() => changeTab('Overview')}
                   className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
                 >
                   <ArrowLeft size={18} />
@@ -684,6 +729,11 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-center py-12">
+                  <img 
+                    src="/notification/New message-cuate.png" 
+                    alt="No notifications" 
+                    className="w-120 h-120 mx-auto mb-6 opacity-90"
+                  />
                   <p className="text-neutral-500">No unread notifications</p>
                 </div>
               )}
@@ -696,7 +746,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                   <button
-                    onClick={() => setActiveTab('Overview')}
+                    onClick={() => changeTab('Overview')}
                     className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
                   >
                     <ArrowLeft size={18} />
@@ -768,11 +818,12 @@ export default function Dashboard() {
                                     e.stopPropagation();
                                     toggleFollowTeacher(teacher.id);
                                   }}
-                                  className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                                  className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${
                                     isFollowing
                                       ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
                                       : 'bg-white text-black hover:bg-neutral-200'
                                   }`}
+                                  style={{ pointerEvents: 'auto' }}
                                 >
                                   {isFollowing ? 'Following' : 'Follow'}
                                 </button>
@@ -807,7 +858,7 @@ export default function Dashboard() {
             <>
               <div className="flex items-center space-x-3 mb-6">
                 <button
-                  onClick={() => setActiveTab('Overview')}
+                  onClick={() => changeTab('Overview')}
                   className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
                 >
                   <ArrowLeft size={18} />
@@ -888,7 +939,7 @@ export default function Dashboard() {
                   <div className="border border-neutral-800 rounded-lg p-6">
                     <h4 className="text-sm font-medium mb-4 text-white">Danger Zone</h4>
                     <button 
-                      onClick={logout}
+                      onClick={() => setShowLogoutConfirm(true)}
                       className="text-xs border border-neutral-800 text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-all"
                     >
                       Logout
@@ -1177,6 +1228,17 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Navigate to Full Profile */}
+                  <div className="border border-neutral-800 rounded-lg p-6">
+                    <h4 className="text-sm font-medium mb-4">View Full Profile</h4>
+                    <button 
+                      onClick={() => setShowProfileConfirm(true)}
+                      className="text-xs border border-neutral-800 text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-all"
+                    >
+                      Go to Profile
+                    </button>
+                  </div>
                 </div>
               )}
             </>
@@ -1187,7 +1249,7 @@ export default function Dashboard() {
             <>
               <div className="flex items-center space-x-3 mb-6">
                 <button
-                  onClick={() => setActiveTab('Overview')}
+                  onClick={() => changeTab('Overview')}
                   className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
                 >
                   <ArrowLeft size={18} />
@@ -1214,7 +1276,7 @@ export default function Dashboard() {
                       {user.user.role === 'TEACHER' && user.profile && (
                         <>
                           <button
-                            onClick={() => loadFollowersList(user.user.id)}
+                            onClick={() => loadFollowersList((user.profile as any).id)}
                             className="text-sm hover:opacity-80 transition-opacity"
                           >
                             <span className="text-white font-semibold">{(user.profile as any).followersCount || 0}</span>
@@ -1487,11 +1549,12 @@ export default function Dashboard() {
                   {user.user.id !== selectedTeacher.userId && (
                     <button
                       onClick={() => toggleFollowTeacher(selectedTeacher.id)}
-                      className={`w-full px-6 py-2.5 rounded-lg font-medium transition-colors ${
+                      className={`w-full px-6 py-2.5 rounded-lg font-medium transition-colors relative z-10 cursor-pointer ${
                         followingTeachers.has(selectedTeacher.id)
                           ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
                           : 'bg-white text-black hover:bg-neutral-200'
                       }`}
+                      style={{ pointerEvents: 'auto' }}
                     >
                       {followingTeachers.has(selectedTeacher.id) ? 'Following' : 'Follow'}
                     </button>
@@ -1611,7 +1674,8 @@ export default function Dashboard() {
                           e.stopPropagation();
                           toggleFollowTeacher(teacher.id);
                         }}
-                        className="ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700"
+                        className="ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700 relative z-10 cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         Following
                       </button>
@@ -1648,7 +1712,8 @@ export default function Dashboard() {
             <div className="space-y-0">
               {followersList.map((follower: any, index: number) => {
                 const isTeacher = follower.followerType === 'TEACHER';
-                const isFollowing = followingTeachers.has(follower.followerId);
+                const teacherId = isTeacher ? follower.teacherId : null;
+                const isFollowing = teacherId ? followingTeachers.has(teacherId) : false;
                 
                 return (
                   <div key={follower.id}>
@@ -1657,9 +1722,9 @@ export default function Dashboard() {
                         <div 
                           className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
                           onClick={() => {
-                            if (isTeacher) {
+                            if (isTeacher && teacherId) {
                               setShowFollowersDrawer(false);
-                              window.location.hash = `teacher/${follower.followerId}`;
+                              window.location.hash = `teacher/${teacherId}`;
                             }
                           }}
                         >
@@ -1680,11 +1745,11 @@ export default function Dashboard() {
                         </div>
 
                         {/* Follow Button - Only show for teachers */}
-                        {isTeacher && follower.followerId !== user.user.id && (
+                        {isTeacher && teacherId && follower.followerId !== user.user.id && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleFollowTeacher(follower.followerId);
+                              toggleFollowTeacher(teacherId);
                             }}
                             className={`ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap ${
                               isFollowing
@@ -1712,6 +1777,36 @@ export default function Dashboard() {
           )}
         </div>
       </Drawer>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout? You'll need to login again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          logout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+        variant="warning"
+      />
+
+      {/* Profile Navigation Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showProfileConfirm}
+        title="Go to Profile"
+        message="Navigate to your full profile page?"
+        confirmText="Go to Profile"
+        cancelText="Cancel"
+        onConfirm={() => {
+          setShowProfileConfirm(false);
+          changeTab('Profile');
+        }}
+        onCancel={() => setShowProfileConfirm(false)}
+        variant="info"
+      />
     </div>
   );
 }

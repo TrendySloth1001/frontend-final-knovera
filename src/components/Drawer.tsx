@@ -47,16 +47,17 @@ export default function Drawer({ isOpen, onClose, children, title, width = 'md' 
       {/* Backdrop - Only on mobile/tablet */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-black/60 z-[60] lg:hidden transition-opacity duration-300"
           onClick={onClose}
         />
       )}
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 h-full bg-[#000000] border-l border-neutral-800 z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full bg-[#000000] border-l border-neutral-800 z-[70] transform transition-transform duration-300 ease-in-out ${
           widthClasses[width]
         } ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {title && (

@@ -69,8 +69,8 @@ function CallbackContent() {
           // Show success notification
           showNotification('success', 'Logged in successfully');
 
-          // Redirect to home immediately
-          router.push('/');
+          // Redirect to dashboard immediately
+          router.push('/dashboard');
         }
       } catch (error) {
         console.error('Callback error:', error);

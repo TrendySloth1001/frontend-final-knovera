@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/');
+      router.push('/dashboard');
     } else if (hasTempToken) {
       router.push('/signup/select-role');
     }
