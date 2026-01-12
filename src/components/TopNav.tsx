@@ -7,11 +7,13 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { Menu, X, LogOut, User } from 'lucide-react';
+import { useChat } from '@/contexts/ChatContext';
+import { Menu, X, LogOut, User, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 
 export default function TopNav() {
   const { user, isAuthenticated, logout, isLoading } = useAuth();
+  const { unreadCount } = useChat();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -53,6 +55,17 @@ export default function TopNav() {
               <>
                 {isAuthenticated && user?.user ? (
                   <>
+                    <Link
+                      href="/messages"
+                      className="relative text-gray-300 hover:text-white transition-colors p-2"
+                    >
+                      <MessageCircle size={22} />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
                     <Link
                       href="/settings/ai-preferences"
                       className="text-gray-300 hover:text-white transition-colors"

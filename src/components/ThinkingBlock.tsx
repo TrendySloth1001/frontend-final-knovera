@@ -64,7 +64,7 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
             
             {/* Timeline steps */}
             <div className="space-y-4 md:space-y-5">
-              {thinkingItems.map((item, index) => (
+              { .map((item, index) => (
                 <div key={index} className={`relative ${item.isChild ? 'ml-5 md:ml-6' : ''}`}>
                   {/* Node/Dot - YELLOW (smaller for child steps) */}
                   <div className={`absolute ${item.isChild ? '-left-[34px] md:-left-[42px]' : '-left-[29px] md:-left-[37px]'} top-[2px]`}>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ChatProvider } from "@/contexts/ChatContext";
 
 export const metadata: Metadata = {
   title: "Knovera - Education Platform",
@@ -18,7 +19,9 @@ export default function RootLayout({
       <body className="h-full bg-black overflow-hidden">
         <NotificationProvider>
           <AuthProvider>
-            {children}
+            <ChatProvider>
+              {children}
+            </ChatProvider>
           </AuthProvider>
         </NotificationProvider>
       </body>

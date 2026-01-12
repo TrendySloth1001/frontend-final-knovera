@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
+import { useChat } from '@/contexts/ChatContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { 
@@ -17,6 +18,7 @@ import {
   Activity,
   ArrowUpRight,
   MessageSquare,
+  MessageCircle,
   Brain,
   BookOpen,
   Zap,
@@ -38,6 +40,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { showNotification } = useNotification();
+  const { startOneToOneChat } = useChat();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [stats, setStats] = useState({
@@ -381,6 +384,17 @@ export default function Dashboard() {
     }
   };
 
+  // Start chat with teacher
+  const handleStartChat = async (teacherUserId: string) => {
+    try {
+      const conversation = await startOneToOneChat(teacherUserId);
+      router.push(`/messages/${conversation.id}`);
+    } catch (error: any) {
+      console.error('Failed to start chat:', error);
+      showNotification('error', error.message || 'Failed to start chat');
+    }
+  };
+
   // Load teachers when Community tab is active
   useEffect(() => {
     if (activeTab === 'Community') {
@@ -585,6 +599,15 @@ export default function Dashboard() {
                   >
                     <User size={16} />
                     Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      router.push('/messages');
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3 border-b border-neutral-800"
+                  >
+                    <MessageCircle size={16} />
+                    Messages
                   </button>
                   <button
                     onClick={() => {
@@ -810,24 +833,39 @@ export default function Dashboard() {
                               </div>
                             </div>
 
-                            {/* Follow Button */}
-                            <div className="ml-2 sm:ml-4 flex-shrink-0">
-                              {!isOwnProfile ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleFollowTeacher(teacher.id);
-                                  }}
-                                  className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${
-                                    isFollowing
-                                      ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
-                                      : 'bg-white text-black hover:bg-neutral-200'
-                                  }`}
-                                  style={{ pointerEvents: 'auto' }}
-                                >
-                                  {isFollowing ? 'Following' : 'Follow'}
-                                </button>
-                              ) : (
+                            {/* Action Buttons */}
+                            <div className="ml-2 sm:ml-4 flex-shrink-0 flex gap-2">
+                              {!isOwnProfile && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStartChat(teacher.user.id);
+                                    }}
+                                    className="px-3 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
+                                    style={{ pointerEvents: 'auto' }}
+                                    title="Send message"
+                                  >
+                                    <MessageCircle size={14} />
+                                    <span className="hidden sm:inline">Message</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFollowTeacher(teacher.id);
+                                    }}
+                                    className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${
+                                      isFollowing
+                                        ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                                        : 'bg-white text-black hover:bg-neutral-200'
+                                    }`}
+                                    style={{ pointerEvents: 'auto' }}
+                                  >
+                                    {isFollowing ? 'Following' : 'Follow'}
+                                  </button>
+                                </>
+                              )}
+                              {isOwnProfile && (
                                 <div className="px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium bg-neutral-900 text-neutral-500 border border-neutral-800 whitespace-nowrap">
                                   You
                                 </div>
