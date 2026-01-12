@@ -34,6 +34,7 @@ import { aiAPI } from '@/lib/ai-api';
 import { apiClient, teacherApi } from '@/lib/api';
 import Drawer from '@/components/Drawer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import Messages from '@/components/Messages';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -88,6 +89,7 @@ export default function Dashboard() {
   const [followersListLoading, setFollowersListLoading] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
+  const [messageUserId, setMessageUserId] = useState<string | null>(null); // User ID to start messaging with
 
   const illustrations = [
     '/illustrations/Exams-cuate.png',
@@ -103,17 +105,21 @@ export default function Dashboard() {
 
     // Set initial tab from URL hash
     const hash = window.location.hash.slice(1);
-    if (hash && !hash.startsWith('teacher/')) {
+    if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
       const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
       setActiveTab(tabName);
+    } else if (hash === 'messages') {
+      setActiveTab('Messages');
     }
 
     // Listen for hash changes
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash && !hash.startsWith('teacher/')) {
+      if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
         const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
         setActiveTab(tabName);
+      } else if (hash === 'messages') {
+        setActiveTab('Messages');
       }
     };
 
@@ -484,6 +490,15 @@ export default function Dashboard() {
     window.location.hash = tabName.toLowerCase();
   };
 
+  // Start messaging with a teacher
+  const startMessagingWithTeacher = async (teacherUserId: string) => {
+    if (!teacherUserId || !user?.user?.id) return;
+    
+    // Set the user ID to message and switch to Messages tab
+    setMessageUserId(teacherUserId);
+    changeTab('Messages');
+  };
+
   // Sidebar item component
   const NavItem = ({ icon: Icon, label, onClick }: any) => (
     <div 
@@ -542,6 +557,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          <NavItem icon={MessageSquare} label="Messages" onClick={() => changeTab('Messages')} />
           <NavItem icon={BarChart3} label="Analytics" onClick={() => changeTab('Analytics')} />
           <NavItem icon={Users} label="Community" onClick={() => changeTab('Community')} />
         </nav>
@@ -630,18 +646,7 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h1 className="text-sm font-medium text-neutral-400 hidden sm:block">Pages /</h1>
             <h2 className="text-sm font-medium text-white">{activeTab}</h2>
-          </div>
-          
-          <div className="flex items-center space-x-3 sm:space-x-6 text-neutral-400">
-            <button 
-              onClick={() => router.push('/chat/new')}
-              className="text-xs sm:text-sm font-medium border border-neutral-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-white hover:text-black transition-all whitespace-nowrap"
-            >
-              <span className="hidden sm:inline">New Chat</span>
-              <span className="sm:hidden">+</span>
-            </button>
           </div>
         </header>
 
@@ -810,23 +815,40 @@ export default function Dashboard() {
                               </div>
                             </div>
 
-                            {/* Follow Button */}
-                            <div className="ml-2 sm:ml-4 flex-shrink-0">
+                            {/* Action Buttons */}
+                            <div className="ml-2 sm:ml-4 flex-shrink-0 flex items-center gap-2">
                               {!isOwnProfile ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleFollowTeacher(teacher.id);
-                                  }}
-                                  className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${
-                                    isFollowing
-                                      ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
-                                      : 'bg-white text-black hover:bg-neutral-200'
-                                  }`}
-                                  style={{ pointerEvents: 'auto' }}
-                                >
-                                  {isFollowing ? 'Following' : 'Follow'}
-                                </button>
+                                <>
+                                  {/* Message Button - Only show if following */}
+                                  {isFollowing && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startMessagingWithTeacher(teacher.userId);
+                                      }}
+                                      className="p-2 hover:bg-neutral-800 rounded-lg transition-colors relative z-10 cursor-pointer"
+                                      style={{ pointerEvents: 'auto' }}
+                                      title="Send message"
+                                    >
+                                      <MessageSquare size={18} className="text-white" />
+                                    </button>
+                                  )}
+                                  {/* Follow Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFollowTeacher(teacher.id);
+                                    }}
+                                    className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${
+                                      isFollowing
+                                        ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                                        : 'bg-white text-black hover:bg-neutral-200'
+                                    }`}
+                                    style={{ pointerEvents: 'auto' }}
+                                  >
+                                    {isFollowing ? 'Following' : 'Follow'}
+                                  </button>
+                                </>
                               ) : (
                                 <div className="px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium bg-neutral-900 text-neutral-500 border border-neutral-800 whitespace-nowrap">
                                   You
@@ -1242,6 +1264,19 @@ export default function Dashboard() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Messages Tab */}
+          {activeTab === 'Messages' && (
+            <div className="h-[calc(100vh-4rem)] -m-4 sm:-m-6 lg:-m-8">
+              <Messages 
+                initialUserId={messageUserId || undefined}
+                onClose={() => {
+                  setMessageUserId(null);
+                  changeTab('Overview');
+                }}
+              />
+            </div>
           )}
 
           {/* Profile Tab */}
