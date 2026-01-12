@@ -61,6 +61,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<ChatUser[]>([]);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [isStartingChat, setIsStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -82,7 +83,6 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       // Only log for debugging
     },
     onConnect: () => {
-      console.log('[Messages] WebSocket connected');
       // Join all conversations on connect
       if (conversations.length > 0 && currentUserId) {
         conversations.forEach((conv) => {
@@ -99,29 +99,23 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     switch (message.type) {
       case 'new_message':
         const newMsg = message.data as ChatMessage;
-        console.log('[Messages] Received new_message via WebSocket:', {
-          messageId: newMsg.id,
-          conversationId: newMsg.conversationId,
-          selectedConversationId: selectedConversationRef.current?.id,
-          matches: newMsg.conversationId === selectedConversationRef.current?.id
-        });
         
         // Use ref to avoid stale closure
         if (newMsg.conversationId === selectedConversationRef.current?.id) {
-          console.log('[Messages] Message is for current conversation, adding to UI');
           setMessages((prev) => {
             // Prevent duplicates
             const exists = prev.some(msg => msg.id === newMsg.id);
             if (exists) {
-              console.log('[Messages] Message already exists, skipping');
               return prev;
             }
-            console.log('[Messages] Adding new message to UI, prev length:', prev.length);
             return [...prev, newMsg];
           });
           scrollToBottom();
         } else {
-          console.log('[Messages] Message is for different conversation, not adding to UI');
+          // Show notification for messages in other conversations
+          if (newMsg.userId !== currentUserId) {
+            showNotification('info', `New message from ${newMsg.user?.displayName || 'Unknown'}`);
+          }
         }
         // Update conversation list to show latest message
         loadConversations();
@@ -129,34 +123,21 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
       case 'typing':
         const typingData = message.data;
-        console.log('[Messages] Typing event:', {
-          userId: typingData.userId,
-          currentUserId,
-          conversationId: typingData.conversationId,
-          selectedConversationId: selectedConversationRef.current?.id,
-          isTyping: typingData.isTyping,
-          isSelf: typingData.userId === currentUserId
-        });
         
         // Use ref to avoid stale closure and filter out own typing
         if (typingData.conversationId === selectedConversationRef.current?.id && typingData.userId !== currentUserId) {
-          console.log('[Messages] Updating typing indicator');
           if (typingData.isTyping) {
             setTypingUsers((prev) => {
               const next = new Set(prev).add(typingData.userId);
-              console.log('[Messages] Typing users now:', Array.from(next));
               return next;
             });
           } else {
             setTypingUsers((prev) => {
               const next = new Set(prev);
               next.delete(typingData.userId);
-              console.log('[Messages] Typing users now:', Array.from(next));
               return next;
             });
           }
-        } else {
-          console.log('[Messages] Ignoring typing event (wrong conversation or self)');
         }
         break;
 
@@ -203,17 +184,25 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   // Load conversations
   const loadConversations = useCallback(async () => {
     if (!token || !currentUserId) {
-      console.log('[Messages] Cannot load conversations: missing token or userId', { token: !!token, userId: !!currentUserId });
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('[Messages] Loading conversations for user:', currentUserId);
       setIsLoading(true);
       const data = await messagesAPI.getUserConversations(token, currentUserId);
-      console.log('[Messages] Loaded conversations:', data.length);
-      setConversations(data || []);
+      
+      // Deduplicate conversations by ID - keep the most recent one
+      const seenIds = new Set<string>();
+      const uniqueConversations = data.filter((conv) => {
+        if (seenIds.has(conv.id)) {
+          return false;
+        }
+        seenIds.add(conv.id);
+        return true;
+      });
+      
+      setConversations(uniqueConversations || []);
     } catch (error: any) {
       console.error('[Messages] Failed to load conversations:', error);
       const errorMessage = error?.message || error?.toString() || 'Failed to load conversations';
@@ -279,6 +268,11 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       // Mark as seen immediately for sender
       await messagesAPI.markMessageSeen(token, newMessage.id);
 
+      // Show success notification for first message
+      if (messages.length === 0) {
+        showNotification('success', 'Message sent successfully!');
+      }
+
       // Reload conversations to update last message
       loadConversations();
     } catch (error: any) {
@@ -320,9 +314,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
   // Start new conversation
   const handleStartChat = async (otherUserId: string) => {
-    if (!token || !currentUserId) return;
+    if (!token || !currentUserId || isStartingChat) return;
 
     try {
+      setIsStartingChat(true);
       const conversation = await messagesAPI.checkOrCreateOneToOne(token, otherUserId);
       setSelectedConversation(conversation);
       setShowUserSearch(false);
@@ -330,6 +325,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     } catch (error: any) {
       console.error('[Messages] Failed to start chat:', error);
       showNotification('error', error.message || 'Failed to start chat');
+    } finally {
+      setIsStartingChat(false);
     }
   };
 
@@ -454,19 +451,9 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     // Check if we have the required data
     const hasRequiredData = !!(token && currentUserId);
     
-    console.log('[Messages] Effect triggered:', { 
-      authLoading, 
-      hasToken: !!token, 
-      hasUserId: !!currentUserId,
-      hasRequiredData,
-      isAuthenticated 
-    });
-    
     if (hasRequiredData) {
-      console.log('[Messages] Calling loadConversations');
       loadConversations();
     } else {
-      console.log('[Messages] Missing required data - cannot load conversations');
       setIsLoading(false);
     }
   }, [authLoading, currentUserId, token, loadConversations]);
@@ -566,55 +553,63 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   return (
     <div className="flex h-screen w-full bg-black text-white font-sans overflow-hidden selection:bg-white selection:text-black">
       {/* Conversations Sidebar */}
-      <div className="w-full md:w-80 border-r border-white/10 flex flex-col h-full bg-black">
-        {/* User Profile Header */}
-        <div className="p-4 flex items-center justify-between border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 overflow-hidden">
+      <div className={`w-full md:w-80 border-r border-neutral-800 flex flex-col h-full bg-black ${
+        selectedConversation ? 'hidden md:flex' : 'flex'
+      }`}>
+        {/* User Profile Header - Fixed Height */}
+        <div className="h-16 px-4 flex items-center justify-between border-b border-neutral-800 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {/* Avatar */}
+            <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden flex-shrink-0">
               {user?.user?.avatarUrl ? (
                 <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
               ) : (
-                <MessageSquare size={20} />
+                <MessageSquare size={18} className="text-neutral-600" />
               )}
             </div>
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm">{user?.user?.displayName || 'User'}</span>
-              <span className="text-[10px] text-zinc-500 uppercase tracking-widest">
-                {isConnected ? 'Online' : 'Offline'}
+            {/* Username & Status */}
+            <div className="flex flex-col justify-center min-w-0 flex-1">
+              <span className="font-medium text-sm text-white truncate leading-tight">
+                {user?.user?.displayName || 'User'}
               </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-500' : 'bg-neutral-600'}`} />
+                <span className="text-[11px] text-neutral-500 leading-none">
+                  {isConnected ? 'Online' : 'Offline'}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Actions */}
+          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
             <button
               onClick={() => setShowUserSearch(true)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors"
               title="New chat"
             >
-              <Plus size={18} className="text-zinc-400" />
+              <Plus size={18} className="text-neutral-400" />
             </button>
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors md:hidden"
+                className="w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors md:hidden"
+                title="Close"
               >
-                <X size={18} className="text-zinc-400" />
+                <X size={18} className="text-neutral-400" />
               </button>
             )}
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="p-4">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-white transition-colors" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/20 focus:bg-zinc-900 transition-all text-white placeholder-zinc-600"
-            />
-          </div>
+        <div className="px-4 py-3 border-b border-neutral-900/50">
+          <input 
+            type="text" 
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-900 rounded-lg py-2 px-3 text-[13px] focus:outline-none focus:border-neutral-800 focus:bg-black transition-all text-white placeholder-neutral-600"
+          />
         </div>
 
         {/* Conversations List */}
@@ -678,18 +673,32 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       </div>
 
       {/* Chat View */}
-      <main className="flex-1 flex flex-col bg-black relative hidden md:flex">
+      <main className={`flex-1 flex flex-col bg-black relative ${
+        selectedConversation ? 'flex' : 'hidden md:flex'
+      }`}>
         {selectedConversation ? (
           <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            {/* Chat Header - Fixed Height */}
+            <div className="h-16 px-4 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
+              {/* Mobile Back Button */}
+              <button
+                onClick={() => setSelectedConversation(null)}
+                className="md:hidden w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors mr-2 flex-shrink-0"
+                title="Back to conversations"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              {/* Left: Avatar + User Info */}
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Avatar */}
                 {selectedConversation.isGroup ? (
-                  <div className="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center">
-                    <Users size={20} className="text-neutral-500" />
+                  <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center flex-shrink-0">
+                    <Users size={18} className="text-neutral-600" />
                   </div>
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                     {getConversationAvatar(selectedConversation) ? (
                       <img
                         src={getConversationAvatar(selectedConversation)!}
@@ -697,39 +706,52 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-sm">
+                      <span className="text-xs font-medium text-neutral-500">
                         {getConversationName(selectedConversation).substring(0, 2).toUpperCase()}
                       </span>
                     )}
                   </div>
                 )}
-                <div>
-                  <h3 className="font-semibold">{getConversationName(selectedConversation)}</h3>
+                {/* Username & Status */}
+                <div className="flex flex-col justify-center min-w-0 flex-1">
+                  <h3 className="font-medium text-sm text-white truncate leading-tight">
+                    {getConversationName(selectedConversation)}
+                  </h3>
                   {!selectedConversation.isGroup && (
-                    <p className="text-xs text-neutral-500">
-                      {selectedConversation.members.find((m) => m.userId !== currentUserId)?.user.isOnline
-                        ? 'Online'
-                        : 'Offline'}
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        selectedConversation.members.find((m) => m.userId !== currentUserId)?.user.isOnline
+                          ? 'bg-green-500'
+                          : 'bg-neutral-600'
+                      }`} />
+                      <span className="text-[11px] text-neutral-500 leading-none">
+                        {selectedConversation.members.find((m) => m.userId !== currentUserId)?.user.isOnline
+                          ? 'Online'
+                          : 'Offline'}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  {isConnected ? (
-                    <span className="text-xs text-green-500 flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      Connected
-                    </span>
-                  ) : (
-                    <span className="text-xs text-yellow-500 flex items-center gap-1">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                      Connecting...
-                    </span>
-                  )}
+              {/* Right: Connection Status + Actions */}
+              <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                {/* Connection Status */}
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    isConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
+                  }`} />
+                  <span className={`text-[11px] leading-none ${
+                    isConnected ? 'text-neutral-500' : 'text-yellow-600'
+                  }`}>
+                    {isConnected ? 'Connected' : 'Connecting'}
+                  </span>
                 </div>
-                <button className="p-2 hover:bg-neutral-800 rounded-lg transition-colors">
-                  <MoreVertical size={18} />
+                {/* Menu Button */}
+                <button 
+                  className="w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors"
+                  title="More options"
+                >
+                  <MoreVertical size={18} className="text-neutral-400" />
                 </button>
               </div>
             </div>
@@ -751,7 +773,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                     <div className={`flex gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                       {/* Avatar */}
                       {!isOwn && (
-                        <div className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {msg.user?.avatarUrl ? (
                             <img
                               src={msg.user.avatarUrl}
@@ -759,7 +781,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span className="text-xs">
+                            <span className="text-xs text-neutral-500">
                               {msg.user?.displayName.substring(0, 2).toUpperCase() || 'U'}
                             </span>
                           )}
@@ -769,15 +791,15 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                       {/* Message Content */}
                       <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
                         {!isOwn && (
-                          <span className="text-xs text-neutral-500 mb-1">
+                          <span className="text-xs text-neutral-500 mb-1 px-3">
                             {msg.user?.displayName || msg.username || 'Unknown'}
                           </span>
                         )}
                         <div
-                          className={`rounded-lg px-4 py-2 ${
+                          className={`rounded-2xl px-4 py-2.5 ${
                             isOwn
-                              ? 'bg-white text-black'
-                              : 'bg-neutral-800 text-white'
+                              ? 'bg-neutral-900 text-white'
+                              : 'bg-neutral-900 text-white'
                           }`}
                         >
                           {msg.mediaUrl && (
@@ -800,10 +822,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                               )}
                             </div>
                           )}
-                          <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
                         </div>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-xs text-neutral-500">
+                        <div className="flex items-center gap-1 mt-1 px-3">
+                          <span className="text-[11px] text-neutral-600">
                             {new Date(msg.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -814,7 +836,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                               {isSeen ? (
                                 <CheckCheck size={12} className="text-blue-500" />
                               ) : (
-                                <Check size={12} className="text-neutral-500" />
+                                <Check size={12} className="text-neutral-600" />
                               )}
                             </span>
                           )}
@@ -935,7 +957,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                   <button
                     key={user.id}
                     onClick={() => handleStartChat(user.id)}
-                    className="w-full p-3 hover:bg-neutral-800 rounded-lg transition-colors text-left flex items-center gap-3"
+                    disabled={isStartingChat}
+                    className="w-full p-3 hover:bg-neutral-800 rounded-lg transition-colors text-left flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center overflow-hidden">
                       {user.avatarUrl ? (
@@ -1001,6 +1024,11 @@ function ConversationItem({ conv, currentUserId, isSelected, onClick }: Conversa
   const lastMessageTime = conv.lastMessage 
     ? formatTime(conv.lastMessage.createdAt)
     : '';
+  
+  // Calculate unread count (messages not seen by current user)
+  const unreadCount = conv.messages?.filter(
+    (msg: any) => msg.userId !== currentUserId && !msg.seenBy?.some((s: any) => s.userId === currentUserId)
+  ).length || 0;
 
   return (
     <button 
@@ -1051,9 +1079,16 @@ function ConversationItem({ conv, currentUserId, isSelected, onClick }: Conversa
           <p className={`text-xs truncate font-medium ${isSelected ? 'text-black/80' : 'text-zinc-500'}`}>
             {lastMessageText}
           </p>
-          {conv.isPinned && !isSelected && (
-            <Pin size={12} className="text-zinc-700 ml-2" />
-          )}
+          <div className="flex items-center gap-2 ml-2">
+            {unreadCount > 0 && !isSelected && (
+              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </div>
+            )}
+            {conv.isPinned && !isSelected && (
+              <Pin size={12} className="text-zinc-700" />
+            )}
+          </div>
         </div>
       </div>
     </button>

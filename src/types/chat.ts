@@ -14,6 +14,7 @@ export interface ChatUser {
 }
 
 export interface ChatConversation {
+  [x: string]: any;
   id: string;
   name: string | null;
   isGroup: boolean;

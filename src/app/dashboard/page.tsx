@@ -533,13 +533,13 @@ export default function Dashboard() {
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setShowMobileMenu(false)}
         />
       )}
       
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${
         showMobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="flex items-center space-x-2 mb-10 px-2">
@@ -634,24 +634,39 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0">
         
-        {/* Header */}
-        <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:px-8">
-          <div className="flex items-center space-x-4">
-            {/* Mobile Menu Button */}
+        {/* Header - Show hamburger for Messages on mobile, full header for others */}
+        {activeTab === 'Messages' ? (
+          <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:hidden">
             <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="lg:hidden p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+              onClick={() => setShowMobileMenu(true)}
+              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors z-10"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h2 className="text-sm font-medium text-white">{activeTab}</h2>
-          </div>
-        </header>
+            <h2 className="text-sm font-medium text-white">Messages</h2>
+            <div className="w-9" />{/* Spacer for centering */}
+          </header>
+        ) : (
+          <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:px-8">
+            <div className="flex items-center space-x-4">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setShowMobileMenu(true)}
+                className="lg:hidden p-2 hover:bg-neutral-800 rounded-lg transition-colors z-10"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h2 className="text-sm font-medium text-white">{activeTab}</h2>
+            </div>
+          </header>
+        )}
 
         {/* Dashboard Body */}
-        <section className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <section className={`flex-1 overflow-y-auto ${activeTab === 'Messages' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'}`}>
           
           {/* Show different content based on active tab */}
           {activeTab === 'Overview' && (
@@ -1268,7 +1283,7 @@ export default function Dashboard() {
 
           {/* Messages Tab */}
           {activeTab === 'Messages' && (
-            <div className="h-[calc(100vh-4rem)] -m-4 sm:-m-6 lg:-m-8">
+            <div className="h-full overflow-hidden">
               <Messages 
                 initialUserId={messageUserId || undefined}
                 onClose={() => {
