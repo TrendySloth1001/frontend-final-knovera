@@ -702,18 +702,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             </div>
           ) : filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-zinc-500 p-4 text-center">
-              {/* Responsive Image */}
-              <div className="w-full max-w-xs mb-6">
-                <Image
-                  src="/massages/Work chat-cuate.png"
-                  alt="Start chatting"
-                  width={300}
-                  height={300}
-                  className="w-full h-auto"
-                  priority
-                />
-              </div>
-              
+              <MessageSquare size={48} className="mb-4 opacity-50" />
               <p className="text-sm mb-1">{searchQuery ? 'No conversations found' : 'No conversations yet'}</p>
               <button
                 onClick={() => setShowUserSearch(true)}
@@ -1015,13 +1004,56 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-neutral-500">
-            <div className="text-center">
-              <MessageSquare size={64} className="mx-auto mb-4 opacity-50" />
-              <p className="text-lg mb-2">Select a conversation</p>
-              <p className="text-sm">or start a new one</p>
-            </div>
-          </div>
+    <div className="flex-1 relative text-neutral-500 overflow-hidden">
+      
+      {/* Center illustration */}
+      <div className="flex items-center justify-center min-h-[65vh] sm:min-h-[70vh]">
+        <Image
+          src="/massages/Work chat-cuate.png"
+          alt="Start chatting"
+          width={500}
+          height={500}
+          priority
+          className="
+            w-full 
+            max-w-[260px] 
+            sm:max-w-[320px] 
+            md:max-w-sm 
+            h-auto 
+            opacity-90 
+            select-none
+          "
+        />
+      </div>
+
+      {/* Bottom helper text (responsive + centered) */}
+      <div
+        className="
+          absolute 
+          left-1/2 -translate-x-1/2 
+          text-center select-none
+
+          bottom-16        /* phones */
+          sm:bottom-20     /* tablets */
+          md:bottom-28     /* laptops */
+          lg:bottom-32     /* large screens */
+        "
+      >
+        <MessageSquare
+          size={22}
+          className="mx-auto mb-2 opacity-40"
+        />
+
+        <p className="text-xs sm:text-sm text-white/70">
+          Select a conversation
+        </p>
+
+        <p className="text-[11px] sm:text-xs text-white/40">
+          or start a new one
+        </p>
+      </div>
+
+    </div>
         )}
       </main>
 
