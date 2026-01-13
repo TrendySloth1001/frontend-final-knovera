@@ -11,6 +11,7 @@ export interface ChatUser {
   email?: string;
   isOnline?: boolean;
   lastActiveAt?: string | null;
+  role?: 'teacher' | 'student';
 }
 
 export interface ChatConversation {

@@ -143,6 +143,22 @@ class MessagesAPI {
   }
 
   /**
+   * Get mutual followers (users who follow each other)
+   */
+  async getMutualFollowers(token: string): Promise<ChatUser[]> {
+    const response = await fetch(`${API_BASE_URL}/users/mutual-followers`, {
+      method: 'GET',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to fetch mutual followers');
+    }
+
+    return response.json();
+  }
+
+  /**
    * Get online users
    */
   async getOnlineUsers(token: string): Promise<ChatUser[]> {
@@ -664,6 +680,40 @@ class MessagesAPI {
   async getOnlineMembers(token: string, conversationId: string): Promise<OnlineStatus[]> {
     const statuses = await this.getConversationMembersStatus(token, conversationId);
     return statuses.filter(status => status.isOnline);
+  }
+
+  /**
+   * Create a group conversation with mutual followers check
+   */
+  async createGroupConversation(token: string, name: string, memberIds: string[]): Promise<ChatConversation> {
+    const response = await fetch(`${API_BASE_URL}/conversations/group`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ name, memberIds }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to create group conversation');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete a conversation
+   */
+  async deleteConversation(token: string, conversationId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to delete conversation');
+    }
+
+    return response.json();
   }
 }
 

@@ -29,7 +29,17 @@ import {
   Check,
   CheckCheck,
   Pin,
+  Trash2,
+  UserCircle,
+  Mail,
+  Calendar,
+  GraduationCap,
+  BookOpen,
+  Award,
+  Building,
 } from 'lucide-react';
+import Drawer from './Drawer';
+import { apiClient } from '@/lib/api';
 
 // Format time helper function
 function formatTime(dateString: string): string {
@@ -60,9 +70,23 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showGroupCreate, setShowGroupCreate] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [selectedGroupConversation, setSelectedGroupConversation] = useState<ChatConversation | null>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<ChatUser | null>(null);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<ChatUser[]>([]);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [isDeletingConversation, setIsDeletingConversation] = useState(false);
+  const [isLoadingMutualFollowers, setIsLoadingMutualFollowers] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -336,6 +360,113 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
   };
 
+  // Create group conversation
+  const handleCreateGroup = async () => {
+    if (!token || !currentUserId || isCreatingGroup) return;
+    if (!groupName.trim()) {
+      showNotification('error', 'Please enter a group name');
+      return;
+    }
+    if (selectedMembers.length === 0) {
+      showNotification('error', 'Please select at least one member');
+      return;
+    }
+
+    try {
+      setIsCreatingGroup(true);
+      const conversation = await messagesAPI.createGroupConversation(
+        token,
+        groupName.trim(),
+        selectedMembers
+      );
+      setSelectedConversation(conversation);
+      setShowGroupCreate(false);
+      setGroupName('');
+      setSelectedMembers([]);
+      loadConversations();
+      showNotification('success', 'Group created successfully');
+    } catch (error: any) {
+      console.error('[Messages] Failed to create group:', error);
+      showNotification('error', error.message || 'Failed to create group');
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
+  // Delete conversation
+  const handleDeleteConversation = async () => {
+    if (!token || !currentUserId || !selectedConversation || isDeletingConversation) return;
+
+    try {
+      setIsDeletingConversation(true);
+      await messagesAPI.deleteConversation(token, selectedConversation.id, currentUserId);
+      setSelectedConversation(null);
+      setShowDeleteConfirm(false);
+      loadConversations();
+      showNotification('success', 'Conversation deleted successfully');
+    } catch (error: any) {
+      console.error('[Messages] Failed to delete conversation:', error);
+      showNotification('error', error.message || 'Failed to delete conversation');
+    } finally {
+      setIsDeletingConversation(false);
+    }
+  };
+
+  // Toggle member selection
+  const toggleMemberSelection = (userId: string) => {
+    setSelectedMembers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  // Handle profile click
+  const handleProfileClick = async (conv: ChatConversation) => {
+    if (conv.isGroup) return; // Don't open profile for groups
+    const otherMember = conv.members.find(m => m.userId !== currentUserId);
+    if (otherMember) {
+      setSelectedProfileUser(otherMember.user);
+      setShowProfileDrawer(true);
+      setProfileLoading(true);
+      setProfileData(null);
+
+      try {
+        // Try to fetch teacher profile first
+        try {
+          const teacherData = await apiClient.get(`/api/teachers/user/${otherMember.userId}`);
+          if (teacherData && typeof teacherData === 'object') {
+            setProfileData({ ...teacherData, type: 'teacher' });
+          }
+        } catch (teacherError) {
+          // If not a teacher, try student profile
+          try {
+            const studentData = await apiClient.get(`/api/students/user/${otherMember.userId}`);
+            if (studentData && typeof studentData === 'object') {
+              setProfileData({ ...studentData, type: 'student' });
+            }
+          } catch (studentError) {
+            // Just show basic user info
+            setProfileData({ user: otherMember.user, type: 'user' });
+          }
+        }
+      } catch (error) {
+        console.error('[Messages] Failed to load profile:', error);
+        showNotification('error', 'Failed to load profile details');
+      } finally {
+        setProfileLoading(false);
+      }
+    }
+  };
+
+  // Handle group members click
+  const handleGroupMembersClick = (conv: ChatConversation) => {
+    if (!conv.isGroup) return;
+    setSelectedGroupConversation(conv);
+    setShowGroupMembers(true);
+  };
+
+
   // Load available users for new chat
   const loadAvailableUsers = useCallback(async () => {
     if (!token) return;
@@ -348,6 +479,24 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       console.error('[Messages] Failed to load users:', error);
     }
   }, [token, currentUserId]);
+
+  // Load mutual followers for group creation
+  const loadMutualFollowers = useCallback(async () => {
+    if (!token) return;
+
+    setIsLoadingMutualFollowers(true);
+    try {
+      const users = await messagesAPI.getMutualFollowers(token);
+      console.log('[Messages] Mutual followers loaded:', users);
+      // Filter out current user (should already be filtered on backend, but just in case)
+      setAvailableUsers(users.filter((u) => u.id !== currentUserId));
+    } catch (error: any) {
+      console.error('[Messages] Failed to load mutual followers:', error);
+      showNotification('error', 'Failed to load available users');
+    } finally {
+      setIsLoadingMutualFollowers(false);
+    }
+  }, [token, currentUserId, showNotification]);
 
   // Typing indicator with debouncing
   const handleTyping = useCallback(
@@ -668,6 +817,16 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             >
               <Plus size={18} className="text-neutral-400" />
             </button>
+            <button
+              onClick={() => {
+                loadMutualFollowers();
+                setShowGroupCreate(true);
+              }}
+              className="w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors"
+              title="Create group"
+            >
+              <Users size={18} className="text-neutral-400" />
+            </button>
             {onClose && (
               <button
                 onClick={onClose}
@@ -725,6 +884,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                       isSelected={selectedConversation?.id === conv.id}
                       onClick={() => setSelectedConversation(conv)}
                       unreadCount={getUnreadCount(conv)}
+                      onGroupClick={handleGroupMembersClick}
                     />
                   ))}
                 </>
@@ -744,6 +904,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                       isSelected={selectedConversation?.id === conv.id}
                       onClick={() => setSelectedConversation(conv)}
                       unreadCount={getUnreadCount(conv)}
+                      onGroupClick={handleGroupMembersClick}
                     />
                   ))}
                 </>
@@ -772,7 +933,18 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                 </svg>
               </button>
               {/* Left: Avatar + User Info */}
-              <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button 
+                onClick={() => {
+                  if (selectedConversation.isGroup) {
+                    handleGroupMembersClick(selectedConversation);
+                  } else {
+                    handleProfileClick(selectedConversation);
+                  }
+                }}
+                className={`flex items-center gap-3 min-w-0 flex-1 ${
+                  'hover:bg-neutral-900/50 rounded-lg -ml-2 pl-2 py-1 transition-colors cursor-pointer'
+                }`}
+              >
                 {/* Avatar */}
                 {selectedConversation.isGroup ? (
                   <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center flex-shrink-0">
@@ -794,7 +966,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                   </div>
                 )}
                 {/* Username & Status */}
-                <div className="flex flex-col justify-center min-w-0 flex-1">
+                <div className="flex flex-col justify-center min-w-0 flex-1 text-left">
                   <h3 className="font-medium text-sm text-white truncate leading-tight">
                     {getConversationName(selectedConversation)}
                   </h3>
@@ -813,7 +985,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
               {/* Right: Connection Status + Actions */}
               <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                 {/* Connection Status */}
@@ -828,12 +1000,49 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                   </span>
                 </div>
                 {/* Menu Button */}
-                <button 
-                  className="w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors"
-                  title="More options"
-                >
-                  <MoreVertical size={18} className="text-neutral-400" />
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-neutral-900 rounded-lg transition-colors"
+                    title="More options"
+                  >
+                    <MoreVertical size={18} className="text-neutral-400" />
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {showMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setShowMenu(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-lg shadow-lg z-20 overflow-hidden">
+                        {!selectedConversation.isGroup && (
+                          <button
+                            onClick={() => {
+                              handleProfileClick(selectedConversation);
+                              setShowMenu(false);
+                            }}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-neutral-800 transition-colors flex items-center gap-3"
+                          >
+                            <UserCircle size={16} className="text-neutral-400" />
+                            <span>View Profile</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setShowDeleteConfirm(true);
+                            setShowMenu(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-red-900/20 transition-colors flex items-center gap-3 text-red-500"
+                        >
+                          <Trash2 size={16} />
+                          <span>Delete Conversation</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1089,13 +1298,13 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                   >
                     <div className="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center overflow-hidden">
                       {user.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
+                        <img src={user.avatarUrl} alt={user.displayName || 'User'} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-sm">{user.displayName.substring(0, 2).toUpperCase()}</span>
+                        <span className="text-sm">{user.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'U'}</span>
                       )}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium">{user.displayName}</p>
+                      <p className="font-medium">{user.displayName || 'Unknown User'}</p>
                       {user.username && <p className="text-xs text-neutral-500">@{user.username}</p>}
                     </div>
                     {user.isOnline && (
@@ -1108,6 +1317,445 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
           </div>
         </div>
       )}
+
+      {/* Group Creation Modal */}
+      {showGroupCreate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-black border border-white/10 rounded-xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
+              <h3 className="text-lg font-semibold">Create Group</h3>
+              <button
+                onClick={() => {
+                  setShowGroupCreate(false);
+                  setGroupName('');
+                  setSelectedMembers([]);
+                }}
+                className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 flex-1 overflow-y-auto">
+              <div className="mb-4">
+                <label className="block text-sm text-neutral-400 mb-2">Group Name</label>
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Enter group name..."
+                  className="w-full px-4 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm text-neutral-400 mb-2">
+                  Select Members ({selectedMembers.length} selected)
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {isLoadingMutualFollowers ? (
+                    <div className="text-center py-8">
+                      <div className="w-6 h-6 border-2 border-neutral-700 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
+                      <p className="text-sm text-neutral-500">Loading users...</p>
+                    </div>
+                  ) : availableUsers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users size={32} className="mx-auto mb-2 text-neutral-600" />
+                      <p className="text-sm text-neutral-500">No users available</p>
+                      <p className="text-xs text-neutral-600 mt-1">You need to follow other users to create groups</p>
+                    </div>
+                  ) : availableUsers.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => toggleMemberSelection(user.id)}
+                      className={`w-full p-3 rounded-lg transition-colors text-left flex items-center gap-3 ${
+                        selectedMembers.includes(user.id)
+                          ? 'bg-white/10 border border-white/20'
+                          : 'hover:bg-neutral-800 border border-transparent'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center overflow-hidden">
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={user.displayName || 'User'} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-sm">{user.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'U'}</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{user.displayName || 'Unknown User'}</p>
+                          {user.role && (
+                            <span className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
+                              user.role === 'teacher' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'
+                            }`}>
+                              {user.role === 'teacher' ? 'T' : 'S'}
+                            </span>
+                          )}
+                        </div>
+                        {user.username && <p className="text-xs text-neutral-500">@{user.username}</p>}
+                      </div>
+                      {selectedMembers.includes(user.id) && (
+                        <Check size={18} className="text-green-500" />
+                      )}
+                    </button>
+                  ))}                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-neutral-800 flex-shrink-0">
+              <button
+                onClick={handleCreateGroup}
+                disabled={isCreatingGroup || !groupName.trim() || selectedMembers.length === 0}
+                className="w-full px-4 py-2 bg-white text-black rounded-lg hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isCreatingGroup ? 'Creating...' : 'Create Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Members Drawer - Right Sidebar */}
+      {showGroupMembers && selectedGroupConversation && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowGroupMembers(false)}
+          />
+          
+          {/* Right Sidebar */}
+          <div className="fixed right-0 top-0 h-full w-96 bg-black border-l border-neutral-800 z-50 flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="p-6 border-b border-neutral-800">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-white mb-1">{selectedGroupConversation.name || 'Group'}</h2>
+                  <p className="text-sm text-gray-400">
+                    <span className="text-green-400 font-semibold">
+                      {selectedGroupConversation.members.filter(m => m.user.isOnline).length} online
+                    </span>
+                    {' • '}
+                    {selectedGroupConversation.members.length} total members
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowGroupMembers(false)}
+                  className="p-2 hover:bg-neutral-900 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                Members ({selectedGroupConversation.members.length})
+              </h3>
+              <div className="space-y-3">
+                {selectedGroupConversation.members.map((member) => (
+                  <div
+                    key={member.userId}
+                    className="flex items-center gap-3 p-3 hover:bg-neutral-900 rounded-lg transition-colors"
+                  >
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                        {member.user.avatarUrl ? (
+                          <img src={member.user.avatarUrl} alt={member.user.displayName || 'User'} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white font-semibold">
+                            {member.user.displayName ? member.user.displayName.substring(0, 2).toUpperCase() : 'U'}
+                          </span>
+                        )}
+                      </div>
+                      {member.user.isOnline && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-black rounded-full" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white truncate">{member.user.displayName || 'Unknown User'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {member.user.username && (
+                          <p className="text-xs text-gray-500">@{member.user.username}</p>
+                        )}
+                        {member.userId === selectedGroupConversation.createdBy && (
+                          <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded font-semibold">
+                            Creator
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      {member.user.isOnline ? (
+                        <span className="text-xs text-green-400 font-semibold">Online</span>
+                      ) : (
+                        <span className="text-xs text-gray-600">Offline</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-black border border-red-500/20 rounded-xl w-full max-w-md">
+            <div className="p-4 border-b border-neutral-800">
+              <h3 className="text-lg font-semibold text-red-500">Delete Conversation</h3>
+            </div>
+            <div className="p-4">
+              <p className="text-neutral-300 mb-4">
+                Are you sure you want to delete this conversation? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConversation}
+                  disabled={isDeletingConversation}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeletingConversation ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Drawer */}
+      <Drawer
+        isOpen={showProfileDrawer}
+        onClose={() => {
+          setShowProfileDrawer(false);
+          setProfileData(null);
+        }}
+        title={profileData?.type === 'teacher' ? 'Teacher Profile' : profileData?.type === 'student' ? 'Student Profile' : 'Profile'}
+        width="md"
+      >
+        {selectedProfileUser && (
+          <div className="p-4 sm:p-6">
+            {profileLoading ? (
+              <div className="text-center py-12">
+                <div className="w-8 h-8 border-2 border-neutral-700 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-neutral-500">Loading profile...</p>
+              </div>
+            ) : profileData ? (
+              <>
+                {/* Profile Header */}
+                <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
+                  <div className="flex flex-col items-center sm:items-start gap-4 mb-6">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                      {selectedProfileUser.avatarUrl ? (
+                        <img src={selectedProfileUser.avatarUrl} alt={selectedProfileUser.displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-bold">{selectedProfileUser.displayName.substring(0, 2).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 w-full text-center sm:text-left">
+                      <h2 className="text-2xl font-bold text-white mb-1 truncate">{selectedProfileUser.displayName}</h2>
+                      {selectedProfileUser.username && (
+                        <p className="text-sm text-neutral-400 mb-2">@{selectedProfileUser.username}</p>
+                      )}
+                      {profileData.type === 'teacher' && profileData.specialization && (
+                        <p className="text-sm text-neutral-400 mb-3">{profileData.specialization}</p>
+                      )}
+                      {profileData.type && (
+                        <div className="inline-block px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700 text-xs font-medium text-neutral-300 capitalize mb-3">
+                          {profileData.type}
+                        </div>
+                      )}
+                      
+                      {/* Status */}
+                      <div className="flex items-center justify-center sm:justify-start gap-2 py-2 mb-4">
+                        <div className={`w-2 h-2 rounded-full ${
+                          selectedProfileUser.isOnline ? 'bg-green-500' : 'bg-neutral-600'
+                        }`} />
+                        <span className="text-sm text-neutral-300">
+                          {selectedProfileUser.isOnline ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+
+                      {/* Stats for Teachers */}
+                      {profileData.type === 'teacher' && (
+                        <div className="flex items-center justify-center sm:justify-start space-x-4 mb-4">
+                          <div className="text-sm">
+                            <span className="text-white font-semibold">{profileData.followersCount || 0}</span>
+                            <span className="text-neutral-500 ml-1">Followers</span>
+                          </div>
+                          {profileData.followingCount !== undefined && (
+                            <>
+                              <span className="text-neutral-700">•</span>
+                              <div className="text-sm">
+                                <span className="text-white font-semibold">{profileData.followingCount || 0}</span>
+                                <span className="text-neutral-500 ml-1">Following</span>
+                              </div>
+                            </>
+                          )}
+                          {profileData.experience && (
+                            <>
+                              <span className="text-neutral-700">•</span>
+                              <div className="flex items-center gap-1 text-sm text-neutral-400">
+                                <Award size={14} />
+                                <span>{profileData.experience} years</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Stats for Students */}
+                      {profileData.type === 'student' && profileData.followingCount !== undefined && (
+                        <div className="flex items-center justify-center sm:justify-start mb-4">
+                          <div className="text-sm">
+                            <span className="text-white font-semibold">{profileData.followingCount || 0}</span>
+                            <span className="text-neutral-500 ml-1">Following</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 border-t border-neutral-800 pt-4">
+                    {selectedProfileUser.email && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Mail size={16} className="text-neutral-500" />
+                        <span className="text-white truncate">{selectedProfileUser.email}</span>
+                      </div>
+                    )}
+                    {selectedProfileUser.username && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <UserCircle size={16} className="text-neutral-500" />
+                        <span className="text-neutral-400">@{selectedProfileUser.username}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Calendar size={16} className="text-neutral-500" />
+                      <span className="text-neutral-400">
+                        Member since {new Date(profileData.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {selectedProfileUser.lastActiveAt && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Calendar size={16} className="text-neutral-500" />
+                        <span className="text-neutral-400">
+                          Last active {new Date(selectedProfileUser.lastActiveAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Profile Details */}
+                <div className="space-y-4">
+                  {/* Teacher Qualifications */}
+                  {profileData.type === 'teacher' && profileData.qualification && (
+                    <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                          <GraduationCap size={18} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-neutral-500 mb-3">Qualifications</p>
+                          <div className="flex flex-wrap gap-2">
+                            {profileData.qualification.split(',').map((qual: string, index: number) => (
+                              <span 
+                                key={index}
+                                className="px-3 py-1.5 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-sm"
+                              >
+                                {qual.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Teacher Bio */}
+                  {profileData.type === 'teacher' && profileData.bio && (
+                    <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                          <BookOpen size={18} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-neutral-500 mb-2">About</p>
+                          <p className="text-sm text-white leading-relaxed">{profileData.bio}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Student Grade */}
+                  {profileData.type === 'student' && profileData.grade && (
+                    <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                          <GraduationCap size={18} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-neutral-500 mb-1">Grade</p>
+                          <p className="text-sm text-white font-medium">{profileData.grade}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Student Institution */}
+                  {profileData.type === 'student' && profileData.institution && (
+                    <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                          <Building size={18} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-neutral-500 mb-1">Institution</p>
+                          <p className="text-sm text-white font-medium">{profileData.institution}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Student Interests */}
+                  {profileData.type === 'student' && profileData.interests && (
+                    <div className="border border-neutral-800 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center flex-shrink-0">
+                          <BookOpen size={18} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-neutral-500 mb-3">Interests</p>
+                          <div className="flex flex-wrap gap-2">
+                            {profileData.interests.split(',').map((interest: string, index: number) => (
+                              <span 
+                                key={index}
+                                className="px-3 py-1.5 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-sm"
+                              >
+                                {interest.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-neutral-500">Unable to load profile details</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
 
       {/* Custom Scrollbar Styles */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -1136,9 +1784,10 @@ interface ConversationItemProps {
   isSelected: boolean;
   onClick: () => void;
   unreadCount: number;
+  onGroupClick?: (conv: ChatConversation) => void;
 }
 
-function ConversationItem({ conv, currentUserId, isSelected, onClick, unreadCount }: ConversationItemProps) {
+function ConversationItem({ conv, currentUserId, isSelected, onClick, unreadCount, onGroupClick }: ConversationItemProps) {
   const otherUser = !conv.isGroup
     ? conv.members.find((m) => m.userId !== currentUserId)
     : null;
@@ -1162,10 +1811,19 @@ function ConversationItem({ conv, currentUserId, isSelected, onClick, unreadCoun
       `}
     >
       <div className="relative">
-        <div className={`
-          w-12 h-12 rounded-xl flex items-center justify-center border
-          ${isSelected ? 'bg-black/10 border-black/5' : 'bg-zinc-900 border-white/5'}
-        `}>
+        <div 
+          className={`
+            w-12 h-12 rounded-xl flex items-center justify-center border
+            ${isSelected ? 'bg-black/10 border-black/5' : 'bg-zinc-900 border-white/5'}
+            ${conv.isGroup ? 'cursor-pointer hover:bg-zinc-800 transition-colors' : ''}
+          `}
+          onClick={(e) => {
+            if (conv.isGroup && onGroupClick) {
+              e.stopPropagation();
+              onGroupClick(conv);
+            }
+          }}
+        >
           {conv.isGroup ? (
             <Users size={22} className={isSelected ? 'text-black' : 'text-zinc-400'} />
           ) : (
