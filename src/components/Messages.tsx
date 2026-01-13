@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { messagesAPI } from '@/lib/messages';
@@ -114,11 +115,13 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         } else {
           // Show notification for messages in other conversations
           if (newMsg.userId !== currentUserId) {
-            showNotification('info', `New message from ${newMsg.user?.displayName || 'Unknown'}`);
+            const senderName = newMsg.user?.displayName || 'Someone';
+            const preview = newMsg.content ? (newMsg.content.length > 50 ? newMsg.content.substring(0, 50) + '...' : newMsg.content) : 'Sent a message';
+            showNotification('info', `${senderName}: ${preview}`);
           }
         }
-        // Update conversation list to show latest message
-        loadConversations();
+        // Update conversation list immediately to show latest message and unread count
+        setTimeout(() => loadConversations(), 100);
         break;
 
       case 'typing':
@@ -143,6 +146,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
       case 'message_seen':
         const seenData = message.data;
+        // Update the message in the messages array if it's the current conversation
         if (seenData.conversationId === selectedConversation?.id) {
           setMessages((prev) =>
             prev.map((msg) =>
@@ -162,6 +166,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             )
           );
         }
+        // Always refresh conversation list to update unread counts and last message status
+        setTimeout(() => loadConversations(), 100);
         break;
 
       case 'user_online':
@@ -355,6 +361,45 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       }
 
       if (isTyping) {
+        // When user starts typing, mark all unread messages as seen
+        if (!isTypingRef.current && token) {
+          const unreadMessages = messages.filter(
+            (msg) => msg.userId !== currentUserId && !msg.seenBy?.some((s) => s.userId === currentUserId)
+          );
+          
+          if (unreadMessages.length > 0) {
+            // Mark all unread messages as seen immediately
+            unreadMessages.forEach((msg) => {
+              messagesAPI.markMessageSeen(token, msg.id).catch(error => {
+                console.error('[Messages] Failed to mark message as seen:', error);
+              });
+            });
+            
+            // Update local state
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (unreadMessages.some(unread => unread.id === msg.id)) {
+                  return {
+                    ...msg,
+                    seenBy: [
+                      ...(msg.seenBy || []),
+                      {
+                        userId: currentUserId,
+                        username: user?.user?.displayName || 'You',
+                        seenAt: new Date().toISOString(),
+                      },
+                    ],
+                  };
+                }
+                return msg;
+              })
+            );
+            
+            // Refresh conversation list
+            setTimeout(() => loadConversations(), 100);
+          }
+        }
+        
         // Send typing start immediately if not already typing
         if (!isTypingRef.current) {
           isTypingRef.current = true;
@@ -395,7 +440,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         }
       }
     },
-    [selectedConversation, currentUserId, sendMessage]
+    [selectedConversation, currentUserId, sendMessage, messages, token, user, setMessages, loadConversations]
   );
 
   // Scroll to bottom
@@ -477,18 +522,44 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
   useEffect(() => {
     if (selectedConversation && messages.length > 0 && token && currentUserId) {
-      // Mark messages as seen
+      // Mark unread messages as seen immediately
       const unreadMessages = messages.filter(
         (msg) => msg.userId !== currentUserId && !msg.seenBy?.some((s) => s.userId === currentUserId)
       );
 
-      for (const msg of unreadMessages) {
-        messagesAPI.markMessageSeen(token, msg.id).catch(error => {
-          console.error('[Messages] Failed to mark message as seen:', error);
+      if (unreadMessages.length > 0) {
+        // Mark all unread messages as seen
+        unreadMessages.forEach((msg) => {
+          messagesAPI.markMessageSeen(token, msg.id).catch(error => {
+            console.error('[Messages] Failed to mark message as seen:', error);
+          });
         });
+        
+        // Immediately update local state to reflect read status
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (unreadMessages.some(unread => unread.id === msg.id)) {
+              return {
+                ...msg,
+                seenBy: [
+                  ...(msg.seenBy || []),
+                  {
+                    userId: currentUserId,
+                    username: user?.user?.displayName || 'You',
+                    seenAt: new Date().toISOString(),
+                  },
+                ],
+              };
+            }
+            return msg;
+          })
+        );
+        
+        // Refresh conversation list immediately to update unread counts
+        setTimeout(() => loadConversations(), 100);
       }
     }
-  }, [selectedConversation, messages, token, currentUserId]);
+  }, [selectedConversation, messages, token, currentUserId, user, loadConversations]);
 
   useEffect(() => {
     if (showUserSearch && token) {
@@ -524,6 +595,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     if (conv.isGroup) return null;
     const otherUser = conv.members.find((m) => m.userId !== currentUserId);
     return otherUser?.user.avatarUrl || null;
+  };
+
+  // Get unread count for a conversation
+  const getUnreadCount = (conv: ChatConversation): number => {
+    if (!conv.messages) return 0;
+    return conv.messages.filter(
+      (msg: any) => msg.userId !== currentUserId && !msg.seenBy?.some((s: any) => s.userId === currentUserId)
+    ).length;
   };
 
   // Show loading state while auth is being checked
@@ -623,7 +702,18 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             </div>
           ) : filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-zinc-500 p-4 text-center">
-              <MessageSquare size={48} className="mb-4 opacity-50" />
+              {/* Responsive Image */}
+              <div className="w-full max-w-xs mb-6">
+                <Image
+                  src="/massages/Work chat-cuate.png"
+                  alt="Start chatting"
+                  width={300}
+                  height={300}
+                  className="w-full h-auto"
+                  priority
+                />
+              </div>
+              
               <p className="text-sm mb-1">{searchQuery ? 'No conversations found' : 'No conversations yet'}</p>
               <button
                 onClick={() => setShowUserSearch(true)}
@@ -645,6 +735,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                       currentUserId={currentUserId!}
                       isSelected={selectedConversation?.id === conv.id}
                       onClick={() => setSelectedConversation(conv)}
+                      unreadCount={getUnreadCount(conv)}
                     />
                   ))}
                 </>
@@ -663,6 +754,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                       currentUserId={currentUserId!}
                       isSelected={selectedConversation?.id === conv.id}
                       onClick={() => setSelectedConversation(conv)}
+                      unreadCount={getUnreadCount(conv)}
                     />
                   ))}
                 </>
@@ -763,7 +855,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             >
               {messages.map((msg) => {
                 const isOwn = msg.userId === currentUserId;
-                const isSeen = msg.seenBy?.some((s) => s.userId !== currentUserId);
+                // Check if message has been seen by any other user (not the sender)
+                const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
+                // Count how many users have seen it (excluding sender)
+                const seenCount = msg.seenBy?.filter((s) => s.userId !== msg.userId).length || 0;
 
                 return (
                   <div
@@ -832,7 +927,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                             })}
                           </span>
                           {isOwn && (
-                            <span className="text-xs">
+                            <span className="text-xs" title={isSeen ? `Seen by ${seenCount} user(s)` : 'Delivered'}>
                               {isSeen ? (
                                 <CheckCheck size={12} className="text-blue-500" />
                               ) : (
@@ -1008,9 +1103,10 @@ interface ConversationItemProps {
   currentUserId: string;
   isSelected: boolean;
   onClick: () => void;
+  unreadCount: number;
 }
 
-function ConversationItem({ conv, currentUserId, isSelected, onClick }: ConversationItemProps) {
+function ConversationItem({ conv, currentUserId, isSelected, onClick, unreadCount }: ConversationItemProps) {
   const otherUser = !conv.isGroup
     ? conv.members.find((m) => m.userId !== currentUserId)
     : null;
@@ -1024,11 +1120,6 @@ function ConversationItem({ conv, currentUserId, isSelected, onClick }: Conversa
   const lastMessageTime = conv.lastMessage 
     ? formatTime(conv.lastMessage.createdAt)
     : '';
-  
-  // Calculate unread count (messages not seen by current user)
-  const unreadCount = conv.messages?.filter(
-    (msg: any) => msg.userId !== currentUserId && !msg.seenBy?.some((s: any) => s.userId === currentUserId)
-  ).length || 0;
 
   return (
     <button 
@@ -1066,7 +1157,13 @@ function ConversationItem({ conv, currentUserId, isSelected, onClick }: Conversa
       
       <div className="flex-1 text-left min-w-0">
         <div className="flex justify-between items-center mb-0.5">
-          <span className={`text-sm font-bold truncate ${isSelected ? 'text-black' : 'text-zinc-100'}`}>
+          <span className={`text-sm truncate ${
+            isSelected 
+              ? 'text-black font-bold' 
+              : unreadCount > 0 
+                ? 'text-white font-extrabold' 
+                : 'text-zinc-100 font-bold'
+          }`}>
             {conversationName}
           </span>
           {lastMessageTime && (
@@ -1076,13 +1173,19 @@ function ConversationItem({ conv, currentUserId, isSelected, onClick }: Conversa
           )}
         </div>
         <div className="flex justify-between items-center">
-          <p className={`text-xs truncate font-medium ${isSelected ? 'text-black/80' : 'text-zinc-500'}`}>
+          <p className={`text-xs truncate ${
+            isSelected 
+              ? 'text-black/80 font-medium' 
+              : unreadCount > 0 
+                ? 'text-zinc-300 font-semibold' 
+                : 'text-zinc-500 font-medium'
+          }`}>
             {lastMessageText}
           </p>
           <div className="flex items-center gap-2 ml-2">
-            {unreadCount > 0 && !isSelected && (
-              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
-                {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount > 0 && (
+              <div className="min-w-[20px] h-5 bg-blue-500 rounded-full flex items-center justify-center px-1.5 text-[10px] font-bold text-white flex-shrink-0">
+                {unreadCount > 99 ? '99+' : unreadCount}
               </div>
             )}
             {conv.isPinned && !isSelected && (

@@ -118,8 +118,8 @@ export default function StudentSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-black text-white">
+      <div className="max-w-4xl mx-auto px-4 py-8 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <div className="bg-white text-black p-3 rounded-lg">

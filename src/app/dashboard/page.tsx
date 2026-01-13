@@ -528,7 +528,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#000000] text-neutral-100 font-sans selection:bg-neutral-800">
+    <div className="flex w-full min-h-screen bg-[#000000] text-neutral-100 font-sans selection:bg-neutral-800 overflow-hidden">
       
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
@@ -560,6 +560,29 @@ export default function Dashboard() {
           <NavItem icon={MessageSquare} label="Messages" onClick={() => changeTab('Messages')} />
           <NavItem icon={BarChart3} label="Analytics" onClick={() => changeTab('Analytics')} />
           <NavItem icon={Users} label="Community" onClick={() => changeTab('Community')} />
+          
+          {/* Knovera Chat Button */}
+<button
+  onClick={() => router.push('/chat/new')}
+  className="
+    flex items-center gap-4
+    py-3 px-3
+    rounded-lg
+    w-full
+    cursor-pointer
+    bg-transparent border border-white/10
+    text-white
+    transition-all duration-200
+    hover:bg-[#0a0a0a]
+    active:bg-[#000000]
+  "
+>
+  <Brain size={18} />
+  <span className="text-sm font-medium tracking-wide">
+    knovera
+  </span>
+</button>
+
         </nav>
 
         <div className="pt-6 border-t border-neutral-800">
@@ -632,11 +655,11 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-h-0">
+      <main className="flex-1 flex flex-col min-h-0 max-h-screen">
         
         {/* Header - Show hamburger for Messages on mobile, full header for others */}
         {activeTab === 'Messages' ? (
-          <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:hidden">
+          <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:hidden flex-shrink-0">
             <button
               onClick={() => setShowMobileMenu(true)}
               className="p-2 hover:bg-neutral-800 rounded-lg transition-colors z-10"
@@ -649,7 +672,7 @@ export default function Dashboard() {
             <div className="w-9" />{/* Spacer for centering */}
           </header>
         ) : (
-          <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:px-8">
+          <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:px-8 flex-shrink-0">
             <div className="flex items-center space-x-4">
               {/* Mobile Menu Button */}
               <button
@@ -666,10 +689,11 @@ export default function Dashboard() {
         )}
 
         {/* Dashboard Body */}
-        <section className={`flex-1 overflow-y-auto ${activeTab === 'Messages' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'}`}>
-          
-          {/* Show different content based on active tab */}
-          {activeTab === 'Overview' && (
+        <section className={`flex-1 overflow-y-auto overflow-x-hidden w-full ${activeTab === 'Messages' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'}`}>
+          {activeTab !== 'Messages' && (
+            <div className="mx-auto w-full max-w-7xl">
+              {/* Show different content based on active tab */}
+              {activeTab === 'Overview' && (
             <>
               {/* Random Illustration */}
               <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -748,13 +772,15 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <img 
-                    src="/notification/New message-cuate.png" 
-                    alt="No notifications" 
-                    className="w-120 h-120 mx-auto mb-6 opacity-90"
-                  />
-                  <p className="text-neutral-500">No unread notifications</p>
+                <div className="text-center py-12 flex flex-col items-center justify-center">
+                  <div className="w-full max-w-xs mb-6">
+                    <img 
+                      src="/notification/New message-cuate.png" 
+                      alt="No notifications" 
+                      className="w-full h-auto opacity-90"
+                    />
+                  </div>
+                  <p className="text-neutral-500 text-sm">No unread notifications</p>
                 </div>
               )}
             </>
@@ -887,6 +913,26 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
+            </>
+          )}
+
+          {/* Analytics Tab */}
+          {activeTab === 'Analytics' && (
+            <>
+              <div className="flex items-center space-x-3 mb-6">
+                <button
+                  onClick={() => changeTab('Overview')}
+                  className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <h3 className="text-xl font-semibold">Analytics</h3>
+              </div>
+
+              <div className="text-center py-12 flex flex-col items-center justify-center">
+                <BarChart3 size={48} className="text-neutral-600 mb-4" />
+                <p className="text-neutral-500 text-sm">Analytics coming soon</p>
+              </div>
             </>
           )}
 
@@ -1280,6 +1326,8 @@ export default function Dashboard() {
               )}
             </>
           )}
+            </div>
+          )}
 
           {/* Messages Tab */}
           {activeTab === 'Messages' && (
@@ -1296,28 +1344,29 @@ export default function Dashboard() {
 
           {/* Profile Tab */}
           {activeTab === 'Profile' && (
-            <>
-              <div className="flex items-center space-x-3 mb-6">
-                <button
-                  onClick={() => changeTab('Overview')}
-                  className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <h3 className="text-xl font-semibold">Profile</h3>
-              </div>
-
-              {/* Profile Header */}
-              <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden flex-shrink-0">
-                    {user.user.avatarUrl ? (
-                      <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
-                    )}
+            <div className="mx-auto w-full max-w-7xl">
+              <>
+                <div className="flex items-center space-x-3 mb-6">
+                    <button
+                      onClick={() => changeTab('Overview')}
+                      className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+                    <h3 className="text-xl font-semibold">Profile</h3>
                   </div>
-                  <div className="flex-1 min-w-0">
+
+                  {/* Profile Header */}
+                  <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden flex-shrink-0">
+                        {user.user.avatarUrl ? (
+                          <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
                     <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 truncate">{user.user.displayName}</h2>
                     <p className="text-xs sm:text-sm text-neutral-400 capitalize">{user.user.role}</p>
                     
@@ -1351,11 +1400,11 @@ export default function Dashboard() {
                           <span className="text-neutral-500 ml-1">Following</span>
                         </button>
                       )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="space-y-3 border-t border-neutral-800 pt-4">
+                    <div className="space-y-3 border-t border-neutral-800 pt-4">
                   <div className="flex items-center space-x-2 text-sm">
                     <Mail size={16} className="text-neutral-500" />
                     <span className="text-white">{user.user.email}</span>
@@ -1366,13 +1415,13 @@ export default function Dashboard() {
                       <span className="text-neutral-400">
                         Last active {new Date(user.user.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
+                      </div>
+                    )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Profile Details */}
-              <div className="space-y-4">
+                  {/* Profile Details */}
+                  <div className="space-y-4">
                 {user.profile && (
                   <>
                     {(user.profile as any).firstName && (
@@ -1535,9 +1584,9 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            </>
+              </>
+            </div>
           )}
-
         </section>
       </main>
 
