@@ -33,6 +33,8 @@ import DeleteConfirmModal from './messages/DeleteConfirmModal';
 import ProfileDrawerContent from './messages/ProfileDrawerContent';
 import AddMembersModal from './messages/AddMembersModal';
 import MediaPreviewModal from './messages/MediaPreviewModal';
+import ForwardMessageModal from './messages/ForwardMessageModal';
+import EditHistoryModal from './messages/EditHistoryModal';
 
 interface MessagesProps {
   onClose?: () => void;
@@ -74,6 +76,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [showMediaPreview, setShowMediaPreview] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
+  const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null);
+  const [editHistoryData, setEditHistoryData] = useState<{ current: string; history: Array<{ content: string; editedAt: string }> } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -492,6 +498,213 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       showNotification('error', error.message || 'Failed to send media');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // Edit message handler
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    if (!token || !newContent.trim()) return;
+
+    try {
+      const updatedMessage = await messagesAPI.editMessage(token, messageId, newContent);
+      
+      // Update local message state
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: updatedMessage.content, isEdited: true, editedAt: updatedMessage.editedAt }
+            : msg
+        )
+      );
+      
+      showNotification('success', 'Message edited');
+    } catch (error: any) {
+      console.error('[Messages] Failed to edit message:', error);
+      showNotification('error', error.message || 'Failed to edit message');
+    }
+  };
+
+  // Delete message handler
+  const handleDeleteMessage = async (messageId: string, forEveryone: boolean) => {
+    if (!token) return;
+
+    try {
+      if (forEveryone) {
+        await messagesAPI.deleteMessageForEveryone(token, messageId);
+        
+        // Update local state - mark as deleted for everyone
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, content: 'This message was deleted', deletedForEveryone: true }
+              : msg
+          )
+        );
+      } else {
+        await messagesAPI.deleteMessageForMe(token, messageId);
+        
+        // Remove message from local state
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      }
+      
+      showNotification('success', 'Message deleted');
+    } catch (error: any) {
+      console.error('[Messages] Failed to delete message:', error);
+      showNotification('error', error.message || 'Failed to delete message');
+    }
+  };
+
+  // Forward message handler
+  const handleForwardMessage = (messageId: string) => {
+    const message = messages.find((msg) => msg.id === messageId);
+    if (message) {
+      setForwardingMessage(message);
+      setShowForwardModal(true);
+    }
+  };
+
+  // Forward to selected conversations
+  const handleForwardToConversations = async (conversationIds: string[]) => {
+    if (!token || !forwardingMessage || conversationIds.length === 0) return;
+
+    try {
+      await messagesAPI.forwardMessage(token, forwardingMessage.id, conversationIds);
+      showNotification('success', `Message forwarded to ${conversationIds.length} conversation${conversationIds.length > 1 ? 's' : ''}`);
+      setShowForwardModal(false);
+      setForwardingMessage(null);
+    } catch (error: any) {
+      console.error('[Messages] Failed to forward message:', error);
+      showNotification('error', error.message || 'Failed to forward message');
+    }
+  };
+
+  // Star message handler
+  const handleStarMessage = async (messageId: string) => {
+    if (!token) return;
+
+    try {
+      await messagesAPI.starMessage(token, messageId);
+      
+      // Update local state
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, isStarred: true } : msg
+        )
+      );
+      
+      showNotification('success', 'Message starred');
+    } catch (error: any) {
+      console.error('[Messages] Failed to star message:', error);
+      showNotification('error', error.message || 'Failed to star message');
+    }
+  };
+
+  // Unstar message handler
+  const handleUnstarMessage = async (messageId: string) => {
+    if (!token) return;
+
+    try {
+      await messagesAPI.unstarMessage(token, messageId);
+      
+      // Update local state
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, isStarred: false } : msg
+        )
+      );
+      
+      showNotification('success', 'Message unstarred');
+    } catch (error: any) {
+      console.error('[Messages] Failed to unstar message:', error);
+      showNotification('error', error.message || 'Failed to unstar message');
+    }
+  };
+
+  // Add reaction handler
+  const handleAddReaction = async (messageId: string, emoji: string) => {
+    if (!token || !currentUserId) return;
+
+    try {
+      await messagesAPI.addReaction(token, messageId, emoji);
+      
+      // Update local state optimistically
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId) {
+            const reactions = msg.reactions || [];
+            const existingReaction = reactions.find((r) => r.emoji === emoji);
+            
+            if (existingReaction) {
+              // User already reacted, update the reaction
+              return {
+                ...msg,
+                reactions: reactions.map((r) =>
+                  r.emoji === emoji
+                    ? { ...r, count: r.count + 1, userReacted: true }
+                    : r
+                ),
+              };
+            } else {
+              // New reaction
+              return {
+                ...msg,
+                reactions: [
+                  ...reactions,
+                  { emoji, count: 1, users: [{ id: currentUserId, displayName: user?.user?.displayName || '', avatarUrl: user?.user?.avatarUrl || '' }], userReacted: true },
+                ],
+              };
+            }
+          }
+          return msg;
+        })
+      );
+    } catch (error: any) {
+      console.error('[Messages] Failed to add reaction:', error);
+      showNotification('error', error.message || 'Failed to add reaction');
+    }
+  };
+
+  // Remove reaction handler
+  const handleRemoveReaction = async (messageId: string, emoji: string) => {
+    if (!token) return;
+
+    try {
+      await messagesAPI.removeReaction(token, messageId, emoji);
+      
+      // Update local state
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId) {
+            const reactions = (msg.reactions || [])
+              .map((r) =>
+                r.emoji === emoji
+                  ? { ...r, count: r.count - 1, userReacted: false }
+                  : r
+              )
+              .filter((r) => r.count > 0);
+            
+            return { ...msg, reactions };
+          }
+          return msg;
+        })
+      );
+    } catch (error: any) {
+      console.error('[Messages] Failed to remove reaction:', error);
+      showNotification('error', error.message || 'Failed to remove reaction');
+    }
+  };
+
+  // View edit history handler
+  const handleViewHistory = async (messageId: string) => {
+    if (!token) return;
+
+    try {
+      const history = await messagesAPI.getEditHistory(token, messageId);
+      setEditHistoryData(history);
+      setShowEditHistoryModal(true);
+    } catch (error: any) {
+      console.error('[Messages] Failed to get edit history:', error);
+      showNotification('error', error.message || 'Failed to load edit history');
     }
   };
 
@@ -1197,6 +1410,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               messageRefs={messageRefs}
               highlightedMessageId={highlightedMessageId}
               onScrollToMessage={handleScrollToMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onForwardMessage={handleForwardMessage}
+              onStarMessage={handleStarMessage}
+              onUnstarMessage={handleUnstarMessage}
+              onAddReaction={handleAddReaction}
+              onRemoveReaction={handleRemoveReaction}
+              onViewHistory={handleViewHistory}
             />
 
             <MessageInput
@@ -1276,6 +1497,32 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onSend={handleSendMedia}
         initialFile={selectedFile}
       />
+
+      {/* Forward Message Modal */}
+      {showForwardModal && forwardingMessage && (
+        <ForwardMessageModal
+          message={forwardingMessage}
+          conversations={conversations.filter((c) => c.id !== selectedConversation?.id)}
+          currentUserId={currentUserId!}
+          onForward={handleForwardToConversations}
+          onClose={() => {
+            setShowForwardModal(false);
+            setForwardingMessage(null);
+          }}
+        />
+      )}
+
+      {/* Edit History Modal */}
+      {showEditHistoryModal && editHistoryData && (
+        <EditHistoryModal
+          current={editHistoryData.current}
+          history={editHistoryData.history}
+          onClose={() => {
+            setShowEditHistoryModal(false);
+            setEditHistoryData(null);
+          }}
+        />
+      )}
 
       {/* Profile Drawer */}
       <Drawer

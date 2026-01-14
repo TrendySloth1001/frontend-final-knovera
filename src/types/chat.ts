@@ -47,6 +47,14 @@ export interface ChatMessage {
   mediaType?: string | null;
   mediaUrls?: string[];  // Multiple media URLs
   mediaTypes?: string[];  // Corresponding media types
+  
+  // Message enhancements
+  isEdited?: boolean;
+  editedAt?: string | null;
+  deletedForEveryone?: boolean;
+  reactions?: MessageReaction[];
+  isStarred?: boolean;
+  
   createdAt: string;
   seenBy?: Array<{
     userId: string;
@@ -67,6 +75,17 @@ export interface ChatMessage {
       displayName: string;
     };
   } | null;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  users: Array<{
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  }>;
+  userReacted: boolean;
 }
 
 export interface OnlineStatus {

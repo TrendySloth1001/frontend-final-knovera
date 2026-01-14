@@ -819,6 +819,204 @@ class MessagesAPI {
 
     return response.json();
   }
+
+  // ==================== MESSAGE ACTIONS ====================
+
+  /**
+   * Add reaction to a message
+   */
+  async addReaction(token: string, messageId: string, emoji: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/reactions`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ emoji }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to add reaction');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Remove reaction from a message
+   */
+  async removeReaction(token: string, messageId: string, emoji: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to remove reaction');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get reactions for a message
+   */
+  async getReactions(token: string, messageId: string): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/reactions`, {
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to get reactions');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Edit a message
+   */
+  async editMessage(token: string, messageId: string, content: string): Promise<ChatMessage> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ content }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to edit message');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get edit history for a message
+   */
+  async getEditHistory(token: string, messageId: string): Promise<{ current: string; history: Array<{ content: string; editedAt: string }> }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/history`, {
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to get edit history');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete message for current user only
+   */
+  async deleteMessageForMe(token: string, messageId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/for-me`, {
+      method: 'DELETE',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to delete message');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete message for everyone
+   */
+  async deleteMessageForEveryone(token: string, messageId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/for-everyone`, {
+      method: 'DELETE',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to delete message for everyone');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Star a message
+   */
+  async starMessage(token: string, messageId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/star`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to star message');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Unstar a message
+   */
+  async unstarMessage(token: string, messageId: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/star`, {
+      method: 'DELETE',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to unstar message');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get starred messages in a conversation
+   */
+  async getStarredMessages(token: string, conversationId?: string): Promise<ChatMessage[]> {
+    const url = conversationId 
+      ? `${API_BASE_URL}/conversations/${conversationId}/starred`
+      : `${API_BASE_URL}/starred`;
+
+    const response = await fetch(url, {
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to get starred messages');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Forward message to other conversations
+   */
+  async forwardMessage(token: string, messageId: string, conversationIds: string[]): Promise<{ success: boolean; forwardedCount: number }> {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}/forward`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ conversationIds }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to forward message');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Search messages in a conversation
+   */
+  async searchMessagesInConversation(token: string, conversationId: string, query: string, limit = 50, offset = 0): Promise<SearchMessagesResponse> {
+    const params = new URLSearchParams({ query, limit: limit.toString(), offset: offset.toString() });
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/messages/search?${params}`, {
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to search messages');
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

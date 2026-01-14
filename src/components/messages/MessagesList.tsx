@@ -18,9 +18,17 @@ interface MessagesListProps {
   messageRefs?: React.MutableRefObject<{ [key: string]: HTMLDivElement | null }>;
   highlightedMessageId?: string | null;
   onScrollToMessage?: (messageId: string) => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onDeleteMessage?: (messageId: string, forEveryone: boolean) => void;
+  onForwardMessage?: (messageId: string) => void;
+  onStarMessage?: (messageId: string) => void;
+  onUnstarMessage?: (messageId: string) => void;
+  onAddReaction?: (messageId: string, emoji: string) => void;
+  onRemoveReaction?: (messageId: string, emoji: string) => void;
+  onViewHistory?: (messageId: string) => void;
 }
 
-export default function MessagesList({ messages, currentUserId, typingUsers, messagesEndRef, conversation, onAvatarClick, onReplyToMessage, messageRefs, highlightedMessageId, onScrollToMessage }: MessagesListProps) {
+export default function MessagesList({ messages, currentUserId, typingUsers, messagesEndRef, conversation, onAvatarClick, onReplyToMessage, messageRefs, highlightedMessageId, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory }: MessagesListProps) {
   // Helper to check if two dates are on different days
   const isDifferentDay = (date1: string, date2: string) => {
     const d1 = new Date(date1);
@@ -59,6 +67,14 @@ export default function MessagesList({ messages, currentUserId, typingUsers, mes
                   messageRef={(el) => messageRefs && (messageRefs.current[msg.id] = el)}
                   isHighlighted={highlightedMessageId === msg.id}
                   onScrollToMessage={onScrollToMessage}
+                  onEditMessage={onEditMessage}
+                  onDeleteMessage={onDeleteMessage}
+                  onForwardMessage={onForwardMessage}
+                  onStarMessage={onStarMessage}
+                  onUnstarMessage={onUnstarMessage}
+                  onAddReaction={onAddReaction}
+                  onRemoveReaction={onRemoveReaction}
+                  onViewHistory={onViewHistory}
                 />
               </div>
             )}
