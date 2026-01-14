@@ -1,9 +1,8 @@
-'use client';
-
-import { Check, CheckCheck, Reply, FileText, Video, Music, Image as ImageIcon } from 'lucide-react';
+import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
+import DocumentViewer from './DocumentViewer';
 
 interface MessageBubbleProps {
   msg: ChatMessage;
@@ -136,15 +135,9 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
                     src={msg.mediaUrl}
                   />
                 ) : msg.mediaType?.startsWith('application/') || msg.mediaType?.includes('document') ? (
-                  <a
-                    href={msg.mediaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 bg-zinc-900/50 rounded-lg hover:bg-zinc-900 transition-colors border border-zinc-800"
-                  >
-                    <FileText size={20} className="text-blue-400" />
-                    <span className="text-sm text-zinc-300">View Document</span>
-                  </a>
+                  <DocumentViewer
+                    src={msg.mediaUrl}
+                  />
                 ) : (
                   <a
                     href={msg.mediaUrl}
