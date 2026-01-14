@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef } from 'react';
-import { Send, Plus, Smile, Image as ImageIcon } from 'lucide-react';
+import { Send, Plus, Smile, Image as ImageIcon, X } from 'lucide-react';
+import { ChatMessage } from '@/types/chat';
 
 interface MessageInputProps {
   messageInput: string;
@@ -10,6 +11,8 @@ interface MessageInputProps {
   onSendMessage: () => void;
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onTyping: (isTyping: boolean) => void;
+  replyingTo?: ChatMessage | null;
+  onCancelReply?: () => void;
 }
 
 export default function MessageInput({
@@ -19,11 +22,35 @@ export default function MessageInput({
   onSendMessage,
   onFileSelect,
   onTyping,
+  replyingTo,
+  onCancelReply,
 }: MessageInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <footer className="p-4 border-t border-zinc-800 bg-black">
+      {/* Reply Preview */}
+      {replyingTo && (
+        <div className="mb-2 flex items-center justify-between bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 max-w-5xl mx-auto">
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-zinc-400 mb-1">
+              Replying to {replyingTo.user?.displayName || 'Unknown User'}
+            </div>
+            <div className="text-sm text-zinc-500 truncate">
+              {replyingTo.content}
+            </div>
+          </div>
+          {onCancelReply && (
+            <button
+              onClick={onCancelReply}
+              className="ml-2 p-1 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      )}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();

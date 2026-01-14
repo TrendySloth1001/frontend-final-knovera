@@ -747,6 +747,23 @@ class MessagesAPI {
 
     return response.json();
   }
+
+  /**
+   * Leave a group conversation
+   */
+  async leaveGroup(token: string, conversationId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/leave`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to leave group');
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

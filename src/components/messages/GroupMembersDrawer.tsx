@@ -12,6 +12,7 @@ interface GroupMembersDrawerProps {
   onUpdateGroupName?: (conversationId: string, newName: string) => Promise<void>;
   onRemoveMember?: (conversationId: string, userId: string) => Promise<void>;
   onAddMembers?: (conversationId: string) => void;
+  onLeaveGroup?: (conversationId: string) => Promise<void>;
 }
 
 export default function GroupMembersDrawer({
@@ -22,6 +23,7 @@ export default function GroupMembersDrawer({
   onUpdateGroupName,
   onRemoveMember,
   onAddMembers,
+  onLeaveGroup,
 }: GroupMembersDrawerProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
@@ -176,6 +178,20 @@ export default function GroupMembersDrawer({
               >
                 <UserPlus size={16} />
                 <span>Add New Member</span>
+              </button>
+            )}
+
+            {!isCreator && onLeaveGroup && (
+              <button
+                onClick={() => {
+                  if (confirm('Are you sure you want to leave this group?')) {
+                    onLeaveGroup(selectedGroupConversation.id);
+                  }
+                }}
+                className="w-full mt-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm font-medium hover:bg-red-500/20 hover:border-red-500/40 transition-all flex items-center justify-center gap-2"
+              >
+                <UserMinus size={16} />
+                <span>Leave Group</span>
               </button>
             )}
           </div>

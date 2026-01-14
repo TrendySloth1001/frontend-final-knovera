@@ -31,6 +31,7 @@ import GroupCreateModal from './messages/GroupCreateModal';
 import GroupMembersDrawer from './messages/GroupMembersDrawer';
 import DeleteConfirmModal from './messages/DeleteConfirmModal';
 import ProfileDrawerContent from './messages/ProfileDrawerContent';
+import AddMembersModal from './messages/AddMembersModal';
 
 interface MessagesProps {
   onClose?: () => void;
@@ -53,6 +54,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [showAddMembers, setShowAddMembers] = useState(false);
   const [selectedGroupConversation, setSelectedGroupConversation] = useState<ChatConversation | null>(null);
   const [selectedProfileUser, setSelectedProfileUser] = useState<ChatUser | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
@@ -65,6 +67,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const [isLoadingMutualFollowers, setIsLoadingMutualFollowers] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -372,7 +375,9 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
 
     const content = messageInput.trim();
+    const replyTo = replyingTo;  // Capture reply state
     setMessageInput('');
+    setReplyingTo(null);  // Clear reply state
     setIsSending(true);
 
     // Stop typing indicator
@@ -383,6 +388,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         conversationId: selectedConversation.id,
         userId: currentUserId,
         content,
+        replyToId: replyTo?.id,  // Include reply reference
       });
 
       // Optimistically add message to UI
@@ -411,9 +417,21 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       console.error('[Messages] Failed to send message:', error);
       showNotification('error', error.message || 'Failed to send message');
       setMessageInput(content); // Restore message on error
+      if (replyTo) setReplyingTo(replyTo);  // Restore reply state on error
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Handle reply to message
+  const handleReplyToMessage = (message: ChatMessage) => {
+    setReplyingTo(message);
+    // Focus input (optional - depends on your UI needs)
+  };
+
+  // Cancel reply
+  const handleCancelReply = () => {
+    setReplyingTo(null);
   };
 
   // Send media message
@@ -565,11 +583,69 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
   };
 
-  // Handle add members - open the user search modal with group context
+  // Handle add members - open the add members modal
   const handleAddMembersToGroup = (conversationId: string) => {
-    setShowGroupMembers(false);
-    // TODO: Implement add members modal
-    showNotification('info', 'Add members feature coming soon');
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (conversation) {
+      setSelectedGroupConversation(conversation);
+      setShowGroupMembers(false);
+      loadMutualFollowers(); // Load available users
+      setShowAddMembers(true);
+    }
+  };
+
+  // Add members to group
+  const handleAddMembersSubmit = async (userIds: string[]) => {
+    if (!selectedGroupConversation || !token || !currentUserId) return;
+
+    try {
+      await messagesAPI.addMembers(token, selectedGroupConversation.id, userIds, currentUserId);
+      showNotification('success', `Added ${userIds.length} member(s) to group`);
+      
+      // Reload conversations to get updated data
+      await loadConversations();
+      
+      // Find the updated conversation
+      const updatedConversations = await messagesAPI.getUserConversations(token, currentUserId);
+      const updatedConv = updatedConversations.find(c => c.id === selectedGroupConversation.id);
+      
+      // Update selected conversation and group conversation
+      if (updatedConv) {
+        setSelectedConversation(updatedConv);
+        setSelectedGroupConversation(updatedConv);
+      }
+      
+      // Close add members modal and reopen group members drawer with updated data
+      setShowAddMembers(false);
+      setShowGroupMembers(true);
+    } catch (error) {
+      console.error('[Messages] Failed to add members:', error);
+      throw error; // Let modal handle error display
+    }
+  };
+
+  // Leave group
+  const handleLeaveGroup = async (conversationId: string) => {
+    if (!token || !currentUserId) return;
+
+    try {
+      await messagesAPI.leaveGroup(token, conversationId, currentUserId);
+      showNotification('success', 'Left group successfully');
+      
+      // Close group members drawer
+      setShowGroupMembers(false);
+      
+      // If we're viewing this conversation, deselect it
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(null);
+      }
+      
+      // Reload conversations
+      await loadConversations();
+    } catch (error) {
+      console.error('[Messages] Failed to leave group:', error);
+      showNotification('error', 'Failed to leave group');
+    }
   };
 
   // Toggle member selection
@@ -631,14 +707,19 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const loadAvailableUsers = useCallback(async () => {
     if (!token) return;
 
+    setIsLoadingMutualFollowers(true);
     try {
-      const users = await messagesAPI.getAllUsers(token);
+      const users = await messagesAPI.getMutualFollowers(token);
+      console.log('[Messages] Available users loaded:', users);
       // Filter out current user
       setAvailableUsers(users.filter((u) => u.id !== currentUserId));
     } catch (error: any) {
       console.error('[Messages] Failed to load users:', error);
+      showNotification('error', 'Failed to load available users');
+    } finally {
+      setIsLoadingMutualFollowers(false);
     }
-  }, [token, currentUserId]);
+  }, [token, currentUserId, showNotification]);
 
   // Load mutual followers for group creation
   const loadMutualFollowers = useCallback(async () => {
@@ -1037,6 +1118,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               messagesEndRef={messagesEndRef}
               conversation={selectedConversation}
               onAvatarClick={handleAvatarClick}
+              onReplyToMessage={handleReplyToMessage}
             />
 
             <MessageInput
@@ -1046,6 +1128,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onSendMessage={handleSendMessage}
               onFileSelect={handleFileSelect}
               onTyping={handleTyping}
+              replyingTo={replyingTo}
+              onCancelReply={handleCancelReply}
             />
           </>
         ) : (
@@ -1087,6 +1171,16 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onUpdateGroupName={handleUpdateGroupName}
         onRemoveMember={handleRemoveMember}
         onAddMembers={handleAddMembersToGroup}
+        onLeaveGroup={handleLeaveGroup}
+      />
+
+      <AddMembersModal
+        isOpen={showAddMembers}
+        onClose={() => setShowAddMembers(false)}
+        conversationId={selectedGroupConversation?.id || ''}
+        existingMemberIds={selectedGroupConversation?.members.map(m => m.userId) || []}
+        onAddMembers={handleAddMembersSubmit}
+        availableUsers={availableUsers}
       />
 
       <DeleteConfirmModal

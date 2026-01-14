@@ -49,6 +49,16 @@ export interface ChatMessage {
     username: string;
     seenAt: string;
   }>;
+  replyToId?: string | null;
+  replyToMessage?: {
+    id: string;
+    content: string;
+    userId: string;
+    user: {
+      id: string;
+      displayName: string;
+    };
+  } | null;
 }
 
 export interface OnlineStatus {
@@ -70,6 +80,7 @@ export interface SendMessagePayload {
   content: string;
   mediaUrl?: string;
   mediaType?: string;
+  replyToId?: string;
 }
 
 // WebSocket message types

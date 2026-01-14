@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, Reply } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 
 interface MessageBubbleProps {
@@ -9,9 +9,10 @@ interface MessageBubbleProps {
   currentUserId: string;
   isGroup?: boolean;
   onAvatarClick?: (userId: string) => void;
+  onReplyToMessage?: (message: ChatMessage) => void;
 }
 
-export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick }: MessageBubbleProps) {
+export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage }: MessageBubbleProps) {
   // Check if message has been seen by any other user (not the sender)
   const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
   // Count how many users have seen it (excluding sender)
@@ -20,7 +21,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
   return (
     <div
       key={msg.id}
-      className={`flex gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
+      className={`flex gap-3 ${isOwn ? 'justify-end' : 'justify-start'} group`}
     >
       {/* Group Avatar */}
       {!isOwn && isGroup && (
@@ -56,6 +57,21 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               : 'bg-black text-white rounded-tl-none border border-zinc-800'}
           `}
         >
+          {/* Reply Reference */}
+          {msg.replyToMessage && (
+            <div className="mb-3 pb-2 border-l-3 border-blue-500 pl-3 bg-zinc-900/70 rounded-r p-2 cursor-pointer hover:bg-zinc-900 transition-colors">
+              <div className="flex items-center gap-2 mb-1">
+                <Reply size={12} className="text-blue-400" />
+                <span className="font-semibold text-blue-400 text-xs">
+                  {msg.replyToMessage.user.displayName}
+                </span>
+              </div>
+              <div className="text-zinc-400 text-xs line-clamp-2">
+                {msg.replyToMessage.content || '📷 Image'}
+              </div>
+            </div>
+          )}
+
           {msg.mediaUrl && (
             <div className="mb-2">
               {msg.mediaType === 'image' || msg.mediaType?.startsWith('image/') ? (
@@ -99,6 +115,17 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
           )}
         </div>
       </div>
+
+      {/* Reply Button */}
+      {onReplyToMessage && (
+        <button
+          onClick={() => onReplyToMessage(msg)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity self-end mb-1 p-1.5 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+          title="Reply to message"
+        >
+          <Reply size={14} />
+        </button>
+      )}
     </div>
   );
 }
