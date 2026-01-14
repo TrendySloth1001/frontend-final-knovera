@@ -25,42 +25,41 @@ interface ConversationItemProps {
   onGroupClick?: (conv: ChatConversation) => void;
 }
 
-export default function ConversationItem({ 
-  conv, 
-  currentUserId, 
-  isSelected, 
-  onClick, 
-  unreadCount, 
-  onGroupClick 
+export default function ConversationItem({
+  conv,
+  currentUserId,
+  isSelected,
+  onClick,
+  unreadCount,
+  onGroupClick
 }: ConversationItemProps) {
   const otherUser = !conv.isGroup
     ? conv.members.find((m) => m.userId !== currentUserId)
     : null;
   const isOnline = otherUser?.user.isOnline;
-  const conversationName = conv.name || (conv.isGroup 
+  const conversationName = conv.name || (conv.isGroup
     ? conv.members.map((m) => m.user.displayName).join(', ')
     : otherUser?.user.displayName || 'Unknown User');
-  const lastMessageText = conv.lastMessage 
+  const lastMessageText = conv.lastMessage
     ? (conv.lastMessage.userId === currentUserId ? 'You: ' : '') + (conv.lastMessage.content || 'Media')
     : 'No messages yet';
-  const lastMessageTime = conv.lastMessage 
+  const lastMessageTime = conv.lastMessage
     ? formatTime(conv.lastMessage.createdAt)
     : '';
 
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`
-        w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative
-        ${isSelected ? 'bg-white text-black' : 'hover:bg-zinc-900 text-zinc-400 hover:text-white'}
+        w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative border
+        ${isSelected ? 'border-zinc-700 bg-zinc-900/30' : 'border-transparent hover:border-zinc-800'}
       `}
     >
-      <div className="relative">
-        <div 
+      <div className="relative flex-shrink-0">
+        <div
           className={`
-            w-12 h-12 rounded-xl flex items-center justify-center border
-            ${isSelected ? 'bg-black/10 border-black/5' : 'bg-zinc-900 border-white/5'}
-            ${conv.isGroup ? 'cursor-pointer hover:bg-zinc-800 transition-colors' : ''}
+            w-12 h-12 rounded-full flex items-center justify-center overflow-hidden
+            ${conv.isGroup ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}
           `}
           onClick={(e) => {
             if (conv.isGroup && onGroupClick) {
@@ -70,65 +69,46 @@ export default function ConversationItem({
           }}
         >
           {conv.isGroup ? (
-            <Users size={22} className={isSelected ? 'text-black' : 'text-zinc-400'} />
+            <div className="w-full h-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+              <Users size={22} className="text-zinc-400" />
+            </div>
           ) : (
             otherUser?.user.avatarUrl ? (
-              <img 
-                src={otherUser.user.avatarUrl} 
+              <img
+                src={otherUser.user.avatarUrl}
                 alt={conversationName}
-                className="w-full h-full object-cover rounded-xl"
+                className="w-full h-full object-cover grayscale-[0.2]"
               />
             ) : (
-              <span className={`text-sm font-semibold ${isSelected ? 'text-black' : 'text-zinc-400'}`}>
-                {conversationName.substring(0, 2).toUpperCase()}
-              </span>
+              <div className="w-full h-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                <span className="text-sm font-semibold text-zinc-400">
+                  {conversationName.substring(0, 2).toUpperCase()}
+                </span>
+              </div>
             )
           )}
         </div>
         {!conv.isGroup && isOnline && (
-          <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 bg-emerald-500 ${isSelected ? 'border-white' : 'border-black'}`} />
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
         )}
       </div>
-      
+
       <div className="flex-1 text-left min-w-0">
-        <div className="flex justify-between items-center mb-0.5">
-          <span className={`text-sm truncate ${
-            isSelected 
-              ? 'text-black font-bold' 
-              : unreadCount > 0 
-                ? 'text-white font-extrabold' 
-                : 'text-zinc-100 font-bold'
-          }`}>
+        <div className="flex justify-between items-baseline mb-0.5">
+          <span className={`font-semibold truncate text-sm ${isSelected ? 'text-white' : 'text-zinc-200'}`}>
             {conversationName}
           </span>
-          {lastMessageTime && (
-            <span className={`text-[10px] font-medium flex-shrink-0 ml-2 ${isSelected ? 'text-black/60' : 'text-zinc-500'}`}>
-              {lastMessageTime}
-            </span>
-          )}
+          <span className="text-[10px] text-zinc-500 font-medium">{lastMessageTime}</span>
         </div>
-        <div className="flex justify-between items-center">
-          <p className={`text-xs truncate ${
-            isSelected 
-              ? 'text-black/80 font-medium' 
-              : unreadCount > 0 
-                ? 'text-zinc-300 font-semibold' 
-                : 'text-zinc-500 font-medium'
-          }`}>
-            {lastMessageText}
-          </p>
-          <div className="flex items-center gap-2 ml-2">
-            {unreadCount > 0 && (
-              <div className="min-w-[20px] h-5 bg-blue-500 rounded-full flex items-center justify-center px-1.5 text-[10px] font-bold text-white flex-shrink-0">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </div>
-            )}
-            {conv.isPinned && !isSelected && (
-              <Pin size={12} className="text-zinc-700" />
-            )}
-          </div>
-        </div>
+        <p className="text-xs text-zinc-500 truncate leading-relaxed">
+          {lastMessageText}
+        </p>
       </div>
+      {unreadCount > 0 && (
+        <div className="bg-white text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+          {unreadCount}
+        </div>
+      )}
     </button>
   );
 }

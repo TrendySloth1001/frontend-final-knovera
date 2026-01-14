@@ -38,11 +38,10 @@ export default function ConversationsList({
   onGroupClick,
 }: ConversationsListProps) {
   return (
-    <div className={`w-full md:w-80 border-r border-neutral-800 flex flex-col h-full bg-black ${
-      selectedConversation ? 'hidden md:flex' : 'flex'
-    }`}>
+    <aside className={`flex-shrink-0 w-full md:w-[380px] border-r border-zinc-800 flex flex-col transition-all duration-300 ${selectedConversation ? 'hidden md:flex' : 'flex'
+      }`}>
       {/* User Profile Header - Fixed Height */}
-      <div className="h-16 px-4 flex items-center justify-between border-b border-neutral-800 flex-shrink-0">
+      <div className="p-5 flex items-center justify-between border-b border-zinc-800 bg-black sticky top-0 z-10">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Avatar */}
           <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -94,18 +93,20 @@ export default function ConversationsList({
       </div>
 
       {/* Search Bar */}
-      <div className="px-4 py-3 border-b border-neutral-900/50">
-        <input 
-          type="text" 
-          placeholder="Search conversations..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-neutral-950 border border-neutral-900 rounded-lg py-2 px-3 text-[13px] focus:outline-none focus:border-neutral-800 focus:bg-black transition-all text-white placeholder-neutral-600"
-        />
+      <div className="px-4 py-3">
+        <div className="relative group">
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-2.5 pl-3 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all placeholder:text-zinc-600"
+          />
+        </div>
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-1 px-2 pb-4 scrollbar-hide">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-zinc-500">
             <div className="text-center">
@@ -129,7 +130,7 @@ export default function ConversationsList({
             {/* Pinned Conversations */}
             {filteredConversations.filter(c => c.isPinned).length > 0 && (
               <>
-                <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Pinned</div>
+                <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pinned</div>
                 {filteredConversations.filter(c => c.isPinned).map((conv) => (
                   <ConversationItem
                     key={conv.id}
@@ -147,7 +148,7 @@ export default function ConversationsList({
             {/* Recent Messages */}
             {filteredConversations.filter(c => !c.isPinned).length > 0 && (
               <>
-                <div className="px-3 py-2 mt-4 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
+                <div className="px-3 py-2 mt-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                   {filteredConversations.filter(c => c.isPinned).length > 0 ? 'Recent Messages' : 'Messages'}
                 </div>
                 {filteredConversations.filter(c => !c.isPinned).map((conv) => (
@@ -166,6 +167,6 @@ export default function ConversationsList({
           </div>
         )}
       </div>
-    </div>
+    </aside>
   );
 }

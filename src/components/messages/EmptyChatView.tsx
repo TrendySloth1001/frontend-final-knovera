@@ -1,59 +1,21 @@
 'use client';
 
-import Image from 'next/image';
 import { MessageSquare } from 'lucide-react';
 
 export default function EmptyChatView() {
   return (
-    <div className="flex-1 relative text-neutral-500 overflow-hidden">
-      
-      {/* Center illustration */}
-      <div className="flex items-center justify-center min-h-[65vh] sm:min-h-[70vh]">
-        <Image
-          src="/massages/Work chat-cuate.png"
-          alt="Start chatting"
-          width={500}
-          height={500}
-          priority
-          className="
-            w-full 
-            max-w-[260px] 
-            sm:max-w-[320px] 
-            md:max-w-sm 
-            h-auto 
-            opacity-90 
-            select-none
-          "
-        />
+    <div className="flex items-center justify-center h-full bg-[#000000]">
+      <div className="text-center p-8 space-y-4">
+        <div className="w-20 h-20 bg-zinc-900/50 rounded-3xl flex items-center justify-center mx-auto border border-zinc-800">
+          <MessageSquare size={32} className="text-zinc-500" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold">Select a conversation</h3>
+          <p className="text-zinc-500 text-sm max-w-[280px] mx-auto mt-2">
+            Choose a chat from the left or start a new one to begin messaging.
+          </p>
+        </div>
       </div>
-
-      {/* Bottom helper text (responsive + centered) */}
-      <div
-        className="
-          absolute 
-          left-1/2 -translate-x-1/2 
-          text-center select-none
-
-          bottom-16        /* phones */
-          sm:bottom-20     /* tablets */
-          md:bottom-28     /* laptops */
-          lg:bottom-32     /* large screens */
-        "
-      >
-        <MessageSquare
-          size={22}
-          className="mx-auto mb-2 opacity-40"
-        />
-
-        <p className="text-xs sm:text-sm text-white/70">
-          Select a conversation
-        </p>
-
-        <p className="text-[11px] sm:text-xs text-white/40">
-          or start a new one
-        </p>
-      </div>
-
     </div>
   );
 }

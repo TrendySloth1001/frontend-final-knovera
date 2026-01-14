@@ -29,6 +29,7 @@ export interface ChatConversation {
   }>;
   lastMessage?: ChatMessage | null;
   isPinned?: boolean;
+  unreadCount?: number; // Real-time unread count from WebSocket
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +85,6 @@ export interface IncomingClientMessage {
 }
 
 export interface ServerMessage {
-  type: 'connected' | 'conversation_joined' | 'conversation_left' | 'new_message' | 'typing' | 'message_seen' | 'user_online' | 'user_offline' | 'error';
+  type: 'connected' | 'conversation_joined' | 'conversation_left' | 'new_message' | 'typing' | 'message_seen' | 'user_online' | 'user_offline' | 'conversation_created' | 'error';
   data: any;
 }

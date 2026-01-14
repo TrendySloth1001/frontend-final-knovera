@@ -101,8 +101,13 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   function handleWebSocketMessage(message: ServerMessage) {
     switch (message.type) {
       case 'new_message':
-        const newMsg = message.data as ChatMessage;
-        
+        const newMsg = message.data as ChatMessage & { unreadCount?: number };
+        console.log('[Messages] New message received:', { 
+          messageId: newMsg.id, 
+          conversationId: newMsg.conversationId, 
+          unreadCount: newMsg.unreadCount 
+        });
+
         // Use ref to avoid stale closure
         if (newMsg.conversationId === selectedConversationRef.current?.id) {
           setMessages((prev) => {
@@ -122,8 +127,20 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             showNotification('info', `${senderName}: ${preview}`);
           }
         }
-        // Update conversation list immediately to show latest message and unread count
-        setTimeout(() => loadConversations(), 100);
+        
+        // Update conversation list with unread count from WebSocket
+        if (typeof newMsg.unreadCount !== 'undefined') {
+          setConversations((prev) => 
+            prev.map((conv) => 
+              conv.id === newMsg.conversationId 
+                ? { ...conv, unreadCount: newMsg.unreadCount }
+                : conv
+            )
+          );
+        } else {
+          // Fallback: reload conversations to get fresh unread counts from backend
+          setTimeout(() => loadConversations(true), 100);
+        }
         break;
 
       case 'typing':
@@ -135,7 +152,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
           selectedConversation: selectedConversationRef.current?.id,
           currentUserId
         });
-        
+
         // Use ref to avoid stale closure and filter out own typing
         if (typingData.conversationId === selectedConversationRef.current?.id && typingData.userId !== currentUserId) {
           console.log('[Messages] Updating typing users...');
@@ -157,35 +174,83 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         break;
 
       case 'message_seen':
-        const seenData = message.data;
+        const seenData = message.data as { conversationId: string; messageId: string; userId: string; username: string; seenAt: string; unreadCount?: number };
+        console.log('[Messages] Message seen event - Blue tick update:', { 
+          conversationId: seenData.conversationId, 
+          messageId: seenData.messageId,
+          userId: seenData.userId,
+          username: seenData.username,
+          unreadCount: seenData.unreadCount 
+        });
+        
         // Update the message in the messages array if it's the current conversation
         if (seenData.conversationId === selectedConversation?.id) {
+          console.log('[Messages] Updating blue tick for message:', seenData.messageId);
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === seenData.messageId
                 ? {
-                    ...msg,
-                    seenBy: [
-                      ...(msg.seenBy || []),
-                      {
-                        userId: seenData.userId,
-                        username: seenData.username,
-                        seenAt: seenData.seenAt,
-                      },
-                    ],
-                  }
+                  ...msg,
+                  seenBy: [
+                    ...(msg.seenBy || []),
+                    {
+                      userId: seenData.userId,
+                      username: seenData.username,
+                      seenAt: seenData.seenAt,
+                    },
+                  ],
+                }
                 : msg
             )
           );
         }
-        // Always refresh conversation list to update unread counts and last message status
-        setTimeout(() => loadConversations(), 100);
+        
+        // Update conversation unread count from WebSocket
+        if (typeof seenData.unreadCount !== 'undefined') {
+          setConversations((prev) => 
+            prev.map((conv) => 
+              conv.id === seenData.conversationId 
+                ? { ...conv, unreadCount: seenData.unreadCount }
+                : conv
+            )
+          );
+        } else {
+          // Fallback: refresh conversation list to update unread counts
+          setTimeout(() => loadConversations(true), 100);
+        }
         break;
 
       case 'user_online':
       case 'user_offline':
         // Update user online status in conversations
         loadConversations();
+        break;
+
+      case 'conversation_created':
+        // New conversation initiated by another user
+        const newConversation = message.data;
+        console.log('[Messages] New conversation created:', newConversation);
+        
+        // Add to conversations list
+        setConversations((prev) => {
+          // Check if conversation already exists
+          const exists = prev.some(conv => conv.id === newConversation.id);
+          if (exists) {
+            return prev;
+          }
+          // Add new conversation to the top
+          return [newConversation, ...prev];
+        });
+        
+        // Show notification
+        if (newConversation.isGroup) {
+          showNotification('info', `You were added to ${newConversation.name || 'a group'}`);
+        } else {
+          const otherMember = newConversation.members?.find((m: any) => m.userId !== currentUserId);
+          if (otherMember) {
+            showNotification('info', `New conversation with ${otherMember.user.displayName || 'someone'}`);
+          }
+        }
         break;
 
       case 'error':
@@ -211,7 +276,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         setIsLoading(true);
       }
       const data = await messagesAPI.getUserConversations(token, currentUserId);
-      
+
       // Deduplicate conversations by ID - keep the most recent one
       const seenIds = new Set<string>();
       const uniqueConversations = data.filter((conv) => {
@@ -221,7 +286,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         seenIds.add(conv.id);
         return true;
       });
-      
+
       setConversations(uniqueConversations || []);
     } catch (error: any) {
       console.error('[Messages] Failed to load conversations:', error);
@@ -247,11 +312,58 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         type: 'join_conversation',
         data: { conversationId: selectedConversation.id, userId: currentUserId },
       });
+
+      // Mark all unread messages as seen when opening the conversation
+      const unreadMessages = data.filter(
+        (msg) => msg.userId !== currentUserId && !msg.seenBy?.some((s) => s.userId === currentUserId)
+      );
+
+      console.log('[loadMessages] Marking', unreadMessages.length, 'messages as seen in conversation:', selectedConversation.id);
+
+      // Mark each unread message as seen (API will broadcast via WebSocket)
+      const markSeenPromises = unreadMessages.map((msg) => 
+        messagesAPI.markMessageSeen(token, msg.id)
+          .catch(error => {
+            console.error('[loadMessages] Failed to mark message as seen:', error);
+          })
+      );
+
+      // Wait for all to complete
+      await Promise.all(markSeenPromises);
+
+      // Update local messages with seen status immediately
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (unreadMessages.some(unread => unread.id === msg.id)) {
+            return {
+              ...msg,
+              seenBy: [
+                ...(msg.seenBy || []),
+                {
+                  userId: currentUserId,
+                  username: user?.user?.displayName || 'You',
+                  seenAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+          return msg;
+        })
+      );
+
+      // Update local unread count to 0 for this conversation
+      setConversations((prev) => 
+        prev.map((conv) => 
+          conv.id === selectedConversation.id 
+            ? { ...conv, unreadCount: 0 }
+            : conv
+        )
+      );
     } catch (error: any) {
       console.error('[Messages] Failed to load messages:', error);
       showNotification('error', error.message || 'Failed to load messages');
     }
-  }, [token, selectedConversation, currentUserId, sendMessage, showNotification]);
+  }, [token, selectedConversation, currentUserId, sendMessage, showNotification, user]);
 
   // Send message
   const handleSendMessage = async () => {
@@ -402,10 +514,68 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
   };
 
+  // Update group name
+  const handleUpdateGroupName = async (conversationId: string, newName: string) => {
+    if (!token || !currentUserId) return;
+
+    try {
+      const updatedConversation = await messagesAPI.updateGroupName(token, conversationId, newName, currentUserId);
+
+      // Update local state
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === conversationId
+            ? { ...conv, name: updatedConversation.name }
+            : conv
+        )
+      );
+
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(prev => prev ? { ...prev, name: updatedConversation.name } : null);
+      }
+
+      showNotification('success', 'Group name updated successfully');
+    } catch (error: any) {
+      console.error('[Messages] Failed to update group name:', error);
+      showNotification('error', error.message || 'Failed to update group name');
+      throw error;
+    }
+  };
+
+  // Remove member from group
+  const handleRemoveMember = async (conversationId: string, userId: string) => {
+    if (!token || !currentUserId) return;
+
+    try {
+      await messagesAPI.removeMember(token, conversationId, userId, currentUserId);
+
+      // Reload conversations and messages to update UI
+      await loadConversations();
+
+      if (selectedConversation?.id === conversationId) {
+        const messages = await messagesAPI.getMessages(token, conversationId, 50);
+        setMessages(messages);
+      }
+
+      showNotification('success', 'Member removed successfully');
+    } catch (error: any) {
+      console.error('[Messages] Failed to remove member:', error);
+      showNotification('error', error.message || 'Failed to remove member');
+      throw error;
+    }
+  };
+
+  // Handle add members - open the user search modal with group context
+  const handleAddMembersToGroup = (conversationId: string) => {
+    setShowGroupMembers(false);
+    // TODO: Implement add members modal
+    showNotification('info', 'Add members feature coming soon');
+  };
+
   // Toggle member selection
   const toggleMemberSelection = (userId: string) => {
-    setSelectedMembers(prev => 
-      prev.includes(userId) 
+    setSelectedMembers(prev =>
+      prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     );
@@ -509,7 +679,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
           const unreadMessages = messages.filter(
             (msg) => msg.userId !== currentUserId && !msg.seenBy?.some((s) => s.userId === currentUserId)
           );
-          
+
           if (unreadMessages.length > 0) {
             // Mark all unread messages as seen immediately
             unreadMessages.forEach((msg) => {
@@ -517,7 +687,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                 console.error('[Messages] Failed to mark message as seen:', error);
               });
             });
-            
+
             // Update local state
             setMessages((prev) =>
               prev.map((msg) => {
@@ -537,12 +707,12 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                 return msg;
               })
             );
-            
+
             // Refresh conversation list without showing loading spinner
             setTimeout(() => loadConversations(true), 100);
           }
         }
-        
+
         // Send typing start immediately if not already typing
         if (!isTypingRef.current) {
           isTypingRef.current = true;
@@ -641,7 +811,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     // Check if we have the required data
     const hasRequiredData = !!(token && currentUserId);
-    
+
     if (hasRequiredData) {
       loadConversations();
     } else {
@@ -680,7 +850,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             console.error('[Messages] Failed to mark message as seen:', error);
           });
         });
-        
+
         // Immediately update local state to reflect read status
         setMessages((prev) =>
           prev.map((msg) => {
@@ -700,7 +870,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             return msg;
           })
         );
-        
+
         // Refresh conversation list immediately to update unread counts
         setTimeout(() => loadConversations(), 100);
       }
@@ -743,12 +913,55 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     return otherUser?.user.avatarUrl || null;
   };
 
+  const handleAvatarClick = async (userId: string) => {
+    // Determine the user to show
+    let userToShow: ChatUser | undefined;
+
+    // Check members list of the current conversation
+    if (selectedConversation) {
+      const member = selectedConversation.members.find(m => m.userId === userId);
+      if (member) {
+        userToShow = member.user;
+      }
+    }
+
+    if (!userToShow) return;
+
+    // Set the user and open profile drawer
+    setSelectedProfileUser(userToShow);
+    setShowProfileDrawer(true);
+
+    // Fetch detailed profile data
+    setProfileLoading(true);
+    try {
+      const data = await messagesAPI.getUserById(token!, userId);
+      setProfileData(data);
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      setProfileData({});
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   // Get unread count for a conversation
   const getUnreadCount = (conv: ChatConversation): number => {
-    if (!conv.messages) return 0;
-    return conv.messages.filter(
+    // Use unreadCount from conversation object (set by backend or WebSocket)
+    if (typeof conv.unreadCount !== 'undefined') {
+      console.log('[getUnreadCount] Using persisted unread count for conversation:', conv.id, 'Count:', conv.unreadCount);
+      return conv.unreadCount;
+    }
+    
+    // Fallback to calculating from messages (legacy behavior)
+    if (!conv.messages) {
+      console.log('[getUnreadCount] No messages for conversation:', conv.id);
+      return 0;
+    }
+    const unreadMessages = conv.messages.filter(
       (msg: any) => msg.userId !== currentUserId && !msg.seenBy?.some((s: any) => s.userId === currentUserId)
-    ).length;
+    );
+    console.log('[getUnreadCount] Calculated from messages - Conversation:', conv.id, 'Unread:', unreadMessages.length, 'Total messages:', conv.messages.length);
+    return unreadMessages.length;
   };
 
   // Show loading state while auth is being checked
@@ -776,7 +989,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   }
 
   return (
-    <div className="flex h-screen w-full bg-black text-white font-sans overflow-hidden selection:bg-white selection:text-black">
+    <div className="flex h-screen w-full bg-black text-white font-sans overflow-hidden antialiased">
       {/* Conversations Sidebar */}
       <ConversationsList
         user={user}
@@ -799,9 +1012,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       />
 
       {/* Chat View */}
-      <main className={`flex-1 flex flex-col bg-black relative ${
-        selectedConversation ? 'flex' : 'hidden md:flex'
-      }`}>
+      <main className={`flex-1 flex flex-col bg-black relative transition-all duration-300 ${selectedConversation ? 'flex' : 'hidden md:flex items-center justify-center'
+        }`}>
         {selectedConversation ? (
           <>
             <ChatHeader
@@ -824,6 +1036,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               typingUsers={typingUsers}
               messagesEndRef={messagesEndRef}
               conversation={selectedConversation}
+              onAvatarClick={handleAvatarClick}
             />
 
             <MessageInput
@@ -870,6 +1083,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         isOpen={showGroupMembers}
         onClose={() => setShowGroupMembers(false)}
         selectedGroupConversation={selectedGroupConversation}
+        currentUserId={currentUserId!}
+        onUpdateGroupName={handleUpdateGroupName}
+        onRemoveMember={handleRemoveMember}
+        onAddMembers={handleAddMembersToGroup}
       />
 
       <DeleteConfirmModal
@@ -897,19 +1114,27 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       </Drawer>
 
       {/* Custom Scrollbar Styles */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar::-webkit-scrollbar {
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
           width: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
+        .scrollbar-thin::-webkit-scrollbar-track {
           background: transparent;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #18181b;
+        .scrollbar-thumb-zinc-800::-webkit-scrollbar-thumb {
+          background: #27272a;
           border-radius: 10px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #27272a;
+        .scrollbar-thumb-zinc-800::-webkit-scrollbar-thumb:hover {
+          background: #3f3f46;
         }
       `}} />
     </div>

@@ -700,6 +700,57 @@ class MessagesAPI {
   }
 
   /**
+   * Add members to a group conversation
+   */
+  async addMembers(token: string, conversationId: string, userIds: string[], requesterId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/members`, {
+      method: 'POST',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ userIds, requesterId }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to add members');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Remove a member from a group conversation
+   */
+  async removeMember(token: string, conversationId: string, userId: string, requesterId: string): Promise<{ success: boolean; userId: string }> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/members/${userId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ requesterId }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to remove member');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Update group name
+   */
+  async updateGroupName(token: string, conversationId: string, name: string, requesterId: string): Promise<ChatConversation> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/name`, {
+      method: 'PATCH',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ name, requesterId }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to update group name');
+    }
+
+    return response.json();
+  }
+
+  /**
    * Delete a conversation
    */
   async deleteConversation(token: string, conversationId: string, userId: string): Promise<{ success: boolean; message: string }> {
