@@ -3,6 +3,7 @@ import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
 import DocumentViewer from './DocumentViewer';
+import { parseTextWithLinks } from '@/utils/linkify';
 
 interface MessageBubbleProps {
   msg: ChatMessage;
@@ -15,6 +16,33 @@ interface MessageBubbleProps {
   isHighlighted?: boolean;
   onScrollToMessage?: (messageId: string) => void;
 }
+
+// Component to render text with clickable links
+const LinkifiedText = ({ text }: { text: string }) => {
+  const parts = parseTextWithLinks(text);
+  
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.type === 'link' || part.type === 'email') {
+          return (
+            <a
+              key={index}
+              href={part.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline break-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {part.content}
+            </a>
+          );
+        }
+        return <span key={index}>{part.content}</span>;
+      })}
+    </>
+  );
+};
 
 export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage }: MessageBubbleProps) {
   // Check if message has been seen by any other user (not the sender)
@@ -151,7 +179,11 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               </div>
             );
           })()}
-          {msg.content}
+          {msg.content && (
+            <div className="whitespace-pre-wrap break-words">
+              <LinkifiedText text={msg.content} />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1.5 mt-1.5 px-1 text-[10px] text-zinc-500 font-medium">
           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

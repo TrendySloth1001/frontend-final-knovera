@@ -41,6 +41,7 @@ export interface ChatMessage {
   user?: ChatUser;
   username?: string;
   content: string;
+  messageType?: 'user' | 'system_user_joined' | 'system_user_left' | 'system_group_created';
   mediaUrl?: string | null;
   mediaType?: string | null;
   createdAt: string;

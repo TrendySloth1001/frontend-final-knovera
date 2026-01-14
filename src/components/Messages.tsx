@@ -32,6 +32,7 @@ import GroupMembersDrawer from './messages/GroupMembersDrawer';
 import DeleteConfirmModal from './messages/DeleteConfirmModal';
 import ProfileDrawerContent from './messages/ProfileDrawerContent';
 import AddMembersModal from './messages/AddMembersModal';
+import MediaPreviewModal from './messages/MediaPreviewModal';
 
 interface MessagesProps {
   onClose?: () => void;
@@ -70,6 +71,9 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
   const [isLoadingMutualFollowers, setIsLoadingMutualFollowers] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+  const [showMediaPreview, setShowMediaPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -107,10 +111,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     switch (message.type) {
       case 'new_message':
         const newMsg = message.data as ChatMessage & { unreadCount?: number };
-        console.log('[Messages] New message received:', { 
-          messageId: newMsg.id, 
-          conversationId: newMsg.conversationId, 
-          unreadCount: newMsg.unreadCount 
+        console.log('[Messages] New message received:', {
+          messageId: newMsg.id,
+          conversationId: newMsg.conversationId,
+          unreadCount: newMsg.unreadCount
         });
 
         // Use ref to avoid stale closure
@@ -132,12 +136,12 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             showNotification('info', `${senderName}: ${preview}`);
           }
         }
-        
+
         // Update conversation list with unread count from WebSocket
         if (typeof newMsg.unreadCount !== 'undefined') {
-          setConversations((prev) => 
-            prev.map((conv) => 
-              conv.id === newMsg.conversationId 
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === newMsg.conversationId
                 ? { ...conv, unreadCount: newMsg.unreadCount }
                 : conv
             )
@@ -180,14 +184,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
       case 'message_seen':
         const seenData = message.data as { conversationId: string; messageId: string; userId: string; username: string; seenAt: string; unreadCount?: number };
-        console.log('[Messages] Message seen event - Blue tick update:', { 
-          conversationId: seenData.conversationId, 
+        console.log('[Messages] Message seen event - Blue tick update:', {
+          conversationId: seenData.conversationId,
           messageId: seenData.messageId,
           userId: seenData.userId,
           username: seenData.username,
-          unreadCount: seenData.unreadCount 
+          unreadCount: seenData.unreadCount
         });
-        
+
         // Update the message in the messages array if it's the current conversation
         if (seenData.conversationId === selectedConversation?.id) {
           console.log('[Messages] Updating blue tick for message:', seenData.messageId);
@@ -209,12 +213,12 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             )
           );
         }
-        
+
         // Update conversation unread count from WebSocket
         if (typeof seenData.unreadCount !== 'undefined') {
-          setConversations((prev) => 
-            prev.map((conv) => 
-              conv.id === seenData.conversationId 
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === seenData.conversationId
                 ? { ...conv, unreadCount: seenData.unreadCount }
                 : conv
             )
@@ -235,7 +239,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         // New conversation initiated by another user
         const newConversation = message.data;
         console.log('[Messages] New conversation created:', newConversation);
-        
+
         // Add to conversations list
         setConversations((prev) => {
           // Check if conversation already exists
@@ -246,7 +250,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
           // Add new conversation to the top
           return [newConversation, ...prev];
         });
-        
+
         // Show notification
         if (newConversation.isGroup) {
           showNotification('info', `You were added to ${newConversation.name || 'a group'}`);
@@ -326,7 +330,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       console.log('[loadMessages] Marking', unreadMessages.length, 'messages as seen in conversation:', selectedConversation.id);
 
       // Mark each unread message as seen (API will broadcast via WebSocket)
-      const markSeenPromises = unreadMessages.map((msg) => 
+      const markSeenPromises = unreadMessages.map((msg) =>
         messagesAPI.markMessageSeen(token, msg.id)
           .catch(error => {
             console.error('[loadMessages] Failed to mark message as seen:', error);
@@ -357,9 +361,9 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       );
 
       // Update local unread count to 0 for this conversation
-      setConversations((prev) => 
-        prev.map((conv) => 
-          conv.id === selectedConversation.id 
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === selectedConversation.id
             ? { ...conv, unreadCount: 0 }
             : conv
         )
@@ -442,25 +446,55 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     if (!file || !token || !selectedConversation || !currentUserId) return;
 
     try {
-      setIsSending(true);
-      const uploadResult = await messagesAPI.uploadMedia(token, file);
-      const mediaMessage = await messagesAPI.sendMediaMessage(
-        token,
-        selectedConversation.id,
-        uploadResult.url,
-        uploadResult.mimetype
-      );
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setSelectedFile(file);
+      setMediaPreviewUrl(previewUrl);
+      setShowMediaPreview(true);
+    } catch (error: any) {
+      console.error('[Messages] Failed to create preview:', error);
+      showNotification('error', error.message || 'Failed to preview media');
+    }
+  };
 
-      setMessages((prev) => [...prev, mediaMessage]);
+  // Close media preview and cleanup
+  const handleCloseMediaPreview = () => {
+    setShowMediaPreview(false);
+    if (mediaPreviewUrl) {
+      URL.revokeObjectURL(mediaPreviewUrl);
+    }
+    setMediaPreviewUrl(null);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Send media with caption
+  const handleSendMedia = async (caption: string, files: File[]) => {
+    if (!files.length || !token || !selectedConversation || !currentUserId) return;
+
+    setIsSending(true);
+    try {
+      // Loop through all files and send them
+      for (const file of files) {
+        const uploadResult = await messagesAPI.uploadMedia(token, file);
+        const mediaMessage = await messagesAPI.sendMediaMessage(
+          token,
+          selectedConversation.id,
+          uploadResult.url,
+          uploadResult.mimetype,
+          caption.trim() || undefined // Send caption if provided (note: caption will apply to all for now or just first? Logic suggests all if we loop)
+        );
+        setMessages((prev) => [...prev, mediaMessage]);
+      }
       scrollToBottom();
+      handleCloseMediaPreview();
     } catch (error: any) {
       console.error('[Messages] Failed to send media:', error);
       showNotification('error', error.message || 'Failed to send media');
     } finally {
       setIsSending(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 
@@ -603,20 +637,20 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     try {
       await messagesAPI.addMembers(token, selectedGroupConversation.id, userIds, currentUserId);
       showNotification('success', `Added ${userIds.length} member(s) to group`);
-      
+
       // Reload conversations to get updated data
       await loadConversations();
-      
+
       // Find the updated conversation
       const updatedConversations = await messagesAPI.getUserConversations(token, currentUserId);
       const updatedConv = updatedConversations.find(c => c.id === selectedGroupConversation.id);
-      
+
       // Update selected conversation and group conversation
       if (updatedConv) {
         setSelectedConversation(updatedConv);
         setSelectedGroupConversation(updatedConv);
       }
-      
+
       // Close add members modal and reopen group members drawer with updated data
       setShowAddMembers(false);
       setShowGroupMembers(true);
@@ -633,15 +667,15 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     try {
       await messagesAPI.leaveGroup(token, conversationId, currentUserId);
       showNotification('success', 'Left group successfully');
-      
+
       // Close group members drawer
       setShowGroupMembers(false);
-      
+
       // If we're viewing this conversation, deselect it
       if (selectedConversation?.id === conversationId) {
         setSelectedConversation(null);
       }
-      
+
       // Reload conversations
       await loadConversations();
     } catch (error) {
@@ -1045,7 +1079,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       console.log('[getUnreadCount] Using persisted unread count for conversation:', conv.id, 'Count:', conv.unreadCount);
       return conv.unreadCount;
     }
-    
+
     // Fallback to calculating from messages (legacy behavior)
     if (!conv.messages) {
       console.log('[getUnreadCount] No messages for conversation:', conv.id);
@@ -1204,6 +1238,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteConversation}
         isDeletingConversation={isDeletingConversation}
+      />
+
+      {/* Media Preview Modal */}
+      <MediaPreviewModal
+        isOpen={showMediaPreview}
+        onClose={handleCloseMediaPreview}
+        onSend={handleSendMedia}
+        initialFile={selectedFile}
       />
 
       {/* Profile Drawer */}
