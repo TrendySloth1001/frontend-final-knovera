@@ -105,10 +105,6 @@ class MessagesAPI {
     throw new Error(errorMessage);
   }
 
-  // ==========================================
-  // USER MANAGEMENT
-  // ==========================================
-
   /**
    * Update user chat info (set username)
    */
@@ -254,11 +250,6 @@ class MessagesAPI {
 
     return response.json();
   }
-
-  // ==========================================
-  // CONVERSATION MANAGEMENT
-  // ==========================================
-
   /**
    * Create new conversation (group or 1-to-1)
    */
@@ -367,34 +358,34 @@ class MessagesAPI {
   /**
    * Add members to group conversation
    */
-  async addMembers(token: string, conversationId: string, userIds: string[], requesterId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/members`, {
-      method: 'POST',
-      headers: this.getHeaders(token),
-      body: JSON.stringify({ userIds, requesterId }),
-    });
+  // async addMembers(token: string, conversationId: string, userIds: string[], requesterId: string): Promise<void> {
+  //   const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/members`, {
+  //     method: 'POST',
+  //     headers: this.getHeaders(token),
+  //     body: JSON.stringify({ userIds, requesterId }),
+  //   });
 
-    if (!response.ok) {
-      await this.handleError(response, 'Failed to add members');
-    }
-  }
+  //   if (!response.ok) {
+  //     await this.handleError(response, 'Failed to add members');
+  //   }
+  // }
 
-  /**
-   * Remove member from group conversation
-   */
-  async removeMember(token: string, conversationId: string, userId: string, requesterId: string): Promise<void> {
-    const response = await fetch(
-      `${API_BASE_URL}/conversations/${conversationId}/members/${userId}?requesterId=${requesterId}`,
-      {
-        method: 'DELETE',
-        headers: this.getHeaders(token),
-      }
-    );
+  // /**
+  //  * Remove member from group conversation
+  //  */
+  // async removeMember(token: string, conversationId: string, userId: string, requesterId: string): Promise<void> {
+  //   const response = await fetch(
+  //     `${API_BASE_URL}/conversations/${conversationId}/members/${userId}?requesterId=${requesterId}`,
+  //     {
+  //       method: 'DELETE',
+  //       headers: this.getHeaders(token),
+  //     }
+  //   );
 
-    if (!response.ok) {
-      await this.handleError(response, 'Failed to remove member');
-    }
-  }
+  //   if (!response.ok) {
+  //     await this.handleError(response, 'Failed to remove member');
+  //   }
+  // }
 
   /**
    * Update group conversation name
@@ -456,9 +447,6 @@ class MessagesAPI {
     }
   }
 
-  // ==========================================
-  // MESSAGE MANAGEMENT
-  // ==========================================
 
   /**
    * Send text message
@@ -544,16 +532,13 @@ class MessagesAPI {
     return response.json();
   }
 
-  // ==========================================
-  // MEDIA MANAGEMENT
-  // ==========================================
 
   /**
    * Upload media file
    */
   async uploadMedia(token: string, file: File): Promise<MediaUploadResponse> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('media', file);
 
     const response = await fetch(`${API_BASE_URL}/media/upload`, {
       method: 'POST',
@@ -595,10 +580,6 @@ class MessagesAPI {
 
     return response.json();
   }
-
-  // ==========================================
-  // CONVENIENCE METHODS
-  // ==========================================
 
   /**
    * Upload and send media in one call

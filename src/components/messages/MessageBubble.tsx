@@ -58,20 +58,30 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
         >
           {msg.mediaUrl && (
             <div className="mb-2">
-              {msg.mediaType?.startsWith('image/') ? (
+              {msg.mediaType === 'image' || msg.mediaType?.startsWith('image/') ? (
                 <img
                   src={msg.mediaUrl}
                   alt="Media"
-                  className="max-w-full rounded-lg"
+                  className="max-w-full max-h-96 rounded-lg object-contain"
+                  onError={(e) => {
+                    console.error('[MessageBubble] Image load failed:', msg.mediaUrl);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : msg.mediaType === 'video' || msg.mediaType?.startsWith('video/') ? (
+                <video
+                  src={msg.mediaUrl}
+                  controls
+                  className="max-w-full max-h-96 rounded-lg"
                 />
               ) : (
                 <a
                   href={msg.mediaUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline"
+                  className="text-blue-400 hover:underline flex items-center gap-1"
                 >
-                  View media
+                  📎 View media
                 </a>
               )}
             </div>
