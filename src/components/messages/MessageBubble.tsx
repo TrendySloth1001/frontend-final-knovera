@@ -3,6 +3,7 @@ import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
 import DocumentViewer from './DocumentViewer';
+import MediaGrid from './MediaGrid';
 import { parseTextWithLinks } from '@/utils/linkify';
 
 interface MessageBubbleProps {
@@ -126,7 +127,11 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
             </div>
           )}
 
-          {msg.mediaUrl && (() => {
+          {/* Media Content - Multiple or Single */}
+          {msg.mediaUrls && msg.mediaUrls.length > 0 ? (
+            <MediaGrid mediaUrls={msg.mediaUrls} mediaTypes={msg.mediaTypes || []} />
+          ) : msg.mediaUrl && (() => {
+            // Single media (backward compatibility)
             // Validate URL before rendering
             try {
               const url = new URL(msg.mediaUrl, window.location.origin);

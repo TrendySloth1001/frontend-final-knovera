@@ -99,7 +99,7 @@ class MessagesAPI {
       errorMessage = errorData.error || defaultMessage;
     } catch {
       // If parsing fails, use status text or default message
-      errorMessage = response.statusText || defaultMessage;
+      errorMessage = (response.statusText && response.statusText.trim()) ? response.statusText : defaultMessage;
     }
     
     throw new Error(errorMessage);
@@ -559,9 +559,11 @@ class MessagesAPI {
   async sendMediaMessage(
     token: string, 
     conversationId: string, 
-    mediaUrl: string, 
-    mediaType: string,
-    content?: string
+    mediaUrl?: string, 
+    mediaType?: string,
+    content?: string,
+    mediaUrls?: string[],
+    mediaTypes?: string[]
   ): Promise<ChatMessage> {
     const response = await fetch(`${API_BASE_URL}/messages/media`, {
       method: 'POST',
@@ -570,6 +572,8 @@ class MessagesAPI {
         conversationId,
         mediaUrl,
         mediaType,
+        mediaUrls,
+        mediaTypes,
         content,
       }),
     });
@@ -600,6 +604,35 @@ class MessagesAPI {
       uploadResult.url,
       uploadResult.mimetype,
       caption
+    );
+  }
+
+  /**
+   * Upload multiple files and send as a single message
+   */
+  async uploadAndSendMultipleMedia(
+    token: string, 
+    conversationId: string, 
+    files: File[],
+    caption?: string
+  ): Promise<ChatMessage> {
+    // Upload all files in parallel
+    const uploadPromises = files.map(file => this.uploadMedia(token, file));
+    const uploadResults = await Promise.all(uploadPromises);
+    
+    // Extract URLs and types
+    const mediaUrls = uploadResults.map(result => result.url);
+    const mediaTypes = uploadResults.map(result => result.mimetype);
+    
+    // Send as single message with multiple media
+    return this.sendMediaMessage(
+      token,
+      conversationId,
+      undefined,
+      undefined,
+      caption,
+      mediaUrls,
+      mediaTypes
     );
   }
 
@@ -726,6 +759,28 @@ class MessagesAPI {
 
     if (!response.ok) {
       await this.handleError(response, 'Failed to update group name');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Upload and set group avatar
+   */
+  async uploadGroupAvatar(token: string, conversationId: string, file: File): Promise<{ url: string; conversation: ChatConversation }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/avatar/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to upload group avatar');
     }
 
     return response.json();

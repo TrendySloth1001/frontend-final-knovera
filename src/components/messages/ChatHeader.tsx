@@ -2,6 +2,7 @@
 
 import { Users, MoreVertical, UserCircle, Trash2, ArrowLeft, Info } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
+import ImageStack from './ImageStack';
 
 interface ChatHeaderProps {
   selectedConversation: ChatConversation;
@@ -64,11 +65,21 @@ export default function ChatHeader({
           />
           <div>
             <h2 className="font-bold text-sm text-white group-hover:underline">{getConversationName(selectedConversation)}</h2>
-            <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 font-medium">
+            <div className="text-[11px] text-zinc-500 font-medium h-5 flex items-center">
               {!selectedConversation.isGroup && selectedConversation.members.find((m) => m.userId !== currentUserId)?.user.isOnline ? (
-                <><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Active now</>
-              ) : !selectedConversation.isGroup ? 'Offline' : `${selectedConversation.members.length} members`}
-            </p>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Active now
+                </div>
+              ) : !selectedConversation.isGroup ? (
+                'Offline'
+              ) : (
+                <ImageStack
+                  images={selectedConversation.members.map(m => m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.displayName}`)}
+                  size={20}
+                  limit={4}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

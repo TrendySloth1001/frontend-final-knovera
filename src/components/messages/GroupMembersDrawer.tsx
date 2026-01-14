@@ -1,8 +1,9 @@
 'use client';
 
-import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal } from 'lucide-react';
+import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, Camera } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import ImageStack from './ImageStack';
 
 interface GroupMembersDrawerProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface GroupMembersDrawerProps {
   selectedGroupConversation: ChatConversation | null;
   currentUserId: string;
   onUpdateGroupName?: (conversationId: string, newName: string) => Promise<void>;
+  onUpdateGroupAvatar?: (conversationId: string, file: File) => Promise<void>;
   onRemoveMember?: (conversationId: string, userId: string) => Promise<void>;
   onAddMembers?: (conversationId: string) => void;
   onLeaveGroup?: (conversationId: string) => Promise<void>;
@@ -21,6 +23,7 @@ export default function GroupMembersDrawer({
   selectedGroupConversation,
   currentUserId,
   onUpdateGroupName,
+  onUpdateGroupAvatar,
   onRemoveMember,
   onAddMembers,
   onLeaveGroup,
@@ -29,11 +32,12 @@ export default function GroupMembersDrawer({
   const [editedName, setEditedName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen || !selectedGroupConversation) return null;
 
   const isCreator = selectedGroupConversation.createdBy === currentUserId;
-  
+
   console.log('[GroupMembersDrawer] Permission check:', {
     currentUserId,
     createdBy: selectedGroupConversation.createdBy,
@@ -56,6 +60,36 @@ export default function GroupMembersDrawer({
       console.error('Failed to update group name:', error);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdateGroupAvatar) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await onUpdateGroupAvatar(selectedGroupConversation.id, file);
+    } catch (error) {
+      console.error('Failed to update group avatar:', error);
+      alert('Failed to update group avatar');
+    } finally {
+      setIsUpdating(false);
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
+      }
     }
   };
 
@@ -99,8 +133,39 @@ export default function GroupMembersDrawer({
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="w-24 h-24 mb-4 rounded-3xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-3xl font-bold text-zinc-400">
-              {selectedGroupConversation.name ? selectedGroupConversation.name.substring(0, 1).toUpperCase() : 'G'}
+            {/* Group Avatar with Upload Option */}
+            <div className="relative group/avatar mb-4">
+              <div className="w-24 h-24 rounded-3xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-3xl font-bold text-zinc-400 overflow-hidden">
+                {selectedGroupConversation.avatarUrl ? (
+                  <img 
+                    src={selectedGroupConversation.avatarUrl} 
+                    alt={selectedGroupConversation.name || 'Group'} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  selectedGroupConversation.name ? selectedGroupConversation.name.substring(0, 1).toUpperCase() : 'G'
+                )}
+              </div>
+              
+              {/* Camera overlay for creator */}
+              {isCreator && onUpdateGroupAvatar && (
+                <>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={isUpdating}
+                    className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center rounded-3xl disabled:opacity-50"
+                  >
+                    <Camera size={24} className="text-white" />
+                  </button>
+                </>
+              )}
             </div>
 
             {isEditingName ? (
@@ -147,9 +212,16 @@ export default function GroupMembersDrawer({
               </div>
             )}
 
-            <p className="text-zinc-500 text-sm mt-2">
-              {selectedGroupConversation.members.length} members • {selectedGroupConversation.members.filter(m => m.user.isOnline).length} online
-            </p>
+            <div className="flex flex-col items-center gap-2 mt-2">
+              <ImageStack
+                images={selectedGroupConversation.members.map(m => m.user.avatarUrl || `https://ui-avatars.com/api/?name=${m.user.displayName}`)}
+                size={32}
+                limit={5}
+              />
+              <p className="text-zinc-500 text-sm">
+                {selectedGroupConversation.members.filter(m => m.user.isOnline).length} online
+              </p>
+            </div>
           </div>
         </div>
 

@@ -18,6 +18,7 @@ export interface ChatConversation {
   [x: string]: any;
   id: string;
   name: string | null;
+  avatarUrl?: string | null;  // Group avatar
   isGroup: boolean;
   createdBy: string;
   creator?: ChatUser;
@@ -44,6 +45,8 @@ export interface ChatMessage {
   messageType?: 'user' | 'system_user_joined' | 'system_user_left' | 'system_group_created';
   mediaUrl?: string | null;
   mediaType?: string | null;
+  mediaUrls?: string[];  // Multiple media URLs
+  mediaTypes?: string[];  // Corresponding media types
   createdAt: string;
   seenBy?: Array<{
     userId: string;
@@ -57,6 +60,8 @@ export interface ChatMessage {
     userId: string;
     mediaUrl?: string | null;
     mediaType?: string | null;
+    mediaUrls?: string[];
+    mediaTypes?: string[];
     user: {
       id: string;
       displayName: string;

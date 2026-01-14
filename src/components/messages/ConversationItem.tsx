@@ -40,9 +40,27 @@ export default function ConversationItem({
   const conversationName = conv.name || (conv.isGroup
     ? conv.members.map((m) => m.user.displayName).join(', ')
     : otherUser?.user.displayName || 'Unknown User');
-  const lastMessageText = conv.lastMessage
-    ? (conv.lastMessage.userId === currentUserId ? 'You: ' : '') + (conv.lastMessage.content || 'Media')
-    : 'No messages yet';
+  
+  // Determine last message text with media support
+  const getLastMessageText = () => {
+    if (!conv.lastMessage) return 'No messages yet';
+    
+    const prefix = conv.lastMessage.userId === currentUserId ? 'You: ' : '';
+    
+    // Check for multiple media
+    if (conv.lastMessage.mediaUrls && conv.lastMessage.mediaUrls.length > 1) {
+      return prefix + `📷 ${conv.lastMessage.mediaUrls.length} Photos`;
+    }
+    
+    // Check for single media
+    if (conv.lastMessage.mediaUrl || (conv.lastMessage.mediaUrls && conv.lastMessage.mediaUrls.length === 1)) {
+      return prefix + '📷 Photo';
+    }
+    
+    return prefix + (conv.lastMessage.content || 'Media');
+  };
+  
+  const lastMessageText = getLastMessageText();
   const lastMessageTime = conv.lastMessage
     ? formatTime(conv.lastMessage.createdAt)
     : '';
@@ -69,9 +87,17 @@ export default function ConversationItem({
           }}
         >
           {conv.isGroup ? (
-            <div className="w-full h-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-              <Users size={22} className="text-zinc-400" />
-            </div>
+            conv.avatarUrl ? (
+              <img
+                src={conv.avatarUrl}
+                alt={conversationName}
+                className="w-full h-full object-cover grayscale-[0.2]"
+              />
+            ) : (
+              <div className="w-full h-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                <Users size={22} className="text-zinc-400" />
+              </div>
+            )
           ) : (
             otherUser?.user.avatarUrl ? (
               <img

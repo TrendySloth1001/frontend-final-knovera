@@ -476,18 +476,15 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     setIsSending(true);
     try {
-      // Loop through all files and send them
-      for (const file of files) {
-        const uploadResult = await messagesAPI.uploadMedia(token, file);
-        const mediaMessage = await messagesAPI.sendMediaMessage(
-          token,
-          selectedConversation.id,
-          uploadResult.url,
-          uploadResult.mimetype,
-          caption.trim() || undefined // Send caption if provided (note: caption will apply to all for now or just first? Logic suggests all if we loop)
-        );
-        setMessages((prev) => [...prev, mediaMessage]);
-      }
+      // Upload all files and send as a single message
+      const mediaMessage = await messagesAPI.uploadAndSendMultipleMedia(
+        token,
+        selectedConversation.id,
+        files,
+        caption.trim() || undefined
+      );
+      
+      setMessages((prev) => [...prev, mediaMessage]);
       scrollToBottom();
       handleCloseMediaPreview();
     } catch (error: any) {
@@ -592,6 +589,34 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     } catch (error: any) {
       console.error('[Messages] Failed to update group name:', error);
       showNotification('error', error.message || 'Failed to update group name');
+      throw error;
+    }
+  };
+
+  // Update group avatar
+  const handleUpdateGroupAvatar = async (conversationId: string, file: File) => {
+    if (!token || !currentUserId) return;
+
+    try {
+      const result = await messagesAPI.uploadGroupAvatar(token, conversationId, file);
+
+      // Update local state
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === conversationId
+            ? { ...conv, avatarUrl: result.conversation.avatarUrl }
+            : conv
+        )
+      );
+
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(prev => prev ? { ...prev, avatarUrl: result.conversation.avatarUrl } : null);
+      }
+
+      showNotification('success', 'Group avatar updated successfully');
+    } catch (error: any) {
+      console.error('[Messages] Failed to update group avatar:', error);
+      showNotification('error', error.message || 'Failed to update group avatar');
       throw error;
     }
   };
@@ -1036,7 +1061,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
   // Get conversation avatar
   const getConversationAvatar = (conv: ChatConversation): string | null => {
-    if (conv.isGroup) return null;
+    if (conv.isGroup) {
+      // Return group avatar if available
+      return conv.avatarUrl || null;
+    }
     const otherUser = conv.members.find((m) => m.userId !== currentUserId);
     return otherUser?.user.avatarUrl || null;
   };
@@ -1219,6 +1247,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         selectedGroupConversation={selectedGroupConversation}
         currentUserId={currentUserId!}
         onUpdateGroupName={handleUpdateGroupName}
+        onUpdateGroupAvatar={handleUpdateGroupAvatar}
         onRemoveMember={handleRemoveMember}
         onAddMembers={handleAddMembersToGroup}
         onLeaveGroup={handleLeaveGroup}
