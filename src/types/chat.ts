@@ -54,6 +54,8 @@ export interface ChatMessage {
     id: string;
     content: string;
     userId: string;
+    mediaUrl?: string | null;
+    mediaType?: string | null;
     user: {
       id: string;
       displayName: string;

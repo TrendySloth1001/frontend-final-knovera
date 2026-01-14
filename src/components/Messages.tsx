@@ -50,6 +50,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showGroupCreate, setShowGroupCreate] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
@@ -721,6 +723,17 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
   }, [token, currentUserId, showNotification]);
 
+  // Scroll to replied message
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(messageId);
+      // Remove highlight after animation
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  }, []);
+
   // Load mutual followers for group creation
   const loadMutualFollowers = useCallback(async () => {
     if (!token) return;
@@ -1119,6 +1132,9 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               conversation={selectedConversation}
               onAvatarClick={handleAvatarClick}
               onReplyToMessage={handleReplyToMessage}
+              messageRefs={messageRefs}
+              highlightedMessageId={highlightedMessageId}
+              onScrollToMessage={handleScrollToMessage}
             />
 
             <MessageInput

@@ -63,7 +63,7 @@ export default function MessageInput({
           ref={fileInputRef}
           onChange={onFileSelect}
           className="hidden"
-          accept="image/*,video/*,audio/*"
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx"
         />
         <div className="flex-1 relative flex items-center">
           <button
