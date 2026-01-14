@@ -35,6 +35,7 @@ import { apiClient, teacherApi } from '@/lib/api';
 import Drawer from '@/components/Drawer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Messages from '@/components/Messages';
+import AvatarSelectionModal from '@/components/AvatarSelectionModal';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -90,6 +91,7 @@ export default function Dashboard() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [messageUserId, setMessageUserId] = useState<string | null>(null); // User ID to start messaging with
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   const illustrations = [
     '/illustrations/Exams-cuate.png',
@@ -488,6 +490,12 @@ export default function Dashboard() {
   const changeTab = (tabName: string) => {
     setActiveTab(tabName);
     window.location.hash = tabName.toLowerCase();
+  };
+
+  const handleAvatarUpdated = (newAvatarUrl: string | null) => {
+    showNotification('success', 'Avatar updated successfully');
+    // Refresh the page to update user data
+    window.location.reload();
   };
 
   // Start messaging with a teacher
@@ -1359,12 +1367,21 @@ export default function Dashboard() {
                   {/* Profile Header */}
                   <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden flex-shrink-0">
-                        {user.user.avatarUrl ? (
-                          <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
-                        )}
+                      <div className="relative group flex-shrink-0">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden">
+                          {user.user.avatarUrl ? (
+                            <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setShowAvatarModal(true)}
+                          className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Change avatar"
+                        >
+                          <User size={20} className="text-white" />
+                        </button>
                       </div>
                       <div className="flex-1 min-w-0">
                     <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 truncate">{user.user.displayName}</h2>
@@ -1906,6 +1923,16 @@ export default function Dashboard() {
         onCancel={() => setShowProfileConfirm(false)}
         variant="info"
       />
+
+      {/* Avatar Selection Modal */}
+      {showAvatarModal && (
+        <AvatarSelectionModal
+          isOpen={showAvatarModal}
+          onClose={() => setShowAvatarModal(false)}
+          currentAvatarUrl={user?.user.avatarUrl}
+          onAvatarUpdated={handleAvatarUpdated}
+        />
+      )}
     </div>
   );
 }

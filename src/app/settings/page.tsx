@@ -16,6 +16,7 @@ import {
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Notification from '@/components/Notification';
 import { apiClient, getAuthToken } from '@/lib/api';
+import AvatarSelectionModal from '@/components/AvatarSelectionModal';
 
 const API_BASE_URL = 'http://localhost:3001';
 
@@ -77,6 +78,7 @@ export default function SettingsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [notifications, setNotifications] = useState<Array<{ id: string; type: 'success' | 'error' | 'info' | 'warning'; message: string }>>([]);
   
   // AI Settings state
@@ -258,6 +260,12 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAvatarUpdated = (newAvatarUrl: string | null) => {
+    showNotification('success', 'Avatar updated successfully');
+    // Refresh the page to update user data
+    window.location.reload();
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -420,6 +428,7 @@ export default function SettingsPage() {
               <AccountSettings
                 user={user}
                 onDeactivate={() => setShowDeactivateDialog(true)}
+                onEditAvatar={() => setShowAvatarModal(true)}
               />
             )}
 
@@ -459,12 +468,22 @@ export default function SettingsPage() {
         confirmText="Deactivate"
         variant="danger"
       />
+
+      {/* Avatar Selection Modal */}
+      {showAvatarModal && (
+        <AvatarSelectionModal
+          isOpen={showAvatarModal}
+          onClose={() => setShowAvatarModal(false)}
+          currentAvatarUrl={user?.user.avatarUrl}
+          onAvatarUpdated={handleAvatarUpdated}
+        />
+      )}
     </div>
   );
 }
 
 // Account Settings Component
-function AccountSettings({ user, onDeactivate }: any) {
+function AccountSettings({ user, onDeactivate, onEditAvatar }: any) {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Profile Card */}
@@ -474,20 +493,29 @@ function AccountSettings({ user, onDeactivate }: any) {
           Profile Information
         </h3>
         <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-white/20 flex-shrink-0">
-            {user.user.avatarUrl ? (
-              <img 
-                src={user.user.avatarUrl} 
-                alt={user.user.displayName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                <span className="text-2xl text-white font-bold">
-                  {user.user.displayName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
+          <div className="relative group flex-shrink-0">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-white/20">
+              {user.user.avatarUrl ? (
+                <img 
+                  src={user.user.avatarUrl} 
+                  alt={user.user.displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                  <span className="text-2xl text-white font-bold">
+                    {user.user.displayName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onEditAvatar}
+              className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Change avatar"
+            >
+              <User size={20} className="text-white" />
+            </button>
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-lg md:text-xl font-semibold truncate">{user.user.displayName}</div>
