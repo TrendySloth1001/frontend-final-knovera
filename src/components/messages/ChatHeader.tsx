@@ -163,16 +163,7 @@ export default function ChatHeader({
                       <span>Share Group</span>
                     </button>
 
-                    <button
-                      onClick={() => {
-                        onMemberList?.();
-                        setShowMenu(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
-                    >
-                      <Users size={16} className="text-zinc-400" />
-                      <span>View Members</span>
-                    </button>
+
 
                     <button
                       onClick={() => {

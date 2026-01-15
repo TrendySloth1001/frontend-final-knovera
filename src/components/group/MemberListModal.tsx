@@ -64,7 +64,7 @@ export default function MemberListModal({
 
   const handleChangeRole = async (targetUserId: string, newRole: 'admin' | 'moderator' | 'member') => {
     if (!isAdmin) return;
-    
+
     setActionLoading(true);
     try {
       await updateMemberRole(conversation.id, targetUserId, newRole);
@@ -80,9 +80,9 @@ export default function MemberListModal({
 
   const handleKick = async (targetUserId: string) => {
     if (!canManage) return;
-    
+
     if (!confirm('Are you sure you want to kick this member?')) return;
-    
+
     setActionLoading(true);
     try {
       await kickMember(conversation.id, targetUserId);
@@ -98,10 +98,10 @@ export default function MemberListModal({
 
   const handleBan = async (targetUserId: string) => {
     if (!canManage) return;
-    
+
     const reason = prompt('Enter ban reason (optional):');
     if (reason === null) return; // Cancelled
-    
+
     setActionLoading(true);
     try {
       await banMember(conversation.id, targetUserId, reason || undefined);
@@ -261,7 +261,6 @@ export default function MemberListModal({
                                   Demote to Member
                                 </button>
                               )}
-                              <div className="border-t border-gray-700" />
                             </>
                           )}
                           <button

@@ -1,8 +1,9 @@
 'use client';
 
-import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, MoreVertical, Camera, Settings, Link as LinkIcon, UserCheck, Pin, Megaphone, BarChart3 } from 'lucide-react';
-import { ChatConversation } from '@/types/chat';
+import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, MoreVertical, Camera, Settings, Link as LinkIcon, UserCheck, Pin, Megaphone, BarChart3, Shield, ShieldCheck } from 'lucide-react';
+import { ChatConversation, GroupMember } from '@/types/chat';
 import { useState, useRef, useEffect } from 'react';
+import { updateMemberRole } from '@/lib/groupManagementApi';
 import ImageStack from './ImageStack';
 import CreatePollModal from '../group/CreatePollModal';
 import CreateAnnouncementModal from '../group/CreateAnnouncementModal';
@@ -75,20 +76,7 @@ export default function GroupMembersDrawer({
   const isModerator = currentMember?.role === 'moderator';
   const canManage = isAdmin || isModerator || isCreator; // Explicitly include creator
 
-  console.log('[GroupMembersDrawer] Permission check:', {
-    currentUserId,
-    createdBy: selectedGroupConversation.createdBy,
-    isCreator,
-    groupName: selectedGroupConversation.name,
-    canEditName: isCreator && !!onUpdateGroupName,
-    canAddMembers: isCreator && !!onAddMembers,
-    canRemoveMembers: isCreator && !!onRemoveMember,
-    currentMember,
-    isAdmin,
-    isModerator,
-    canManage,
-    memberRole: currentMember?.role,
-  });
+
 
   const handleUpdateName = async () => {
     if (!editedName.trim() || !onUpdateGroupName) return;
@@ -160,7 +148,7 @@ export default function GroupMembersDrawer({
         onClick={onClose}
       />
 
-      <div className="fixed right-0 top-0 h-full w-[400px] bg-[#0a0a0a] border-l border-zinc-800 z-50 flex flex-col shadow-2xl transition-transform duration-300">
+      <div className="fixed right-0 top-0 h-full w-[400px] bg-[#0a0a0a] border-l border-zinc-800 z-50 overflow-y-auto shadow-2xl transition-transform duration-300">
 
         {/* Header Section */}
         <div className="px-6 py-5 border-b border-zinc-800/50 bg-[#0a0a0a]">
@@ -268,7 +256,7 @@ export default function GroupMembersDrawer({
         </div>
 
         {/* Members Logic */}
-        <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
+        <div className="min-h-0 bg-[#0a0a0a]">
           <div className="px-6 py-4 border-b border-zinc-800/30">
             {/* Search Members */}
             <div className="relative">
@@ -387,7 +375,7 @@ export default function GroupMembersDrawer({
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          <div className="p-4 space-y-1">
             {filteredMembers.map((member) => (
               <div
                 key={member.userId}
@@ -412,9 +400,13 @@ export default function GroupMembersDrawer({
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm text-zinc-200 truncate">{member.user.displayName}</span>
-                      {member.userId === selectedGroupConversation.createdBy && (
-                        <Crown size={12} className="text-amber-500 fill-amber-500" />
-                      )}
+                      {member.userId === selectedGroupConversation.createdBy ? (
+                        <span title="Owner"><Crown size={14} className="text-amber-500 fill-amber-500" /></span>
+                      ) : member.role === 'admin' ? (
+                        <span title="Admin"><Shield size={14} className="text-rose-500 fill-rose-500" /></span>
+                      ) : member.role === 'moderator' ? (
+                        <span title="Moderator"><ShieldCheck size={14} className="text-indigo-400" /></span>
+                      ) : null}
                     </div>
                     <span className="text-xs text-zinc-600 truncate">
                       {member.user.username ? `@${member.user.username}` : 'No username'}
@@ -434,19 +426,117 @@ export default function GroupMembersDrawer({
 
                     {activeMemberMenu === member.userId && (
                       <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 py-1">
-                        {isAdmin && (
+                        {(isAdmin || isCreator) && (
                           <>
                             <button
-                              onClick={() => {
-                                onMemberList?.();
-                                setActiveMemberMenu(null);
-                                onClose();
+                              onClick={async () => {
+                                try {
+                                  await updateMemberRole(selectedGroupConversation.id, member.userId, 'admin');
+                                  setActiveMemberMenu(null);
+                                  alert('Role updated. Please refresh to see changes.');
+                                } catch (e) {
+                                  alert('Failed to update role');
+                                }
                               }}
-                              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                              disabled={member.role === 'admin'}
+                              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-50"
                             >
-                              <Crown size={14} className="text-purple-400" />
-                              <span>Change Role</span>
+                              <Crown size={14} className="text-yellow-400" />
+                              <span>Make Admin</span>
                             </button>
+
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await updateMemberRole(selectedGroupConversation.id, member.userId, 'moderator');
+                                  setActiveMemberMenu(null);
+                                  alert('Role updated. Please refresh to see changes.');
+                                } catch (e) {
+                                  alert('Failed to update role');
+                                }
+                              }}
+                              disabled={member.role === 'moderator'}
+                              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <Settings size={14} className="text-purple-400" />
+                              <span>Make Moderator</span>
+                            </button>
+
+                            {(member.role === 'admin' || member.role === 'moderator') && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await updateMemberRole(selectedGroupConversation.id, member.userId, 'member');
+                                    setActiveMemberMenu(null);
+                                    alert('Role updated. Please refresh to see changes.');
+                                  } catch (e) {
+                                    alert('Failed to update role');
+                                  }
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                              >
+                                <UserCheck size={14} className="text-zinc-400" />
+                                <span>Dismiss as Admin</span>
+                              </button>
+                            )}
+                            <div className="h-px bg-zinc-800 my-1" />
+                          </>
+                        )}
+
+                        {isCreator && isAdmin && (
+                          <>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await updateMemberRole(selectedGroupConversation.id, member.userId, 'admin');
+                                  // ideally reload members here or notify parent
+                                  setActiveMemberMenu(null);
+                                  alert('Role updated. Please refresh to see changes.');
+                                } catch (e) {
+                                  alert('Failed to update role');
+                                }
+                              }}
+                              disabled={member.role === 'admin'}
+                              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <Crown size={14} className="text-yellow-400" />
+                              <span>Make Admin</span>
+                            </button>
+
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await updateMemberRole(selectedGroupConversation.id, member.userId, 'moderator');
+                                  setActiveMemberMenu(null);
+                                  alert('Role updated. Please refresh to see changes.');
+                                } catch (e) {
+                                  alert('Failed to update role');
+                                }
+                              }}
+                              disabled={member.role === 'moderator'}
+                              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <Settings size={14} className="text-purple-400" />
+                              <span>Make Moderator</span>
+                            </button>
+
+                            {(member.role === 'admin' || member.role === 'moderator') && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await updateMemberRole(selectedGroupConversation.id, member.userId, 'member');
+                                    setActiveMemberMenu(null);
+                                    alert('Role updated. Please refresh to see changes.');
+                                  } catch (e) {
+                                    alert('Failed to update role');
+                                  }
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                              >
+                                <UserCheck size={14} className="text-zinc-400" />
+                                <span>Dismiss as Admin</span>
+                              </button>
+                            )}
                             <div className="h-px bg-zinc-800 my-1" />
                           </>
                         )}

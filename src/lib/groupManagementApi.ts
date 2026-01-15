@@ -12,7 +12,7 @@ export const updateMemberRole = async (
 ) => {
   return await api.patch(
     `${CHAT_BASE_URL}/conversations/${conversationId}/members/${targetUserId}/role`,
-    { newRole }
+    { role: newRole }
   );
 };
 
