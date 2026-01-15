@@ -39,6 +39,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Messages from '@/components/Messages';
 import AvatarSelectionModal from '@/components/AvatarSelectionModal';
 import ImageStack from '@/components/messages/ImageStack';
+import Sidebar from '@/components/Sidebar';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -58,6 +59,7 @@ export default function Dashboard() {
   const previousUnreadCountRef = useRef<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Sidebar collapse state
   const [currentIllustration, setCurrentIllustration] = useState('');
   const [activeSettingsTab, setActiveSettingsTab] = useState('account'); // account | ai | profile
   const [aiSettings, setAiSettings] = useState({
@@ -116,7 +118,7 @@ export default function Dashboard() {
 
     // Set initial tab from URL hash
     const hash = window.location.hash.slice(1);
-    
+
     // Handle messages with chat ID: #messages/chatid
     if (hash.startsWith('messages/')) {
       setActiveTab('Messages');
@@ -128,12 +130,16 @@ export default function Dashboard() {
       setActiveTab(tabName);
     } else if (hash === 'messages') {
       setActiveTab('Messages');
+    } else if (!hash) {
+      // If no hash, set default to overview
+      window.location.hash = 'overview';
+      setActiveTab('Overview');
     }
 
     // Listen for hash changes
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      
+
       // Handle messages with chat ID
       if (hash.startsWith('messages/')) {
         setActiveTab('Messages');
@@ -574,20 +580,7 @@ export default function Dashboard() {
     changeTab('Messages');
   };
 
-  // Sidebar item component
-  const NavItem = ({ icon: Icon, label, onClick }: any) => (
-    <div
-      onClick={() => {
-        onClick();
-        setShowMobileMenu(false);
-      }}
-      className={`flex items-center space-x-4 py-3 px-2 rounded-lg cursor-pointer transition-colors duration-200 ${activeTab === label ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900'
-        }`}
-    >
-      <Icon size={18} />
-      <span className="text-sm font-medium">{label}</span>
-    </div>
-  );
+
 
   if (authLoading || isLoading) {
     return (
@@ -604,128 +597,17 @@ export default function Dashboard() {
   return (
     <div className="flex w-full min-h-screen bg-[#000000] text-neutral-100 font-sans selection:bg-neutral-800 overflow-hidden">
 
-      {/* Mobile Menu Overlay */}
-      {showMobileMenu && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setShowMobileMenu(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${showMobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}>
-        <div className="flex items-center space-x-2 mb-10 px-2">
-          <div className="w-6 h-6 bg-white rounded-sm"></div>
-          <span className="font-bold tracking-tight text-lg">KNOVERA.</span>
-        </div>
-
-        <nav className="flex-1 space-y-1">
-          <NavItem icon={LayoutDashboard} label="Overview" onClick={() => changeTab('Overview')} />
-          <div className="relative">
-            <NavItem icon={Bell} label="Notifications" onClick={() => changeTab('Notifications')} />
-            {unreadCount > 0 && (
-              <div className="absolute top-2 right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </div>
-            )}
-          </div>
-          <NavItem icon={MessageSquare} label="Messages" onClick={() => changeTab('Messages')} />
-          <NavItem icon={BarChart3} label="Analytics" onClick={() => changeTab('Analytics')} />
-          <NavItem icon={Users} label="Community" onClick={() => changeTab('Community')} />
-
-          {/* Knovera Chat Button */}
-          <button
-            onClick={() => router.push('/chat/new')}
-            className="
-    flex items-center gap-4
-    py-3 px-3
-    rounded-lg
-    w-full
-    cursor-pointer
-    bg-transparent border border-white/10
-    text-white
-    transition-all duration-200
-    hover:bg-[#0a0a0a]
-    active:bg-[#000000]
-  "
-          >
-            <Brain size={18} />
-            <span className="text-sm font-medium tracking-wide">
-              knovera
-            </span>
-          </button>
-
-        </nav>
-
-        <div className="pt-6 border-t border-neutral-800">
-          <div className="relative">
-            <div
-              className="flex items-center space-x-3 px-2 cursor-pointer hover:bg-neutral-800 rounded-lg p-2 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMobileMenu(!showMobileMenu);
-              }}
-            >
-              <div className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs overflow-hidden">
-                {user.user.avatarUrl ? (
-                  <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                ) : (
-                  user.user.displayName.substring(0, 2).toUpperCase()
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold">{user.user.displayName}</p>
-                <p className="text-[10px] text-neutral-500">{user.user.role}</p>
-              </div>
-              <ChevronRight size={14} className={`text-neutral-500 transition-transform ${showMobileMenu ? 'rotate-90' : ''}`} />
-            </div>
-
-            {showMobileMenu && (
-              <>
-                <div
-                  className="fixed inset-1z-30"
-                  onClick={() => setShowMobileMenu(false)}
-                />
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl overflow-hidden z-40">
-                  <button
-                    onClick={() => {
-                      changeTab('Profile');
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3 border-b border-neutral-800"
-                  >
-                    <User size={16} />
-                    Profile
-                  </button>
-                  <button
-                    onClick={() => {
-                      changeTab('Settings');
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 transition-colors flex items-center gap-3 border-b border-neutral-800"
-                  >
-                    <Settings size={16} />
-                    Settings
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowMobileMenu(false);
-                      setShowLogoutConfirm(true);
-                    }}
-                    className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Logout
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        activeTab={activeTab}
+        changeTab={setActiveTab}
+        unreadCount={unreadCount}
+        showMobileMenu={showMobileMenu}
+        setShowMobileMenu={setShowMobileMenu}
+        user={user}
+        isCollapsed={isSidebarCollapsed}
+        toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onLogout={() => setShowLogoutConfirm(true)}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 max-h-screen">

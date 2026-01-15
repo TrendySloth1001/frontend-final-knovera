@@ -41,7 +41,7 @@ export default function ConversationsList({
     <aside className={`flex-shrink-0 w-full md:w-[380px] border-r border-zinc-800 flex flex-col transition-all duration-300 ${selectedConversation ? 'hidden md:flex' : 'flex'
       }`}>
       {/* User Profile Header - Fixed Height */}
-      <div className="p-5 flex items-center justify-between border-b border-zinc-800 bg-black sticky top-0 z-10">
+      <div className="p-3 md:p-5 flex items-center justify-between border-b border-zinc-800 bg-black sticky top-0 z-10">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Avatar */}
           <div className="w-9 h-9 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -93,7 +93,7 @@ export default function ConversationsList({
       </div>
 
       {/* Search Bar */}
-      <div className="px-4 py-3">
+      <div className="p-3 md:px-4 md:py-3">
         <div className="relative group">
           <input
             type="text"

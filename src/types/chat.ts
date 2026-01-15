@@ -169,6 +169,7 @@ export interface GroupJoinRequest {
   responder?: { id: string; displayName: string } | null;
   respondedAt?: string | null;
   createdAt: string;
+  requiresApproval?: boolean;
 }
 
 export interface PinnedMessage {

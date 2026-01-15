@@ -62,13 +62,27 @@ export default function GroupSharePreview({ groupId, onJoin, onOpen }: GroupShar
 
     setJoining(true);
     try {
-      await createJoinRequest(groupId, '');
-      setJoined(true);
+      const response = await createJoinRequest(groupId, '');
+      
+      // Check if approval is required using the requiresApproval flag
+      if (response.requiresApproval === false) {
+        // User was directly added to public group - show as member
+        setIsMember(true);
+        setJoined(false);
+        console.log('[GroupSharePreview] Joined public group directly, now a member');
+      } else {
+        // Join request created for approval-required group - show request sent
+        setJoined(true);
+        setIsMember(false);
+        console.log('[GroupSharePreview] Join request sent, waiting for approval');
+      }
+      
       onJoin?.();
     } catch (err: any) {
       console.error('Failed to join group:', err);
       if (err.message?.includes('already') || err.message?.includes('Member')) {
-        setJoined(true);
+        setIsMember(true);
+        setJoined(false);
         onJoin?.();
       } else {
         alert(err.message || 'Failed to join group');

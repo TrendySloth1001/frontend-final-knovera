@@ -8,6 +8,8 @@ import { parseTextWithLinks } from '@/utils/linkify';
 import { parseGroupShareLinks } from '@/utils/groupShareLink';
 import MessageContextMenu from './MessageContextMenu';
 import ReactionPicker from './ReactionPicker';
+import Mention from './Mention';
+import { splitTextWithMentions } from '@/utils/mentionParser';
 import PollMessage from './PollMessage';
 import GroupSharePreview from './GroupSharePreview';
 
@@ -34,28 +36,48 @@ interface MessageBubbleProps {
   onGroupPreview?: (groupId: string) => void;
 }
 
-// Component to render text with clickable links
-const LinkifiedText = ({ text }: { text: string }) => {
-  const parts = parseTextWithLinks(text);
-
+// Component to render text with clickable links and mentions
+const LinkifiedText = ({ text, onMentionClick }: { text: string; onMentionClick?: (userId: string) => void }) => {
+  // First, split by mentions
+  const mentionSegments = splitTextWithMentions(text);
+  
   return (
     <>
-      {parts.map((part, index) => {
-        if (part.type === 'link' || part.type === 'email') {
+      {mentionSegments.map((segment, index) => {
+        if (segment.type === 'mention') {
           return (
-            <a
+            <Mention
               key={index}
-              href={part.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline break-all"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {part.content}
-            </a>
+              userId={segment.userId!}
+              displayName={segment.displayName!}
+              onClick={onMentionClick}
+            />
           );
         }
-        return <span key={index}>{part.content}</span>;
+        
+        // For text segments, parse for links
+        const parts = parseTextWithLinks(segment.content);
+        return (
+          <span key={index}>
+            {parts.map((part, partIndex) => {
+              if (part.type === 'link' || part.type === 'email') {
+                return (
+                  <a
+                    key={partIndex}
+                    href={part.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline break-all"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {part.content}
+                  </a>
+                );
+              }
+              return <span key={partIndex}>{part.content}</span>;
+            })}
+          </span>
+        );
       })}
     </>
   );
@@ -217,7 +239,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
                 <div className="space-y-2">
                   {text && (
                     <div className="whitespace-pre-wrap break-words">
-                      <LinkifiedText text={text} />
+                      <LinkifiedText text={text} onMentionClick={onAvatarClick} />
                     </div>
                   )}
 

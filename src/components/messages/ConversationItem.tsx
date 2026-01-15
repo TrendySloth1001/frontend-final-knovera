@@ -2,6 +2,7 @@
 
 import { Users, Pin } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
+import { mentionToDisplayText } from '@/utils/mentionParser';
 
 // Format time helper function
 function formatTime(dateString: string): string {
@@ -40,26 +41,26 @@ export default function ConversationItem({
   const conversationName = conv.name || (conv.isGroup
     ? conv.members.map((m) => m.user.displayName).join(', ')
     : otherUser?.user.displayName || 'Unknown User');
-  
+
   // Determine last message text with media support
   const getLastMessageText = () => {
     if (!conv.lastMessage) return 'No messages yet';
-    
+
     const prefix = conv.lastMessage.userId === currentUserId ? 'You: ' : '';
-    
+
     // Check for multiple media
     if (conv.lastMessage.mediaUrls && conv.lastMessage.mediaUrls.length > 1) {
       return prefix + `📷 ${conv.lastMessage.mediaUrls.length} Photos`;
     }
-    
+
     // Check for single media
     if (conv.lastMessage.mediaUrl || (conv.lastMessage.mediaUrls && conv.lastMessage.mediaUrls.length === 1)) {
       return prefix + '📷 Photo';
     }
-    
-    return prefix + (conv.lastMessage.content || 'Media');
+
+    return prefix + mentionToDisplayText(conv.lastMessage.content || 'Media');
   };
-  
+
   const lastMessageText = getLastMessageText();
   const lastMessageTime = conv.lastMessage
     ? formatTime(conv.lastMessage.createdAt)

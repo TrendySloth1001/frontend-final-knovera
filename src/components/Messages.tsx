@@ -402,13 +402,17 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   }, [token, selectedConversation, currentUserId, sendMessage, showNotification, user]);
 
   // Send message
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || !token || !selectedConversation || !currentUserId || isSending) {
+  const handleSendMessage = async (contentOverride?: string) => {
+    const contentToSend = typeof contentOverride === 'string' ? contentOverride : messageInput;
+
+    if (!contentToSend.trim() || !token || !selectedConversation || !currentUserId || isSending) {
       return;
     }
 
-    const content = messageInput.trim();
+    const content = contentToSend.trim();
+    const originalInput = messageInput; // Save for restore on error
     const replyTo = replyingTo;  // Capture reply state
+
     setMessageInput('');
     setReplyingTo(null);  // Clear reply state
     setIsSending(true);
@@ -449,7 +453,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     } catch (error: any) {
       console.error('[Messages] Failed to send message:', error);
       showNotification('error', error.message || 'Failed to send message');
-      setMessageInput(content); // Restore message on error
+      setMessageInput(originalInput); // Restore original input on error
       if (replyTo) setReplyingTo(replyTo);  // Restore reply state on error
     } finally {
       setIsSending(false);
@@ -1477,7 +1481,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   }
 
   return (
-    <div className="flex h-screen w-full bg-black text-white font-sans overflow-hidden antialiased">
+    <div className="flex h-full w-full bg-black text-white font-sans overflow-hidden antialiased">
       {/* Conversations Sidebar */}
       <ConversationsList
         user={user}
@@ -1565,6 +1569,9 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onTyping={handleTyping}
               replyingTo={replyingTo}
               onCancelReply={handleCancelReply}
+              conversationId={selectedConversation?.id}
+              authToken={token}
+              currentUserId={currentUserId}
             />
           </>
         ) : (
