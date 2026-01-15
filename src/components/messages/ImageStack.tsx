@@ -4,6 +4,7 @@ interface ImageStackProps {
     images?: string[];
     limit?: number;
     size?: number;
+    totalCount?: number;
 }
 
 /**
@@ -13,16 +14,20 @@ interface ImageStackProps {
 const ImageStack: React.FC<ImageStackProps> = ({
     images = [],
     limit = 5,
-    size = 24
+    size = 48,
+    totalCount
 }) => {
     const displayCount = Math.min(images.length, limit);
-    const remainingCount = images.length - limit;
-    const showRemaining = remainingCount > 0;
     const visibleImages = images.slice(0, displayCount);
+
+    // Calculate remaining count based on totalCount if provided, otherwise standard array length
+    const effectiveTotal = totalCount !== undefined ? totalCount : images.length;
+    const remainingCount = Math.max(0, effectiveTotal - visibleImages.length);
+    const showRemaining = remainingCount > 0;
 
     return (
         <div className="flex items-center">
-            <div className="flex -space-x-2">
+            <div className="flex -space-x-3 bg-transparent">
                 {visibleImages.map((src, index) => (
                     <div
                         key={index}
@@ -54,7 +59,7 @@ const ImageStack: React.FC<ImageStackProps> = ({
                             zIndex: 0
                         }}
                     >
-                        <span className="text-[10px] font-bold text-zinc-300">
+                        <span className="text-xs font-bold text-zinc-300">
                             +{remainingCount}
                         </span>
                     </div>

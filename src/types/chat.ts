@@ -213,5 +213,35 @@ export interface ServerMessage {
 }
 
 export type LinkPreview = any;
-export type Poll = any;
+
+export interface Poll {
+  id: string;
+  messageId: string;
+  question: string;
+  options: string[];
+  allowMultiple: boolean;
+  createdBy: string;
+  creator: {
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+  expiresAt?: string;
+  votes: PollVote[];
+  createdAt: string;
+}
+
+export interface PollVote {
+  id: string;
+  pollId: string;
+  userId: string;
+  user: {
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+  optionIndex: number;
+  votedAt: string;
+}
+
 export type SharedContact = any;

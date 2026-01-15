@@ -32,10 +32,19 @@ export const discoverGroups = async (
   params.append('limit', limit.toString());
   params.append('offset', offset.toString());
 
-  const response = await apiClient.get<DiscoverableGroup[]>(
-    `${CHAT_BASE_URL}/groups/discover?${params.toString()}`
-  );
-  return response.data;
+  const url = `${CHAT_BASE_URL}/groups/discover?${params.toString()}`;
+  console.log('[groupDiscoveryApi] Calling:', url);
+  
+  try {
+    const data = await apiClient.get<DiscoverableGroup[]>(url);
+    console.log('[groupDiscoveryApi] Response data:', data);
+    console.log('[groupDiscoveryApi] Data length:', Array.isArray(data) ? data.length : 'not an array');
+    return data;
+  } catch (error: any) {
+    console.error('[groupDiscoveryApi] Error:', error);
+    console.error('[groupDiscoveryApi] Error message:', error.message);
+    throw error;
+  }
 };
 
 export const searchGroups = async (query: string, limit: number = 20): Promise<DiscoverableGroup[]> => {

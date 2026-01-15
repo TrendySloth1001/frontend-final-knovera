@@ -25,9 +25,10 @@ export default function JoinRequestList({
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const currentMember = conversation.members.find(m => m.userId === currentUserId);
+  const isCreator = conversation.createdBy === currentUserId;
   const isAdmin = currentMember?.role === 'admin';
   const isModerator = currentMember?.role === 'moderator';
-  const canManage = isAdmin || isModerator;
+  const canManage = isCreator || isAdmin || isModerator;
 
   useEffect(() => {
     if (isOpen && canManage) {

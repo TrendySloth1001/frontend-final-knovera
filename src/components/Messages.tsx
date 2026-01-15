@@ -44,6 +44,7 @@ import JoinRequestList from './group/JoinRequestList';
 import PinnedMessagesPanel from './group/PinnedMessagesPanel';
 import AnnouncementBanner from './group/AnnouncementBanner';
 import { pinMessage } from '@/lib/groupManagementApi';
+import { votePoll } from '@/lib/pollApi';
 
 interface MessagesProps {
   onClose?: () => void;
@@ -1007,6 +1008,27 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
   };
 
+  const handleVote = async (pollId: string, optionIndex: number) => {
+    try {
+      const updatedPoll = await votePoll(pollId, [optionIndex]);
+
+      // Update local messages state
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => {
+          if (msg.poll?.id === pollId) {
+            return {
+              ...msg,
+              poll: updatedPoll
+            };
+          }
+          return msg;
+        })
+      );
+    } catch (error) {
+      console.error('Failed to vote:', error);
+    }
+  };
+
   const handleGroupSettingsUpdate = (settings: any) => {
     if (!selectedConversation) return;
     setSelectedConversation({
@@ -1507,6 +1529,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onRemoveReaction={handleRemoveReaction}
               onViewHistory={handleViewHistory}
               onPinMessage={handlePinMessage}
+              onVote={handleVote}
             />
 
             <MessageInput

@@ -1,9 +1,10 @@
 'use client';
 
-import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, MoreVertical, Camera, Settings, Link as LinkIcon, UserCheck, Pin, Megaphone } from 'lucide-react';
+import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, MoreVertical, Camera, Settings, Link as LinkIcon, UserCheck, Pin, Megaphone, BarChart3 } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
 import { useState, useRef, useEffect } from 'react';
 import ImageStack from './ImageStack';
+import CreatePollModal from '../group/CreatePollModal';
 
 interface GroupMembersDrawerProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export default function GroupMembersDrawer({
   const [isUpdating, setIsUpdating] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [activeMemberMenu, setActiveMemberMenu] = useState<string | null>(null);
+  const [showPollModal, setShowPollModal] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Close menu when clicking outside
@@ -304,6 +306,16 @@ export default function GroupMembersDrawer({
                 <span className="flex-1 text-left">Pinned Messages</span>
               </button>
 
+              <button
+                onClick={() => {
+                  setShowPollModal(true);
+                }}
+                className="w-full py-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 px-4"
+              >
+                <BarChart3 size={16} className="text-cyan-400" />
+                <span className="flex-1 text-left">Create Poll</span>
+              </button>
+
               {/* Admin/Moderator Only */}
               {canManage && (
                 <>
@@ -465,6 +477,18 @@ export default function GroupMembersDrawer({
           </div>
         </div>
       </div>
+
+      {/* Poll Creation Modal */}
+      <CreatePollModal
+        isOpen={showPollModal}
+        onClose={() => setShowPollModal(false)}
+        conversationId={selectedGroupConversation.id}
+        currentUserId={currentUserId}
+        onPollCreated={() => {
+          setShowPollModal(false);
+          // Optionally refresh or notify
+        }}
+      />
     </>
   );
 }

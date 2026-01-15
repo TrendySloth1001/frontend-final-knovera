@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { 
+import {
   LayoutDashboard,
   BarChart3,
   Settings,
@@ -38,6 +38,7 @@ import Drawer from '@/components/Drawer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import Messages from '@/components/Messages';
 import AvatarSelectionModal from '@/components/AvatarSelectionModal';
+import ImageStack from '@/components/messages/ImageStack';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -94,7 +95,7 @@ export default function Dashboard() {
   const [showProfileConfirm, setShowProfileConfirm] = useState(false);
   const [messageUserId, setMessageUserId] = useState<string | null>(null); // User ID to start messaging with
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  
+
   // Community sub-tab state
   const [communitySubTab, setCommunitySubTab] = useState<'teachers' | 'groups'>('teachers');
   const [groups, setGroups] = useState<any[]>([]);
@@ -154,24 +155,24 @@ export default function Dashboard() {
   // Poll notifications every 10 seconds
   useEffect(() => {
     if (!user?.user?.id) return;
-    
+
     const interval = setInterval(() => {
       loadNotifications();
     }, 10000);
-    
+
     return () => clearInterval(interval);
   }, [user?.user?.id]);
 
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      
+
       // Load conversations with user ID
       const userId = user?.user?.id;
       const conversations = await aiAPI.getConversations(userId);
-      
+
       console.log('[Dashboard] Loaded conversations:', conversations.length);
-      
+
       // Calculate tokens from conversations
       const totalTokens = conversations.reduce((sum: number, conv: any) => {
         return sum + (conv.messages?.reduce((msgSum: number, msg: any) => msgSum + (msg.tokensUsed || 0), 0) || 0);
@@ -203,8 +204,8 @@ export default function Dashboard() {
       });
 
       // TODO: Fetch actual quiz scores when available
-      const avgScore = quizScores.length > 0 
-        ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length 
+      const avgScore = quizScores.length > 0
+        ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length
         : 0;
 
       setStats({
@@ -228,15 +229,15 @@ export default function Dashboard() {
     try {
       if (!user?.user?.id) return;
       const response = await apiClient.get<any>(`/api/notifications?userId=${user.user.id}`);
-      
+
       const allNotifications = response.data || [];
       // Filter to show only unread notifications
       const unreadNotifications = allNotifications.filter((n: any) => !n.isRead);
       const newUnreadCount = unreadNotifications.length;
-      
+
       // Update cached count
       previousUnreadCountRef.current = newUnreadCount;
-      
+
       setNotifications(unreadNotifications);
       setUnreadCount(newUnreadCount);
     } catch (error) {
@@ -249,7 +250,7 @@ export default function Dashboard() {
       // Optimistically update UI immediately
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));
-      
+
       // Send request to backend
       await apiClient.patch(`/api/notifications/${notificationId}/read`, { userId: user?.user?.id });
     } catch (error) {
@@ -331,7 +332,7 @@ export default function Dashboard() {
       setTeachersLoading(true);
       const response: any = await teacherApi.getAll({ search, limit: 50 });
       setTeachers(response.data.teachers || []);
-      
+
       // Track which teachers the current user is following
       const following = new Set<string>();
       response.data.teachers.forEach((teacher: any) => {
@@ -352,13 +353,17 @@ export default function Dashboard() {
   const loadGroups = async (search?: string) => {
     try {
       setGroupsLoading(true);
+      console.log('Loading groups with sub-tab:', communitySubTab);
       const category = communitySubTab === 'teachers' ? 'teachers' : undefined;
-      const groupsList = search 
+      console.log('Category filter:', category);
+      const groupsList = search
         ? await searchGroups(search)
         : await discoverGroups(category, undefined, 50);
-      setGroups(groupsList);
+      console.log('Loaded groups:', groupsList?.length || 0, 'groups');
+      setGroups(groupsList || []);
     } catch (error) {
       console.error('Failed to load groups:', error);
+      setGroups([]);
       showNotification('error', 'Failed to load groups');
     } finally {
       setGroupsLoading(false);
@@ -374,7 +379,7 @@ export default function Dashboard() {
         // This would need an invite code or different endpoint
         // For now, we'll use join request for all
       }
-      
+
       // Create join request
       await createJoinRequest(groupId, '');
       showNotification('success', isPublic ? 'Joined group successfully' : 'Join request sent');
@@ -412,7 +417,7 @@ export default function Dashboard() {
   const toggleFollowTeacher = async (teacherId: string) => {
     try {
       const isFollowing = followingTeachers.has(teacherId);
-      
+
       if (isFollowing) {
         await teacherApi.unfollow(teacherId);
         setFollowingTeachers(prev => {
@@ -458,8 +463,8 @@ export default function Dashboard() {
         }
         return next;
       });
-      setTeachers(prev => prev.map(t => 
-        t.id === teacherId 
+      setTeachers(prev => prev.map(t =>
+        t.id === teacherId
           ? { ...t, followersCount: t.followersCount + (isFollowing ? 1 : -1) }
           : t
       ));
@@ -550,7 +555,7 @@ export default function Dashboard() {
   // Start messaging with a teacher
   const startMessagingWithTeacher = async (teacherUserId: string) => {
     if (!teacherUserId || !user?.user?.id) return;
-    
+
     // Set the user ID to message and switch to Messages tab
     setMessageUserId(teacherUserId);
     changeTab('Messages');
@@ -558,14 +563,13 @@ export default function Dashboard() {
 
   // Sidebar item component
   const NavItem = ({ icon: Icon, label, onClick }: any) => (
-    <div 
+    <div
       onClick={() => {
         onClick();
         setShowMobileMenu(false);
       }}
-      className={`flex items-center space-x-4 py-3 px-2 rounded-lg cursor-pointer transition-colors duration-200 ${
-        activeTab === label ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900'
-      }`}
+      className={`flex items-center space-x-4 py-3 px-2 rounded-lg cursor-pointer transition-colors duration-200 ${activeTab === label ? 'text-white bg-neutral-800' : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900'
+        }`}
     >
       <Icon size={18} />
       <span className="text-sm font-medium">{label}</span>
@@ -586,24 +590,23 @@ export default function Dashboard() {
 
   return (
     <div className="flex w-full min-h-screen bg-[#000000] text-neutral-100 font-sans selection:bg-neutral-800 overflow-hidden">
-      
+
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setShowMobileMenu(false)}
         />
       )}
-      
+
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${
-        showMobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      }`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 border-r border-neutral-800 flex flex-col p-6 bg-[#000000] transform transition-transform duration-300 lg:transform-none ${showMobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}>
         <div className="flex items-center space-x-2 mb-10 px-2">
           <div className="w-6 h-6 bg-white rounded-sm"></div>
           <span className="font-bold tracking-tight text-lg">KNOVERA.</span>
         </div>
-        
+
         <nav className="flex-1 space-y-1">
           <NavItem icon={LayoutDashboard} label="Overview" onClick={() => changeTab('Overview')} />
           <div className="relative">
@@ -617,11 +620,11 @@ export default function Dashboard() {
           <NavItem icon={MessageSquare} label="Messages" onClick={() => changeTab('Messages')} />
           <NavItem icon={BarChart3} label="Analytics" onClick={() => changeTab('Analytics')} />
           <NavItem icon={Users} label="Community" onClick={() => changeTab('Community')} />
-          
+
           {/* Knovera Chat Button */}
-<button
-  onClick={() => router.push('/chat/new')}
-  className="
+          <button
+            onClick={() => router.push('/chat/new')}
+            className="
     flex items-center gap-4
     py-3 px-3
     rounded-lg
@@ -633,18 +636,18 @@ export default function Dashboard() {
     hover:bg-[#0a0a0a]
     active:bg-[#000000]
   "
->
-  <Brain size={18} />
-  <span className="text-sm font-medium tracking-wide">
-    knovera
-  </span>
-</button>
+          >
+            <Brain size={18} />
+            <span className="text-sm font-medium tracking-wide">
+              knovera
+            </span>
+          </button>
 
         </nav>
 
         <div className="pt-6 border-t border-neutral-800">
           <div className="relative">
-            <div 
+            <div
               className="flex items-center space-x-3 px-2 cursor-pointer hover:bg-neutral-800 rounded-lg p-2 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
@@ -664,11 +667,11 @@ export default function Dashboard() {
               </div>
               <ChevronRight size={14} className={`text-neutral-500 transition-transform ${showMobileMenu ? 'rotate-90' : ''}`} />
             </div>
-            
+
             {showMobileMenu && (
               <>
-                <div 
-                  className="fixed inset-1z-30" 
+                <div
+                  className="fixed inset-1z-30"
                   onClick={() => setShowMobileMenu(false)}
                 />
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl overflow-hidden z-40">
@@ -713,7 +716,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 max-h-screen">
-        
+
         {/* Header - Show hamburger for Messages on mobile, full header for others */}
         {activeTab === 'Messages' ? (
           <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:hidden flex-shrink-0">
@@ -751,770 +754,761 @@ export default function Dashboard() {
             <div className="mx-auto w-full max-w-7xl">
               {/* Show different content based on active tab */}
               {activeTab === 'Overview' && (
-            <>
-              {/* Random Illustration */}
-              <div className="flex flex-col items-center justify-center h-full space-y-4">
-                {currentIllustration && (
-                  <>
-                    <div className="relative w-full max-w-2xl aspect-square">
-                      <Image
-                        src={currentIllustration}
-                        alt="Dashboard Illustration"
-                        fill
-                        className="object-contain"
-                        priority
-                        onError={() => {
-                          // If image fails to load, pick another one
-                          const remaining = illustrations.filter(i => i !== currentIllustration);
-                          if (remaining.length > 0) {
-                            const randomIndex = Math.floor(Math.random() * remaining.length);
-                            setCurrentIllustration(remaining[randomIndex]);
-                          }
-                        }}
-                      />
-                    </div>
-
-                  </>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Notifications Tab */}
-          {activeTab === 'Notifications' && (
-            <>
-              <div className="flex items-center space-x-3 mb-6">
-                <button
-                  onClick={() => changeTab('Overview')}
-                  className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <h3 className="text-xl font-semibold">Notifications</h3>
-              </div>
-
-              {notifications.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-                    <p className="text-sm text-neutral-400">{notifications.length} unread notification{notifications.length !== 1 ? 's' : ''}</p>
-                    <button 
-                      onClick={() => {
-                        notifications.forEach((n: any) => markNotificationAsRead(n.id));
-                      }}
-                      className="text-xs text-neutral-400 hover:text-white flex items-center group"
-                    >
-                      Mark all read <CheckCheck size={14} className="ml-1" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-0 border-t border-neutral-800">
-                    {notifications.map((notif: any) => (
-                      <div 
-                        key={notif.id} 
-                        onClick={() => markNotificationAsRead(notif.id)}
-                        className="flex items-start sm:items-center justify-between py-4 sm:py-5 border-b border-neutral-800 group cursor-pointer px-2 sm:px-0"
-                      >
-                        <div className="flex flex-col flex-1 min-w-0 pr-4">
-                          <span className="text-sm font-medium group-hover:text-neutral-300 transition-colors truncate">{notif.title}</span>
-                          <span className="text-xs text-neutral-500 mt-1">
-                            {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-                          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                          <ArrowUpRight size={16} className="text-neutral-700 group-hover:text-white transition-colors" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 flex flex-col items-center justify-center">
-                  <div className="w-full max-w-xs mb-6">
-                    <img 
-                      src="/notification/New message-cuate.png" 
-                      alt="No notifications" 
-                      className="w-full h-auto opacity-90"
-                    />
-                  </div>
-                  <p className="text-neutral-500 text-sm">No unread notifications</p>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Community Tab */}
-          {activeTab === 'Community' && (
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => changeTab('Overview')}
-                    className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-                  >
-                    <ArrowLeft size={18} />
-                  </button>
-                  <h3 className="text-xl font-semibold">
-                    {communitySubTab === 'teachers' ? 'Discover Teachers' : 'Discover Groups'}
-                  </h3>
-                </div>
-              </div>
-
-              {/* Sub-tabs */}
-              <div className="flex gap-2 mb-6 border-b border-neutral-800">
-                <button
-                  onClick={() => setCommunitySubTab('teachers')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-                    communitySubTab === 'teachers'
-                      ? 'border-white text-white'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-300'
-                  }`}
-                >
-                  Teachers
-                </button>
-                <button
-                  onClick={() => setCommunitySubTab('groups')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-                    communitySubTab === 'groups'
-                      ? 'border-white text-white'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-300'
-                  }`}
-                >
-                  Groups
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="relative mb-4 sm:mb-6">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-500" />
-                <input
-                  type="text"
-                  placeholder={communitySubTab === 'teachers' ? "Search by name or specialization..." : "Search groups..."}
-                  value={communitySubTab === 'teachers' ? searchQuery : groupSearchQuery}
-                  onChange={(e) => {
-                    if (communitySubTab === 'teachers') {
-                      setSearchQuery(e.target.value);
-                      loadTeachers(e.target.value || undefined);
-                    } else {
-                      setGroupSearchQuery(e.target.value);
-                      loadGroups(e.target.value || undefined);
-                    }
-                  }}
-                  className="w-full pl-10 pr-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
-                />
-              </div>
-
-              {/* Teachers List */}
-              {communitySubTab === 'teachers' && (
                 <>
-                  {teachersLoading ? (
-                    <div className="text-center py-12">
-                      <p className="text-neutral-500">Loading teachers...</p>
-                    </div>
-                  ) : teachers.length > 0 ? (
-                    <div className="space-y-0">
-                      {teachers.map((teacher: any, index: number) => {
-                        const isOwnProfile = user?.user.id === teacher.userId;
-                        const isFollowing = followingTeachers.has(teacher.id);
-                        
-                        return (
-                          <div key={teacher.id}>
-                            <div
-                              className="py-4 sm:py-6 hover:bg-neutral-950 transition-colors cursor-pointer px-2 sm:px-4 -mx-2 sm:-mx-4"
-                              onClick={() => window.location.hash = `teacher/${teacher.id}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
-                                  {/* Profile Picture */}
-                                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs sm:text-sm overflow-hidden flex-shrink-0">
-                                    {teacher.user.avatarUrl ? (
-                                      <img src={teacher.user.avatarUrl} alt={teacher.user.displayName} className="w-full h-full object-cover" />
-                                    ) : (
-                                      teacher.user.displayName.substring(0, 2).toUpperCase()
-                                    )}
-                                  </div>
-                                  
-                                  {/* Name and Experience */}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm sm:text-base font-semibold text-white mb-1 truncate">{teacher.user.displayName}</h4>
-                                    {teacher.experience && (
-                                      <div className="flex items-center gap-1 text-xs sm:text-sm text-neutral-400">
-                                        <Award size={14} />
-                                        <span>{teacher.experience} years experience</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="ml-2 sm:ml-4 flex-shrink-0 flex items-center gap-2">
-                                  {!isOwnProfile ? (
-                                    <>
-                                      {/* Message Button - Only show if following */}
-                                      {isFollowing && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            startMessagingWithTeacher(teacher.userId);
-                                          }}
-                                          className="p-2 hover:bg-neutral-800 rounded-lg transition-colors relative z-10 cursor-pointer"
-                                          style={{ pointerEvents: 'auto' }}
-                                          title="Send message"
-                                        >
-                                          <MessageSquare size={18} className="text-white" />
-                                        </button>
-                                      )}
-                                      {/* Follow Button */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleFollowTeacher(teacher.id);
-                                        }}
-                                        className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${
-                                          isFollowing
-                                            ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
-                                            : 'bg-white text-black hover:bg-neutral-200'
-                                        }`}
-                                        style={{ pointerEvents: 'auto' }}
-                                      >
-                                        {isFollowing ? 'Following' : 'Follow'}
-                                      </button>
-                                    </>
-                                  ) : (
-                                <div className="px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium bg-neutral-900 text-neutral-500 border border-neutral-800 whitespace-nowrap">
-                                  You
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                  {/* Random Illustration */}
+                  <div className="flex flex-col items-center justify-center h-full space-y-4">
+                    {currentIllustration && (
+                      <>
+                        <div className="relative w-full max-w-2xl aspect-square">
+                          <Image
+                            src={currentIllustration}
+                            alt="Dashboard Illustration"
+                            fill
+                            className="object-contain"
+                            priority
+                            onError={() => {
+                              // If image fails to load, pick another one
+                              const remaining = illustrations.filter(i => i !== currentIllustration);
+                              if (remaining.length > 0) {
+                                const randomIndex = Math.floor(Math.random() * remaining.length);
+                                setCurrentIllustration(remaining[randomIndex]);
+                              }
+                            }}
+                          />
                         </div>
-                        {index < teachers.length - 1 && (
-                          <div className="border-b border-neutral-800"></div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Users size={48} className="mx-auto mb-4 text-neutral-700" />
-                  <p className="text-neutral-500">
-                    {searchQuery ? 'No teachers found matching your search' : 'No teachers available yet'}
-                  </p>
-                </div>
-              )}
+
+                      </>
+                    )}
+                  </div>
                 </>
               )}
 
-              {/* Groups List */}
-              {communitySubTab === 'groups' && (
+              {/* Notifications Tab */}
+              {activeTab === 'Notifications' && (
                 <>
-                  {groupsLoading ? (
-                    <div className="text-center py-12">
-                      <p className="text-neutral-500">Loading groups...</p>
-                    </div>
-                  ) : groups && groups.length > 0 ? (
-                    <div className="space-y-3">
-                      {groups.map((group: any) => (
-                        <div
-                          key={group.id}
-                          className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl hover:border-neutral-700 transition-colors"
+                  <div className="flex items-center space-x-3 mb-6">
+                    <button
+                      onClick={() => changeTab('Overview')}
+                      className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+                    <h3 className="text-xl font-semibold">Notifications</h3>
+                  </div>
+
+                  {notifications.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                        <p className="text-sm text-neutral-400">{notifications.length} unread notification{notifications.length !== 1 ? 's' : ''}</p>
+                        <button
+                          onClick={() => {
+                            notifications.forEach((n: any) => markNotificationAsRead(n.id));
+                          }}
+                          className="text-xs text-neutral-400 hover:text-white flex items-center group"
                         >
-                          <div className="flex items-start gap-4">
-                            {/* Group Avatar */}
-                            <div className="w-16 h-16 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden">
-                              {group.avatarUrl ? (
-                                <img src={group.avatarUrl} alt={group.name} className="w-full h-full object-cover" />
-                              ) : (
-                                group.name.substring(0, 2).toUpperCase()
-                              )}
+                          Mark all read <CheckCheck size={14} className="ml-1" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-0 border-t border-neutral-800">
+                        {notifications.map((notif: any) => (
+                          <div
+                            key={notif.id}
+                            onClick={() => markNotificationAsRead(notif.id)}
+                            className="flex items-start sm:items-center justify-between py-4 sm:py-5 border-b border-neutral-800 group cursor-pointer px-2 sm:px-0"
+                          >
+                            <div className="flex flex-col flex-1 min-w-0 pr-4">
+                              <span className="text-sm font-medium group-hover:text-neutral-300 transition-colors truncate">{notif.title}</span>
+                              <span className="text-xs text-neutral-500 mt-1">
+                                {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString()}
+                              </span>
                             </div>
-
-                            {/* Group Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-base font-semibold text-white mb-1 truncate">{group.name}</h4>
-                                  <p className="text-xs text-neutral-500">
-                                    Created by {group.creator.displayName}
-                                  </p>
-                                </div>
-
-                                {/* Join Button */}
-                                <div className="flex-shrink-0">
-                                  {group.isMember ? (
-                                    <span className="px-4 py-2 bg-neutral-800 text-white text-xs font-medium rounded-lg border border-neutral-700">
-                                      Member
-                                    </span>
-                                  ) : group.hasRequestedJoin ? (
-                                    <span className="px-4 py-2 bg-yellow-500/10 text-yellow-500 text-xs font-medium rounded-lg border border-yellow-500/30">
-                                      Requested
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => handleJoinGroup(group.id, group.isPublic)}
-                                      className="px-4 py-2 bg-white text-black text-xs font-medium rounded-lg hover:bg-neutral-200 transition-colors"
-                                    >
-                                      {group.isPublic ? 'Join' : 'Request'}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Description */}
-                              {group.description && (
-                                <p className="text-sm text-neutral-400 mb-3 line-clamp-2">
-                                  {group.description}
-                                </p>
-                              )}
-
-                              {/* Stats */}
-                              <div className="flex items-center gap-4 text-xs text-neutral-500">
-                                <span className="flex items-center gap-1">
-                                  <Users size={14} />
-                                  {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
-                                </span>
-                                {!group.isPublic && (
-                                  <span className="px-2 py-1 bg-neutral-800 rounded-full">
-                                    Private
-                                  </span>
-                                )}
-                              </div>
+                            <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                              <ArrowUpRight size={16} className="text-neutral-700 group-hover:text-white transition-colors" />
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-center py-12">
-                      <Users size={48} className="mx-auto mb-4 text-neutral-700" />
-                      <p className="text-neutral-500">
-                        {groupSearchQuery ? 'No groups found matching your search' : 'No groups available yet'}
-                      </p>
+                    <div className="text-center py-12 flex flex-col items-center justify-center">
+                      <div className="w-full max-w-xs mb-6">
+                        <img
+                          src="/notification/New message-cuate.png"
+                          alt="No notifications"
+                          className="w-full h-auto opacity-90"
+                        />
+                      </div>
+                      <p className="text-neutral-500 text-sm">No unread notifications</p>
                     </div>
                   )}
                 </>
               )}
-            </>
-          )}
 
-          {/* Analytics Tab */}
-          {activeTab === 'Analytics' && (
-            <>
-              <div className="flex items-center space-x-3 mb-6">
-                <button
-                  onClick={() => changeTab('Overview')}
-                  className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <h3 className="text-xl font-semibold">Analytics</h3>
-              </div>
-
-              <div className="text-center py-12 flex flex-col items-center justify-center">
-                <BarChart3 size={48} className="text-neutral-600 mb-4" />
-                <p className="text-neutral-500 text-sm">Analytics coming soon</p>
-              </div>
-            </>
-          )}
-
-          {/* Settings Tab */}
-          {activeTab === 'Settings' && (
-            <>
-              <div className="flex items-center space-x-3 mb-6">
-                <button
-                  onClick={() => changeTab('Overview')}
-                  className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <h3 className="text-xl font-semibold">Settings</h3>
-              </div>
-
-              {/* Settings Tabs */}
-              <div className="flex space-x-1 sm:space-x-2 mb-4 sm:mb-6 border-b border-neutral-800 overflow-x-auto">
-                <button
-                  onClick={() => setActiveSettingsTab('account')}
-                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
-                    activeSettingsTab === 'account'
-                      ? 'border-white text-white'
-                      : 'border-transparent text-neutral-500 hover:text-white'
-                  }`}
-                >
-                  Account
-                </button>
-                <button
-                  onClick={() => setActiveSettingsTab('ai')}
-                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
-                    activeSettingsTab === 'ai'
-                      ? 'border-white text-white'
-                      : 'border-transparent text-neutral-500 hover:text-white'
-                  }`}
-                >
-                  AI Preferences
-                </button>
-                <button
-                  onClick={() => setActiveSettingsTab('profile')}
-                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${
-                    activeSettingsTab === 'profile'
-                      ? 'border-white text-white'
-                      : 'border-transparent text-neutral-500 hover:text-white'
-                  }`}
-                >
-                  Profile
-                </button>
-              </div>
-
-              {/* Account Settings */}
-              {activeSettingsTab === 'account' && (
-                <div className="space-y-4">
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4">Account Information</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-xs text-neutral-500 block mb-2">Display Name</label>
-                        <input 
-                          type="text" 
-                          value={user.user.displayName}
-                          disabled
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-neutral-500 block mb-2">Email</label>
-                        <input 
-                          type="email" 
-                          value={user.user.email}
-                          disabled
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-neutral-500 block mb-2">Role</label>
-                        <input 
-                          type="text" 
-                          value={user.user.role}
-                          disabled
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white capitalize"
-                        />
-                      </div>
+              {/* Community Tab */}
+              {activeTab === 'Community' && (
+                <>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => changeTab('Overview')}
+                        className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                      >
+                        <ArrowLeft size={18} />
+                      </button>
+                      <h3 className="text-xl font-semibold">
+                        {communitySubTab === 'teachers' ? 'Discover Teachers' : 'Discover Groups'}
+                      </h3>
                     </div>
                   </div>
 
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4 text-white">Danger Zone</h4>
-                    <button 
-                      onClick={() => setShowLogoutConfirm(true)}
-                      className="text-xs border border-neutral-800 text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-all"
+                  {/* Sub-tabs */}
+                  <div className="flex gap-2 mb-6 border-b border-neutral-800">
+                    <button
+                      onClick={() => setCommunitySubTab('teachers')}
+                      className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${communitySubTab === 'teachers'
+                        ? 'border-white text-white'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-300'
+                        }`}
                     >
-                      Logout
+                      Teachers
+                    </button>
+                    <button
+                      onClick={() => setCommunitySubTab('groups')}
+                      className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${communitySubTab === 'groups'
+                        ? 'border-white text-white'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-300'
+                        }`}
+                    >
+                      Groups
                     </button>
                   </div>
-                </div>
-              )}
 
-              {/* AI Preferences */}
-              {activeSettingsTab === 'ai' && (
-                <div className="space-y-4">
-                  {/* Tone & Style */}
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4">Tone & Style</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-neutral-500 mb-2">Base Tone</label>
-                        <div className="grid grid-cols-5 gap-2">
-                          {['formal', 'friendly', 'casual', 'professional', 'encouraging'].map((tone) => (
-                            <button
-                              key={tone}
-                              onClick={() => setAiSettings({ ...aiSettings, baseTone: tone })}
-                              className={`px-3 py-2 rounded border text-xs capitalize ${
-                                aiSettings.baseTone === tone
-                                  ? 'border-white bg-white text-black'
-                                  : 'border-neutral-800 text-white hover:border-white'
-                              }`}
-                            >
-                              {tone}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs text-neutral-500">Warmth</label>
-                          <span className="text-xs text-white">{aiSettings.warmth}/10</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="10"
-                          value={aiSettings.warmth}
-                          onChange={(e) => setAiSettings({ ...aiSettings, warmth: parseInt(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs text-neutral-500">Enthusiasm</label>
-                          <span className="text-xs text-white">{aiSettings.enthusiasm}/10</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="10"
-                          value={aiSettings.enthusiasm}
-                          onChange={(e) => setAiSettings({ ...aiSettings, enthusiasm: parseInt(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Formatting */}
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4">Formatting</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-neutral-500 mb-2">Emoji Usage</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { value: 'none', label: 'None' },
-                            { value: 'occasional', label: 'Occasional' },
-                            { value: 'frequent', label: 'Frequent' }
-                          ].map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() => setAiSettings({ ...aiSettings, emojiUsage: option.value })}
-                              className={`px-3 py-2 rounded border text-xs ${
-                                aiSettings.emojiUsage === option.value
-                                  ? 'border-white bg-white text-black'
-                                  : 'border-neutral-800 text-white hover:border-white'
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-neutral-500 mb-2">Response Length</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {['concise', 'balanced', 'detailed'].map((length) => (
-                            <button
-                              key={length}
-                              onClick={() => setAiSettings({ ...aiSettings, responseLength: length })}
-                              className={`px-3 py-2 rounded border text-xs capitalize ${
-                                aiSettings.responseLength === length
-                                  ? 'border-white bg-white text-black'
-                                  : 'border-neutral-800 text-white hover:border-white'
-                              }`}
-                            >
-                              {length}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded border border-neutral-800">
-                        <div>
-                          <div className="text-white text-sm mb-1">Use Headers & Lists</div>
-                          <div className="text-xs text-neutral-500">Organize responses with markdown</div>
-                        </div>
-                        <button
-                          onClick={() => setAiSettings({ ...aiSettings, useHeaders: !aiSettings.useHeaders })}
-                          className={`relative w-11 h-6 rounded-full transition-colors ${
-                            aiSettings.useHeaders ? 'bg-white' : 'bg-neutral-800'
-                          }`}
-                        >
-                          <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform ${
-                            aiSettings.useHeaders ? 'translate-x-5' : 'translate-x-0'
-                          }`} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Custom Instructions */}
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4">Custom Instructions</h4>
-                    <textarea
-                      value={aiSettings.customInstructions || ''}
-                      onChange={(e) => setAiSettings({ ...aiSettings, customInstructions: e.target.value })}
-                      placeholder="Add any specific instructions for the AI..."
-                      className="w-full h-24 px-3 py-2 bg-neutral-950 border border-neutral-800 rounded text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white resize-none"
+                  {/* Search Bar */}
+                  <div className="relative mb-4 sm:mb-6">
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-500" />
+                    <input
+                      type="text"
+                      placeholder={communitySubTab === 'teachers' ? "Search by name or specialization..." : "Search groups..."}
+                      value={communitySubTab === 'teachers' ? searchQuery : groupSearchQuery}
+                      onChange={(e) => {
+                        if (communitySubTab === 'teachers') {
+                          setSearchQuery(e.target.value);
+                          loadTeachers(e.target.value || undefined);
+                        } else {
+                          setGroupSearchQuery(e.target.value);
+                          loadGroups(e.target.value || undefined);
+                        }
+                      }}
+                      className="w-full pl-10 pr-4 py-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
                     />
                   </div>
 
-                  {/* Profile Connection */}
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-white text-sm mb-1">Connect Learning Profile</div>
-                        <div className="text-xs text-neutral-500">Use your learning goals in AI responses</div>
-                      </div>
-                      <button
-                        onClick={() => setAiSettings({ ...aiSettings, profileEnabled: !aiSettings.profileEnabled })}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${
-                          aiSettings.profileEnabled ? 'bg-white' : 'bg-neutral-800'
-                        }`}
-                      >
-                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform ${
-                          aiSettings.profileEnabled ? 'translate-x-5' : 'translate-x-0'
-                        }`} />
-                      </button>
-                    </div>
-
-                    {aiSettings.profileEnabled && (
-                      <div className="mt-4 pt-4 border-t border-neutral-800 space-y-3">
-                        <div>
-                          <label className="block text-xs text-neutral-500 mb-2">Learning Goals</label>
-                          <input
-                            type="text"
-                            value={userContext.learningGoals || ''}
-                            onChange={(e) => setUserContext({ ...userContext, learningGoals: e.target.value })}
-                            placeholder="e.g., Master calculus"
-                            className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
-                          />
+                  {/* Teachers List */}
+                  {communitySubTab === 'teachers' && (
+                    <>
+                      {teachersLoading ? (
+                        <div className="text-center py-12">
+                          <p className="text-neutral-500">Loading teachers...</p>
                         </div>
+                      ) : teachers.length > 0 ? (
+                        <div className="space-y-0">
+                          {teachers.map((teacher: any, index: number) => {
+                            const isOwnProfile = user?.user.id === teacher.userId;
+                            const isFollowing = followingTeachers.has(teacher.id);
 
-                        <div>
-                          <label className="block text-xs text-neutral-500 mb-2">Interests</label>
-                          <input
-                            type="text"
-                            value={userContext.interests || ''}
-                            onChange={(e) => setUserContext({ ...userContext, interests: e.target.value })}
-                            placeholder="e.g., Physics, Computer Science"
-                            className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
-                          />
+                            return (
+                              <div key={teacher.id}>
+                                <div
+                                  className="py-4 sm:py-6 hover:bg-neutral-950 transition-colors cursor-pointer px-2 sm:px-4 -mx-2 sm:-mx-4"
+                                  onClick={() => window.location.hash = `teacher/${teacher.id}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                                      {/* Profile Picture */}
+                                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs sm:text-sm overflow-hidden flex-shrink-0">
+                                        {teacher.user.avatarUrl ? (
+                                          <img src={teacher.user.avatarUrl} alt={teacher.user.displayName} className="w-full h-full object-cover" />
+                                        ) : (
+                                          teacher.user.displayName.substring(0, 2).toUpperCase()
+                                        )}
+                                      </div>
+
+                                      {/* Name and Experience */}
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm sm:text-base font-semibold text-white mb-1 truncate">{teacher.user.displayName}</h4>
+                                        {teacher.experience && (
+                                          <div className="flex items-center gap-1 text-xs sm:text-sm text-neutral-400">
+                                            <Award size={14} />
+                                            <span>{teacher.experience} years experience</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="ml-2 sm:ml-4 flex-shrink-0 flex items-center gap-2">
+                                      {!isOwnProfile ? (
+                                        <>
+                                          {/* Message Button - Only show if following */}
+                                          {isFollowing && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                startMessagingWithTeacher(teacher.userId);
+                                              }}
+                                              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors relative z-10 cursor-pointer"
+                                              style={{ pointerEvents: 'auto' }}
+                                              title="Send message"
+                                            >
+                                              <MessageSquare size={18} className="text-white" />
+                                            </button>
+                                          )}
+                                          {/* Follow Button */}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleFollowTeacher(teacher.id);
+                                            }}
+                                            className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium transition-colors whitespace-nowrap relative z-10 cursor-pointer ${isFollowing
+                                              ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                                              : 'bg-white text-black hover:bg-neutral-200'
+                                              }`}
+                                            style={{ pointerEvents: 'auto' }}
+                                          >
+                                            {isFollowing ? 'Following' : 'Follow'}
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <div className="px-3 sm:px-5 py-1.5 sm:py-2 rounded text-xs font-medium bg-neutral-900 text-neutral-500 border border-neutral-800 whitespace-nowrap">
+                                          You
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                {index < teachers.length - 1 && (
+                                  <div className="border-b border-neutral-800"></div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={saveAISettings}
-                    disabled={savingSettings}
-                    className="w-full px-4 py-2 bg-white text-black rounded hover:bg-neutral-200 transition-colors disabled:opacity-50"
-                  >
-                    {savingSettings ? 'Saving...' : 'Save AI Settings'}
-                  </button>
-                </div>
-              )}
-
-              {/* Profile */}
-              {activeSettingsTab === 'profile' && (
-                <div className="space-y-4">
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4">Profile Information</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-16 h-16 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-sm overflow-hidden">
-                          {user.user.avatarUrl ? (
-                            <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                          ) : (
-                            user.user.displayName.substring(0, 2).toUpperCase()
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-white">{user.user.displayName}</p>
-                          <p className="text-xs text-neutral-500 capitalize">{user.user.role}</p>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-neutral-800 pt-4 space-y-3">
-                        {user.profile && (
-                          <>
-                            {(user.profile as any).firstName && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Full Name</label>
-                                <p className="text-sm text-white">{(user.profile as any).firstName} {(user.profile as any).lastName}</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'TEACHER' && (user.profile as any).specialization && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Specialization</label>
-                                <p className="text-sm text-white">{(user.profile as any).specialization}</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'TEACHER' && (user.profile as any).qualification && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Qualification</label>
-                                <p className="text-sm text-white">{(user.profile as any).qualification}</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'TEACHER' && (user.profile as any).experience && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Experience</label>
-                                <p className="text-sm text-white">{(user.profile as any).experience} years</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'STUDENT' && (user.profile as any).grade && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Grade</label>
-                                <p className="text-sm text-white">{(user.profile as any).grade}</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'STUDENT' && (user.profile as any).institution && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Institution</label>
-                                <p className="text-sm text-white">{(user.profile as any).institution}</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'STUDENT' && (user.profile as any).interests && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Interests</label>
-                                <p className="text-sm text-white">{(user.profile as any).interests}</p>
-                              </div>
-                            )}
-
-                            {user.user.role === 'TEACHER' && (user.profile as any).bio && (
-                              <div>
-                                <label className="text-xs text-neutral-500 block mb-1">Bio</label>
-                                <p className="text-sm text-white">{(user.profile as any).bio}</p>
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        <div>
-                          <label className="text-xs text-neutral-500 block mb-1">Member Since</label>
-                          <p className="text-sm text-white">
-                            {new Date(user.user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                      ) : (
+                        <div className="text-center py-12">
+                          <Users size={48} className="mx-auto mb-4 text-neutral-700" />
+                          <p className="text-neutral-500">
+                            {searchQuery ? 'No teachers found matching your search' : 'No teachers available yet'}
                           </p>
                         </div>
-                      </div>
-                    </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Groups List */}
+                  {communitySubTab === 'groups' && (
+                    <>
+                      {groupsLoading ? (
+                        <div className="text-center py-12">
+                          <p className="text-neutral-500">Loading groups...</p>
+                        </div>
+                      ) : groups && groups.length > 0 ? (
+                        <div className="space-y-3">
+                          {groups.map((group: any) => (
+                            <div
+                              key={group.id}
+                              className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl hover:border-neutral-700 transition-colors"
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Group Avatar */}
+                                <div className="w-16 h-16 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-center text-lg font-bold flex-shrink-0 overflow-hidden">
+                                  {group.avatarUrl ? (
+                                    <img src={group.avatarUrl} alt={group.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    group.name.substring(0, 2).toUpperCase()
+                                  )}
+                                </div>
+
+                                {/* Group Info */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-base font-semibold text-white mb-1 truncate">{group.name}</h4>
+                                      <p className="text-xs text-neutral-500">
+                                        Created by {group.creator.displayName}
+                                      </p>
+                                    </div>
+
+                                    {/* Join Button */}
+                                    <div className="flex-shrink-0">
+                                      {group.isMember ? (
+                                        <span className="px-4 py-2 bg-neutral-800 text-white text-xs font-medium rounded-lg border border-neutral-700">
+                                          Member
+                                        </span>
+                                      ) : group.hasRequestedJoin ? (
+                                        <span className="px-4 py-2 bg-yellow-500/10 text-yellow-500 text-xs font-medium rounded-lg border border-yellow-500/30">
+                                          Requested
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleJoinGroup(group.id, group.isPublic)}
+                                          className="px-4 py-2 bg-white text-black text-xs font-medium rounded-lg hover:bg-neutral-200 transition-colors"
+                                        >
+                                          {group.isPublic ? 'Join' : 'Request'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Description */}
+                                  {group.description && (
+                                    <p className="text-sm text-neutral-400 mb-3 line-clamp-2">
+                                      {group.description}
+                                    </p>
+                                  )}
+
+                                  {/* Stats */}
+                                  <div className="flex items-center gap-4 text-xs text-neutral-500">
+                                    <div className="flex items-center">
+                                      <ImageStack
+                                        images={group.creator?.avatarUrl ? [group.creator.avatarUrl] : []}
+                                        totalCount={group.memberCount}
+                                        limit={4}
+                                        size={30}
+                                      />
+                                    </div>
+                                    {!group.isPublic && (
+                                      <span className="px-2 py-1 bg-neutral-800 rounded-full">
+                                        Private
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Users size={48} className="mx-auto mb-4 text-neutral-700" />
+                          <p className="text-neutral-500">
+                            {groupSearchQuery ? 'No groups found matching your search' : 'No groups available yet'}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Analytics Tab */}
+              {activeTab === 'Analytics' && (
+                <>
+                  <div className="flex items-center space-x-3 mb-6">
+                    <button
+                      onClick={() => changeTab('Overview')}
+                      className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+                    <h3 className="text-xl font-semibold">Analytics</h3>
                   </div>
 
-                  {/* Navigate to Full Profile */}
-                  <div className="border border-neutral-800 rounded-lg p-6">
-                    <h4 className="text-sm font-medium mb-4">View Full Profile</h4>
-                    <button 
-                      onClick={() => setShowProfileConfirm(true)}
-                      className="text-xs border border-neutral-800 text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-all"
+                  <div className="text-center py-12 flex flex-col items-center justify-center">
+                    <BarChart3 size={48} className="text-neutral-600 mb-4" />
+                    <p className="text-neutral-500 text-sm">Analytics coming soon</p>
+                  </div>
+                </>
+              )}
+
+              {/* Settings Tab */}
+              {activeTab === 'Settings' && (
+                <>
+                  <div className="flex items-center space-x-3 mb-6">
+                    <button
+                      onClick={() => changeTab('Overview')}
+                      className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
                     >
-                      Go to Profile
+                      <ArrowLeft size={18} />
+                    </button>
+                    <h3 className="text-xl font-semibold">Settings</h3>
+                  </div>
+
+                  {/* Settings Tabs */}
+                  <div className="flex space-x-1 sm:space-x-2 mb-4 sm:mb-6 border-b border-neutral-800 overflow-x-auto">
+                    <button
+                      onClick={() => setActiveSettingsTab('account')}
+                      className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${activeSettingsTab === 'account'
+                        ? 'border-white text-white'
+                        : 'border-transparent text-neutral-500 hover:text-white'
+                        }`}
+                    >
+                      Account
+                    </button>
+                    <button
+                      onClick={() => setActiveSettingsTab('ai')}
+                      className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${activeSettingsTab === 'ai'
+                        ? 'border-white text-white'
+                        : 'border-transparent text-neutral-500 hover:text-white'
+                        }`}
+                    >
+                      AI Preferences
+                    </button>
+                    <button
+                      onClick={() => setActiveSettingsTab('profile')}
+                      className={`px-3 sm:px-4 py-2 text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap ${activeSettingsTab === 'profile'
+                        ? 'border-white text-white'
+                        : 'border-transparent text-neutral-500 hover:text-white'
+                        }`}
+                    >
+                      Profile
                     </button>
                   </div>
-                </div>
+
+                  {/* Account Settings */}
+                  {activeSettingsTab === 'account' && (
+                    <div className="space-y-4">
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4">Account Information</h4>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-2">Display Name</label>
+                            <input
+                              type="text"
+                              value={user.user.displayName}
+                              disabled
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-2">Email</label>
+                            <input
+                              type="email"
+                              value={user.user.email}
+                              disabled
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-neutral-500 block mb-2">Role</label>
+                            <input
+                              type="text"
+                              value={user.user.role}
+                              disabled
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded px-3 py-2 text-sm text-white capitalize"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4 text-white">Danger Zone</h4>
+                        <button
+                          onClick={() => setShowLogoutConfirm(true)}
+                          className="text-xs border border-neutral-800 text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-all"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI Preferences */}
+                  {activeSettingsTab === 'ai' && (
+                    <div className="space-y-4">
+                      {/* Tone & Style */}
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4">Tone & Style</h4>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs text-neutral-500 mb-2">Base Tone</label>
+                            <div className="grid grid-cols-5 gap-2">
+                              {['formal', 'friendly', 'casual', 'professional', 'encouraging'].map((tone) => (
+                                <button
+                                  key={tone}
+                                  onClick={() => setAiSettings({ ...aiSettings, baseTone: tone })}
+                                  className={`px-3 py-2 rounded border text-xs capitalize ${aiSettings.baseTone === tone
+                                    ? 'border-white bg-white text-black'
+                                    : 'border-neutral-800 text-white hover:border-white'
+                                    }`}
+                                >
+                                  {tone}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-xs text-neutral-500">Warmth</label>
+                              <span className="text-xs text-white">{aiSettings.warmth}/10</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="10"
+                              value={aiSettings.warmth}
+                              onChange={(e) => setAiSettings({ ...aiSettings, warmth: parseInt(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-xs text-neutral-500">Enthusiasm</label>
+                              <span className="text-xs text-white">{aiSettings.enthusiasm}/10</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="10"
+                              value={aiSettings.enthusiasm}
+                              onChange={(e) => setAiSettings({ ...aiSettings, enthusiasm: parseInt(e.target.value) })}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Formatting */}
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4">Formatting</h4>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs text-neutral-500 mb-2">Emoji Usage</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { value: 'none', label: 'None' },
+                                { value: 'occasional', label: 'Occasional' },
+                                { value: 'frequent', label: 'Frequent' }
+                              ].map((option) => (
+                                <button
+                                  key={option.value}
+                                  onClick={() => setAiSettings({ ...aiSettings, emojiUsage: option.value })}
+                                  className={`px-3 py-2 rounded border text-xs ${aiSettings.emojiUsage === option.value
+                                    ? 'border-white bg-white text-black'
+                                    : 'border-neutral-800 text-white hover:border-white'
+                                    }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs text-neutral-500 mb-2">Response Length</label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {['concise', 'balanced', 'detailed'].map((length) => (
+                                <button
+                                  key={length}
+                                  onClick={() => setAiSettings({ ...aiSettings, responseLength: length })}
+                                  className={`px-3 py-2 rounded border text-xs capitalize ${aiSettings.responseLength === length
+                                    ? 'border-white bg-white text-black'
+                                    : 'border-neutral-800 text-white hover:border-white'
+                                    }`}
+                                >
+                                  {length}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-3 rounded border border-neutral-800">
+                            <div>
+                              <div className="text-white text-sm mb-1">Use Headers & Lists</div>
+                              <div className="text-xs text-neutral-500">Organize responses with markdown</div>
+                            </div>
+                            <button
+                              onClick={() => setAiSettings({ ...aiSettings, useHeaders: !aiSettings.useHeaders })}
+                              className={`relative w-11 h-6 rounded-full transition-colors ${aiSettings.useHeaders ? 'bg-white' : 'bg-neutral-800'
+                                }`}
+                            >
+                              <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform ${aiSettings.useHeaders ? 'translate-x-5' : 'translate-x-0'
+                                }`} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Custom Instructions */}
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4">Custom Instructions</h4>
+                        <textarea
+                          value={aiSettings.customInstructions || ''}
+                          onChange={(e) => setAiSettings({ ...aiSettings, customInstructions: e.target.value })}
+                          placeholder="Add any specific instructions for the AI..."
+                          className="w-full h-24 px-3 py-2 bg-neutral-950 border border-neutral-800 rounded text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white resize-none"
+                        />
+                      </div>
+
+                      {/* Profile Connection */}
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <div className="text-white text-sm mb-1">Connect Learning Profile</div>
+                            <div className="text-xs text-neutral-500">Use your learning goals in AI responses</div>
+                          </div>
+                          <button
+                            onClick={() => setAiSettings({ ...aiSettings, profileEnabled: !aiSettings.profileEnabled })}
+                            className={`relative w-11 h-6 rounded-full transition-colors ${aiSettings.profileEnabled ? 'bg-white' : 'bg-neutral-800'
+                              }`}
+                          >
+                            <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform ${aiSettings.profileEnabled ? 'translate-x-5' : 'translate-x-0'
+                              }`} />
+                          </button>
+                        </div>
+
+                        {aiSettings.profileEnabled && (
+                          <div className="mt-4 pt-4 border-t border-neutral-800 space-y-3">
+                            <div>
+                              <label className="block text-xs text-neutral-500 mb-2">Learning Goals</label>
+                              <input
+                                type="text"
+                                value={userContext.learningGoals || ''}
+                                onChange={(e) => setUserContext({ ...userContext, learningGoals: e.target.value })}
+                                placeholder="e.g., Master calculus"
+                                className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs text-neutral-500 mb-2">Interests</label>
+                              <input
+                                type="text"
+                                value={userContext.interests || ''}
+                                onChange={(e) => setUserContext({ ...userContext, interests: e.target.value })}
+                                placeholder="e.g., Physics, Computer Science"
+                                className="w-full px-3 py-2 bg-neutral-950 border border-neutral-800 rounded text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-white"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={saveAISettings}
+                        disabled={savingSettings}
+                        className="w-full px-4 py-2 bg-white text-black rounded hover:bg-neutral-200 transition-colors disabled:opacity-50"
+                      >
+                        {savingSettings ? 'Saving...' : 'Save AI Settings'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Profile */}
+                  {activeSettingsTab === 'profile' && (
+                    <div className="space-y-4">
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4">Profile Information</h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-16 h-16 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-sm overflow-hidden">
+                              {user.user.avatarUrl ? (
+                                <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
+                              ) : (
+                                user.user.displayName.substring(0, 2).toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-white">{user.user.displayName}</p>
+                              <p className="text-xs text-neutral-500 capitalize">{user.user.role}</p>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-neutral-800 pt-4 space-y-3">
+                            {user.profile && (
+                              <>
+                                {(user.profile as any).firstName && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Full Name</label>
+                                    <p className="text-sm text-white">{(user.profile as any).firstName} {(user.profile as any).lastName}</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'TEACHER' && (user.profile as any).specialization && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Specialization</label>
+                                    <p className="text-sm text-white">{(user.profile as any).specialization}</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'TEACHER' && (user.profile as any).qualification && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Qualification</label>
+                                    <p className="text-sm text-white">{(user.profile as any).qualification}</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'TEACHER' && (user.profile as any).experience && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Experience</label>
+                                    <p className="text-sm text-white">{(user.profile as any).experience} years</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'STUDENT' && (user.profile as any).grade && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Grade</label>
+                                    <p className="text-sm text-white">{(user.profile as any).grade}</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'STUDENT' && (user.profile as any).institution && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Institution</label>
+                                    <p className="text-sm text-white">{(user.profile as any).institution}</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'STUDENT' && (user.profile as any).interests && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Interests</label>
+                                    <p className="text-sm text-white">{(user.profile as any).interests}</p>
+                                  </div>
+                                )}
+
+                                {user.user.role === 'TEACHER' && (user.profile as any).bio && (
+                                  <div>
+                                    <label className="text-xs text-neutral-500 block mb-1">Bio</label>
+                                    <p className="text-sm text-white">{(user.profile as any).bio}</p>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            <div>
+                              <label className="text-xs text-neutral-500 block mb-1">Member Since</label>
+                              <p className="text-sm text-white">
+                                {new Date(user.user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Navigate to Full Profile */}
+                      <div className="border border-neutral-800 rounded-lg p-6">
+                        <h4 className="text-sm font-medium mb-4">View Full Profile</h4>
+                        <button
+                          onClick={() => setShowProfileConfirm(true)}
+                          className="text-xs border border-neutral-800 text-white px-4 py-2 rounded hover:bg-white hover:text-black transition-all"
+                        >
+                          Go to Profile
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
             </div>
           )}
 
           {/* Messages Tab */}
           {activeTab === 'Messages' && (
             <div className="h-full overflow-hidden">
-              <Messages 
+              <Messages
                 initialUserId={messageUserId || undefined}
                 onClose={() => {
                   setMessageUserId(null);
@@ -1529,50 +1523,60 @@ export default function Dashboard() {
             <div className="mx-auto w-full max-w-7xl">
               <>
                 <div className="flex items-center space-x-3 mb-6">
-                    <button
-                      onClick={() => changeTab('Overview')}
-                      className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
-                    >
-                      <ArrowLeft size={18} />
-                    </button>
-                    <h3 className="text-xl font-semibold">Profile</h3>
-                  </div>
+                  <button
+                    onClick={() => changeTab('Overview')}
+                    className="p-2 hover:bg-neutral-800 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                  <h3 className="text-xl font-semibold">Profile</h3>
+                </div>
 
-                  {/* Profile Header */}
-                  <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-                      <div className="relative group flex-shrink-0">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden">
-                          {user.user.avatarUrl ? (
-                            <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => setShowAvatarModal(true)}
-                          className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Change avatar"
-                        >
-                          <User size={20} className="text-white" />
-                        </button>
+                {/* Profile Header */}
+                <div className="border border-neutral-800 rounded-lg p-4 sm:p-6 mb-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+                    <div className="relative group flex-shrink-0">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border-2 border-neutral-700 flex items-center justify-center text-xl sm:text-2xl overflow-hidden">
+                        {user.user.avatarUrl ? (
+                          <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white font-bold">{user.user.displayName.substring(0, 2).toUpperCase()}</span>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 truncate">{user.user.displayName}</h2>
-                    <p className="text-xs sm:text-sm text-neutral-400 capitalize">{user.user.role}</p>
-                    
-                    {/* Followers/Following Stats */}
-                    <div className="flex items-center space-x-4 mt-3">
-                      {user.user.role === 'TEACHER' && user.profile && (
-                        <>
-                          <button
-                            onClick={() => loadFollowersList((user.profile as any).id)}
-                            className="text-sm hover:opacity-80 transition-opacity"
-                          >
-                            <span className="text-white font-semibold">{(user.profile as any).followersCount || 0}</span>
-                            <span className="text-neutral-500 ml-1">Followers</span>
-                          </button>
-                          <span className="text-neutral-700">•</span>
+                      <button
+                        onClick={() => setShowAvatarModal(true)}
+                        className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Change avatar"
+                      >
+                        <User size={20} className="text-white" />
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 truncate">{user.user.displayName}</h2>
+                      <p className="text-xs sm:text-sm text-neutral-400 capitalize">{user.user.role}</p>
+
+                      {/* Followers/Following Stats */}
+                      <div className="flex items-center space-x-4 mt-3">
+                        {user.user.role === 'TEACHER' && user.profile && (
+                          <>
+                            <button
+                              onClick={() => loadFollowersList((user.profile as any).id)}
+                              className="text-sm hover:opacity-80 transition-opacity"
+                            >
+                              <span className="text-white font-semibold">{(user.profile as any).followersCount || 0}</span>
+                              <span className="text-neutral-500 ml-1">Followers</span>
+                            </button>
+                            <span className="text-neutral-700">•</span>
+                            <button
+                              onClick={loadFollowingList}
+                              className="text-sm hover:opacity-80 transition-opacity"
+                            >
+                              <span className="text-white font-semibold">{(user.profile as any).followingCount || 0}</span>
+                              <span className="text-neutral-500 ml-1">Following</span>
+                            </button>
+                          </>
+                        )}
+                        {user.user.role === 'STUDENT' && user.profile && (
                           <button
                             onClick={loadFollowingList}
                             className="text-sm hover:opacity-80 transition-opacity"
@@ -1580,201 +1584,191 @@ export default function Dashboard() {
                             <span className="text-white font-semibold">{(user.profile as any).followingCount || 0}</span>
                             <span className="text-neutral-500 ml-1">Following</span>
                           </button>
-                        </>
-                      )}
-                      {user.user.role === 'STUDENT' && user.profile && (
-                        <button
-                          onClick={loadFollowingList}
-                          className="text-sm hover:opacity-80 transition-opacity"
-                        >
-                          <span className="text-white font-semibold">{(user.profile as any).followingCount || 0}</span>
-                          <span className="text-neutral-500 ml-1">Following</span>
-                        </button>
-                      )}
-                        </div>
+                        )}
                       </div>
                     </div>
-
-                    <div className="space-y-3 border-t border-neutral-800 pt-4">
-                  <div className="flex items-center space-x-2 text-sm">
-                    <Mail size={16} className="text-neutral-500" />
-                    <span className="text-white">{user.user.email}</span>
                   </div>
-                  {user.user.lastLoginAt && (
+
+                  <div className="space-y-3 border-t border-neutral-800 pt-4">
                     <div className="flex items-center space-x-2 text-sm">
-                      <Calendar size={16} className="text-neutral-500" />
-                      <span className="text-neutral-400">
-                        Last active {new Date(user.user.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
+                      <Mail size={16} className="text-neutral-500" />
+                      <span className="text-white">{user.user.email}</span>
+                    </div>
+                    {user.user.lastLoginAt && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Calendar size={16} className="text-neutral-500" />
+                        <span className="text-neutral-400">
+                          Last active {new Date(user.user.lastLoginAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
                       </div>
                     )}
-                    </div>
                   </div>
+                </div>
 
-                  {/* Profile Details */}
-                  <div className="space-y-4">
-                {user.profile && (
-                  <>
-                    {(user.profile as any).firstName && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <Award size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-1">Full Name</p>
-                            <p className="text-sm text-white font-medium">
-                              {(user.profile as any).firstName} {(user.profile as any).lastName}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Teacher Specific */}
-                    {user.user.role === 'TEACHER' && (user.profile as any).specialization && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <BookOpen size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-2">Specialization</p>
-                            <div className="flex flex-wrap gap-2">
-                              {(user.profile as any).specialization.split(',').map((spec: string, index: number) => (
-                                <span 
-                                  key={index}
-                                  className="px-3 py-1 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-xs"
-                                >
-                                  {spec.trim()}
-                                </span>
-                              ))}
+                {/* Profile Details */}
+                <div className="space-y-4">
+                  {user.profile && (
+                    <>
+                      {(user.profile as any).firstName && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <Award size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-1">Full Name</p>
+                              <p className="text-sm text-white font-medium">
+                                {(user.profile as any).firstName} {(user.profile as any).lastName}
+                              </p>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {user.user.role === 'TEACHER' && (user.profile as any).qualification && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <GraduationCap size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-2">Qualifications</p>
-                            <div className="flex flex-wrap gap-2">
-                              {(user.profile as any).qualification.split(',').map((qual: string, index: number) => (
-                                <span 
-                                  key={index}
-                                  className="px-3 py-1 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-xs"
-                                >
-                                  {qual.trim()}
-                                </span>
-                              ))}
+                      {/* Teacher Specific */}
+                      {user.user.role === 'TEACHER' && (user.profile as any).specialization && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <BookOpen size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-2">Specialization</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(user.profile as any).specialization.split(',').map((spec: string, index: number) => (
+                                  <span
+                                    key={index}
+                                    className="px-3 py-1 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-xs"
+                                  >
+                                    {spec.trim()}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {user.user.role === 'TEACHER' && (user.profile as any).experience && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <Calendar size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-1">Experience</p>
-                            <p className="text-sm text-white font-medium">{(user.profile as any).experience} years</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.user.role === 'TEACHER' && (user.profile as any).bio && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <BookOpen size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-2">About</p>
-                            <p className="text-sm text-white leading-relaxed">{(user.profile as any).bio}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Student Specific */}
-                    {user.user.role === 'STUDENT' && (user.profile as any).grade && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <GraduationCap size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-1">Grade</p>
-                            <p className="text-sm text-white font-medium">{(user.profile as any).grade}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.user.role === 'STUDENT' && (user.profile as any).institution && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <Building size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-1">Institution</p>
-                            <p className="text-sm text-white font-medium">{(user.profile as any).institution}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {user.user.role === 'STUDENT' && (user.profile as any).interests && (
-                      <div className="border border-neutral-800 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                            <BookOpen size={18} className="text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs text-neutral-500 mb-2">Interests</p>
-                            <div className="flex flex-wrap gap-2">
-                              {(user.profile as any).interests.split(',').map((interest: string, index: number) => (
-                                <span 
-                                  key={index}
-                                  className="px-3 py-1 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-xs"
-                                >
-                                  {interest.trim()}
-                                </span>
-                              ))}
+                      {user.user.role === 'TEACHER' && (user.profile as any).qualification && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <GraduationCap size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-2">Qualifications</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(user.profile as any).qualification.split(',').map((qual: string, index: number) => (
+                                  <span
+                                    key={index}
+                                    className="px-3 py-1 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-xs"
+                                  >
+                                    {qual.trim()}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                      )}
 
-                {/* Member Since */}
-                <div className="border border-neutral-800 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
-                      <Calendar size={18} className="text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-neutral-500 mb-1">Member Since</p>
-                      <p className="text-sm text-white font-medium">
-                        {new Date(user.user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                      </p>
+                      {user.user.role === 'TEACHER' && (user.profile as any).experience && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <Calendar size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-1">Experience</p>
+                              <p className="text-sm text-white font-medium">{(user.profile as any).experience} years</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {user.user.role === 'TEACHER' && (user.profile as any).bio && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <BookOpen size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-2">About</p>
+                              <p className="text-sm text-white leading-relaxed">{(user.profile as any).bio}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Student Specific */}
+                      {user.user.role === 'STUDENT' && (user.profile as any).grade && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <GraduationCap size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-1">Grade</p>
+                              <p className="text-sm text-white font-medium">{(user.profile as any).grade}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {user.user.role === 'STUDENT' && (user.profile as any).institution && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <Building size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-1">Institution</p>
+                              <p className="text-sm text-white font-medium">{(user.profile as any).institution}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {user.user.role === 'STUDENT' && (user.profile as any).interests && (
+                        <div className="border border-neutral-800 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                              <BookOpen size={18} className="text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-neutral-500 mb-2">Interests</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(user.profile as any).interests.split(',').map((interest: string, index: number) => (
+                                  <span
+                                    key={index}
+                                    className="px-3 py-1 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-xs"
+                                  >
+                                    {interest.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Member Since */}
+                  <div className="border border-neutral-800 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
+                        <Calendar size={18} className="text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-neutral-500 mb-1">Member Since</p>
+                        <p className="text-sm text-white font-medium">
+                          {new Date(user.user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
               </>
             </div>
           )}
@@ -1805,7 +1799,7 @@ export default function Dashboard() {
                   {selectedTeacher.specialization && (
                     <p className="text-sm text-neutral-400 mb-3">{selectedTeacher.specialization}</p>
                   )}
-                  
+
                   {/* Followers & Following */}
                   <div className="flex items-center justify-center sm:justify-start space-x-4 mb-4">
                     <button
@@ -1839,11 +1833,10 @@ export default function Dashboard() {
                   {user.user.id !== selectedTeacher.userId && (
                     <button
                       onClick={() => toggleFollowTeacher(selectedTeacher.id)}
-                      className={`w-full px-6 py-2.5 rounded-lg font-medium transition-colors relative z-10 cursor-pointer ${
-                        followingTeachers.has(selectedTeacher.id)
-                          ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
-                          : 'bg-white text-black hover:bg-neutral-200'
-                      }`}
+                      className={`w-full px-6 py-2.5 rounded-lg font-medium transition-colors relative z-10 cursor-pointer ${followingTeachers.has(selectedTeacher.id)
+                        ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                        : 'bg-white text-black hover:bg-neutral-200'
+                        }`}
                       style={{ pointerEvents: 'auto' }}
                     >
                       {followingTeachers.has(selectedTeacher.id) ? 'Following' : 'Follow'}
@@ -1881,7 +1874,7 @@ export default function Dashboard() {
                       <p className="text-xs text-neutral-500 mb-3">Qualifications</p>
                       <div className="flex flex-wrap gap-2">
                         {selectedTeacher.qualification.split(',').map((qual: string, index: number) => (
-                          <span 
+                          <span
                             key={index}
                             className="px-3 py-1.5 rounded border border-neutral-700 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white text-sm"
                           >
@@ -1930,7 +1923,7 @@ export default function Dashboard() {
                 <div key={teacher.id}>
                   <div className="py-4 hover:bg-neutral-950 transition-colors rounded-lg px-2">
                     <div className="flex items-center justify-between">
-                      <div 
+                      <div
                         className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
                         onClick={() => {
                           setShowFollowingDrawer(false);
@@ -1945,7 +1938,7 @@ export default function Dashboard() {
                             teacher.user.displayName.substring(0, 2).toUpperCase()
                           )}
                         </div>
-                        
+
                         {/* Name and Experience */}
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-white truncate">{teacher.user.displayName}</h4>
@@ -2004,12 +1997,12 @@ export default function Dashboard() {
                 const isTeacher = follower.followerType === 'TEACHER';
                 const teacherId = isTeacher ? follower.teacherId : null;
                 const isFollowing = teacherId ? followingTeachers.has(teacherId) : false;
-                
+
                 return (
                   <div key={follower.id}>
                     <div className="py-4 hover:bg-neutral-950 transition-colors rounded-lg px-2">
                       <div className="flex items-center justify-between">
-                        <div 
+                        <div
                           className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
                           onClick={() => {
                             if (isTeacher && teacherId) {
@@ -2026,7 +2019,7 @@ export default function Dashboard() {
                               follower.followerName.substring(0, 2).toUpperCase()
                             )}
                           </div>
-                          
+
                           {/* Name and Role */}
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-semibold text-white truncate">{follower.followerName}</h4>
@@ -2041,11 +2034,10 @@ export default function Dashboard() {
                               e.stopPropagation();
                               toggleFollowTeacher(teacherId);
                             }}
-                            className={`ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                              isFollowing
-                                ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
-                                : 'bg-white text-black hover:bg-neutral-200'
-                            }`}
+                            className={`ml-3 px-4 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap ${isFollowing
+                              ? 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                              : 'bg-white text-black hover:bg-neutral-200'
+                              }`}
                           >
                             {isFollowing ? 'Following' : 'Follow'}
                           </button>

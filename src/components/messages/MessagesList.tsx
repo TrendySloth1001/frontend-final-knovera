@@ -27,9 +27,10 @@ interface MessagesListProps {
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onViewHistory?: (messageId: string) => void;
   onPinMessage?: (messageId: string) => void;
+  onVote?: (pollId: string, optionIndex: number) => void;
 }
 
-export default function MessagesList({ messages, currentUserId, typingUsers, messagesEndRef, conversation, onAvatarClick, onReplyToMessage, messageRefs, highlightedMessageId, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage }: MessagesListProps) {
+export default function MessagesList({ messages, currentUserId, typingUsers, messagesEndRef, conversation, onAvatarClick, onReplyToMessage, messageRefs, highlightedMessageId, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote }: MessagesListProps) {
   // Helper to check if two dates are on different days
   const isDifferentDay = (date1: string, date2: string) => {
     const d1 = new Date(date1);
@@ -47,7 +48,7 @@ export default function MessagesList({ messages, currentUserId, typingUsers, mes
           <div key={msg.id}>
             {/* Date Separator */}
             {showDateSeparator && <DateSeparator date={msg.createdAt} />}
-            
+
             {/* System Message or Regular Message */}
             {isSystemMessage ? (
               <SystemMessage
@@ -77,6 +78,7 @@ export default function MessagesList({ messages, currentUserId, typingUsers, mes
                   onRemoveReaction={onRemoveReaction}
                   onViewHistory={onViewHistory}
                   onPinMessage={onPinMessage}
+                  onVote={onVote}
                 />
               </div>
             )}

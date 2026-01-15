@@ -7,6 +7,7 @@ import MediaGrid from './MediaGrid';
 import { parseTextWithLinks } from '@/utils/linkify';
 import MessageContextMenu from './MessageContextMenu';
 import ReactionPicker from './ReactionPicker';
+import PollMessage from './PollMessage';
 
 interface MessageBubbleProps {
   msg: ChatMessage;
@@ -27,12 +28,13 @@ interface MessageBubbleProps {
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onViewHistory?: (messageId: string) => void;
   onPinMessage?: (messageId: string) => void;
+  onVote?: (pollId: string, optionIndex: number) => void;
 }
 
 // Component to render text with clickable links
 const LinkifiedText = ({ text }: { text: string }) => {
   const parts = parseTextWithLinks(text);
-  
+
   return (
     <>
       {parts.map((part, index) => {
@@ -56,7 +58,7 @@ const LinkifiedText = ({ text }: { text: string }) => {
   );
 };
 
-export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage }: MessageBubbleProps) {
+export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote }: MessageBubbleProps) {
   // Check if message has been seen by any other user (not the sender)
   const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
   // Count how many users have seen it (excluding sender)
@@ -195,12 +197,22 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               </div>
             );
           })()}
-          {msg.content && (
-            <div className="whitespace-pre-wrap break-words">
-              <LinkifiedText text={msg.content} />
+          {msg.poll ? (
+            <div className="mt-1">
+              <PollMessage
+                message={msg}
+                currentUserId={currentUserId}
+                onVote={(pollId, optionIndex) => onVote?.(pollId, optionIndex)}
+              />
             </div>
+          ) : (
+            msg.content && (
+              <div className="whitespace-pre-wrap break-words">
+                <LinkifiedText text={msg.content} />
+              </div>
+            )
           )}
-          
+
           {/* Reactions Display */}
           {msg.reactions && msg.reactions.length > 0 && (
             <div className="mt-2 -mb-1">
@@ -213,7 +225,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center gap-1.5 mt-1.5 px-1 text-[10px] text-zinc-500 font-medium">
           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           {msg.isEdited && <span className="text-zinc-600">(edited)</span>}
@@ -241,7 +253,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
             />
           </div>
         )}
-        
+
         {/* Reply Button */}
         {onReplyToMessage && (
           <button
@@ -252,7 +264,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
             <Reply size={14} />
           </button>
         )}
-        
+
         {/* Context Menu with its own button */}
         <MessageContextMenu
           message={msg}
