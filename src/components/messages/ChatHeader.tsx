@@ -25,6 +25,7 @@ interface ChatHeaderProps {
   onInviteLinks?: () => void;
   onJoinRequests?: () => void;
   onPinnedMessages?: () => void;
+  onAnnouncements?: () => void;
 }
 
 export default function ChatHeader({
@@ -45,11 +46,12 @@ export default function ChatHeader({
   onInviteLinks,
   onJoinRequests,
   onPinnedMessages,
+  onAnnouncements,
 }: ChatHeaderProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const isCreator = selectedConversation.createdBy === currentUserId;
   const showDeleteButton = !selectedConversation.isGroup || isCreator;
-  
+
   // Check if current user is admin or moderator
   const currentMember = selectedConversation.members.find(m => m.userId === currentUserId);
   const isAdmin = currentMember?.role === 'admin';
@@ -146,7 +148,7 @@ export default function ChatHeader({
                     <span>View Profile</span>
                   </button>
                 )}
-                
+
                 {/* Group Management Options */}
                 {selectedConversation.isGroup && (
                   <>
@@ -160,7 +162,7 @@ export default function ChatHeader({
                       <Share2 size={16} className="text-green-400" />
                       <span>Share Group</span>
                     </button>
-                    
+
                     <button
                       onClick={() => {
                         onMemberList?.();
@@ -171,7 +173,7 @@ export default function ChatHeader({
                       <Users size={16} className="text-zinc-400" />
                       <span>View Members</span>
                     </button>
-                    
+
                     <button
                       onClick={() => {
                         onPinnedMessages?.();
@@ -182,11 +184,22 @@ export default function ChatHeader({
                       <Pin size={16} className="text-blue-400" />
                       <span>Pinned Messages</span>
                     </button>
-                    
+
+                    <button
+                      onClick={() => {
+                        onAnnouncements?.();
+                        setShowMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                    >
+                      <Megaphone size={16} className="text-amber-500" />
+                      <span>Announcements</span>
+                    </button>
+
                     {canManage && (
                       <>
                         <div className="border-t border-zinc-800 my-1" />
-                        
+
                         <button
                           onClick={() => {
                             onGroupSettings?.();
@@ -197,7 +210,7 @@ export default function ChatHeader({
                           <Settings size={16} className="text-purple-400" />
                           <span>Group Settings</span>
                         </button>
-                        
+
                         <button
                           onClick={() => {
                             onInviteLinks?.();
@@ -208,7 +221,7 @@ export default function ChatHeader({
                           <LinkIcon size={16} className="text-green-400" />
                           <span>Invite Links</span>
                         </button>
-                        
+
                         <button
                           onClick={() => {
                             onJoinRequests?.();
@@ -221,11 +234,11 @@ export default function ChatHeader({
                         </button>
                       </>
                     )}
-                    
+
                     <div className="border-t border-zinc-800 my-1" />
                   </>
                 )}
-                
+
                 {showDeleteButton && (
                   <button
                     onClick={() => {

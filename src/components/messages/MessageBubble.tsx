@@ -1,4 +1,4 @@
-import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon, Star, Pin } from 'lucide-react';
+import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon, Star, Pin, Megaphone } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
@@ -34,6 +34,7 @@ interface MessageBubbleProps {
   onPinMessage?: (messageId: string) => void;
   onVote?: (pollId: string, optionIndex: number) => void;
   onGroupPreview?: (groupId: string) => void;
+  onShowSeenBy?: (messageId: string, seenBy: any[]) => void;
 }
 
 // Component to render text with clickable links and mentions
@@ -83,7 +84,7 @@ const LinkifiedText = ({ text, onMentionClick }: { text: string; onMentionClick?
   );
 };
 
-export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote, onGroupPreview }: MessageBubbleProps) {
+export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote, onGroupPreview, onShowSeenBy }: MessageBubbleProps) {
   // Check if message has been seen by any other user (not the sender)
   const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
   // Count how many users have seen it (excluding sender)
@@ -130,12 +131,23 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
         <div
           className={`
             px-4 py-2.5 rounded-2xl text-sm leading-relaxed transition-all duration-300
-            ${isOwn
-              ? 'bg-black text-white rounded-tr-none border border-zinc-700'
-              : 'bg-black text-white rounded-tl-none border border-zinc-800'}
+            ${msg.isAnnouncement
+              ? 'bg-black border border-zinc-500 text-white w-full'
+              : isOwn
+                ? 'bg-black text-white rounded-tr-none border border-zinc-700'
+                : 'bg-black text-white rounded-tl-none border border-zinc-800'}
             ${isHighlighted ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/20' : ''}
           `}
         >
+          {msg.isAnnouncement && (
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-zinc-700">
+              <div className="p-1 rounded bg-zinc-800 text-zinc-300">
+                <Megaphone size={14} />
+              </div>
+              <span className="text-xs font-bold text-white uppercase tracking-wider">Announcement</span>
+            </div>
+          )}
+
           {/* Reply Reference */}
           {msg.replyToMessage && (
             <div
@@ -267,12 +279,56 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               />
             </div>
           )}
+
+          {/* Seen By Facepile for Announcements */}
+          {msg.isAnnouncement && msg.seenBy && msg.seenBy.filter(s => s.userId !== msg.userId).length > 0 && (
+            <div
+              className="mt-3 pt-2 border-t border-zinc-800 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowSeenBy?.(msg.id, msg.seenBy || []);
+              }}
+            >
+              <div className="flex items-center -space-x-2 overflow-hidden pl-1">
+                {msg.seenBy
+                  .filter(seen => seen.userId !== msg.userId)
+                  .slice(0, 4)
+                  .map((seen) => (
+                    <div
+                      key={seen.userId}
+                      className="w-5 h-5 rounded-full ring-2 ring-black bg-zinc-800 flex items-center justify-center overflow-hidden"
+                      title={`${seen.displayName || seen.username || 'User'} saw at ${new Date(seen.seenAt).toLocaleTimeString()}`}
+                    >
+                      <img
+                        src={seen.avatarUrl || `https://ui-avatars.com/api/?name=${seen.displayName || seen.username || 'U'}&background=random`}
+                        alt={seen.username}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                {(msg.seenBy.filter(s => s.userId !== msg.userId).length > 4) && (
+                  <div className="w-5 h-5 rounded-full ring-2 ring-black bg-zinc-800 flex items-center justify-center text-[8px] font-bold text-zinc-400">
+                    +{msg.seenBy.filter(s => s.userId !== msg.userId).length - 4}
+                  </div>
+                )}
+              </div>
+              <span className="text-[10px] text-zinc-500 font-medium ml-2">
+                Seen by {msg.seenBy.filter(s => s.userId !== msg.userId).length}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 mt-1.5 px-1 text-[10px] text-zinc-500 font-medium">
           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {msg.isAnnouncement && <span className="text-amber-500/50">• Announcement</span>}
           {msg.isEdited && <span className="text-zinc-600">(edited)</span>}
-          {msg.isPinned && <Pin size={10} className="text-blue-400 rotate-45" />}
+          {msg.isPinned && (
+            <div className="flex items-center gap-1 text-zinc-400 bg-zinc-800/50 px-1.5 py-0.5 rounded-md">
+              <Pin size={10} className="fill-zinc-400" />
+              <span className="text-[9px] uppercase tracking-wider font-bold">Pinned</span>
+            </div>
+          )}
           {msg.isStarred && <Star size={10} className="text-yellow-500 fill-yellow-500" />}
           {isOwn && (
             msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId) ? (

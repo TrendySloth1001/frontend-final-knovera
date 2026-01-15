@@ -661,6 +661,7 @@ export default function Dashboard() {
                             fill
                             className="object-contain"
                             priority
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
                               // If image fails to load, pick another one
                               const remaining = illustrations.filter(i => i !== currentIllustration);

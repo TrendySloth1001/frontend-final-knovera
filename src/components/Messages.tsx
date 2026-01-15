@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import SeenByModal from './messages/SeenByModal';
 import { MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
@@ -42,6 +43,7 @@ import MemberListModal from './group/MemberListModal';
 import InviteLinkManager from './group/InviteLinkManager';
 import JoinRequestList from './group/JoinRequestList';
 import PinnedMessagesPanel from './group/PinnedMessagesPanel';
+import AnnouncementsPanel from './group/AnnouncementsPanel';
 import AnnouncementBanner from './group/AnnouncementBanner';
 import { pinMessage } from '@/lib/groupManagementApi';
 import { votePoll } from '@/lib/pollApi';
@@ -98,8 +100,11 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showInviteLinks, setShowInviteLinks] = useState(false);
   const [showJoinRequests, setShowJoinRequests] = useState(false);
   const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [showAnnouncementsPanel, setShowAnnouncementsPanel] = useState(false);
   const [showGroupPreview, setShowGroupPreview] = useState(false);
   const [previewGroupId, setPreviewGroupId] = useState<string | null>(null);
+  const [showSeenByModal, setShowSeenByModal] = useState(false);
+  const [seenByData, setSeenByData] = useState<any[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(true);
   const [conversationIdToDelete, setConversationIdToDelete] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -233,6 +238,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                     {
                       userId: seenData.userId,
                       username: seenData.username,
+                      displayName: seenData.username,
                       seenAt: seenData.seenAt,
                     },
                   ],
@@ -379,6 +385,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                 {
                   userId: currentUserId,
                   username: user?.user?.displayName || 'You',
+                  displayName: user?.user?.displayName || 'You',
                   seenAt: new Date().toISOString(),
                 },
               ],
@@ -1209,6 +1216,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                       {
                         userId: currentUserId,
                         username: user?.user?.displayName || 'You',
+                        displayName: user?.user?.displayName || 'You',
                         seenAt: new Date().toISOString(),
                       },
                     ],
@@ -1372,6 +1380,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                   {
                     userId: currentUserId,
                     username: user?.user?.displayName || 'You',
+                    displayName: user?.user?.displayName || 'You',
                     seenAt: new Date().toISOString(),
                   },
                 ],
@@ -1560,6 +1569,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onInviteLinks={() => setShowInviteLinks(true)}
               onJoinRequests={() => setShowJoinRequests(true)}
               onPinnedMessages={() => setShowPinnedMessages(true)}
+              onAnnouncements={() => setShowAnnouncementsPanel(true)}
             />
 
             {/* Announcement Banner for Groups */}
@@ -1592,6 +1602,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onPinMessage={handlePinMessage}
               onVote={handleVote}
               onGroupPreview={handleGroupPreview}
+              onShowSeenBy={(messageId, seenBy) => {
+                setSeenByData(seenBy);
+                setShowSeenByModal(true);
+              }}
             />
 
             <MessageInput
@@ -1772,6 +1786,17 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
           conversation={selectedConversation}
           isOpen={showPinnedMessages}
           onClose={() => setShowPinnedMessages(false)}
+          currentUserId={currentUserId}
+          onMessageClick={handleScrollToMessage}
+        />
+      )}
+
+      {/* Announcements Panel */}
+      {showAnnouncementsPanel && selectedConversation && currentUserId && (
+        <AnnouncementsPanel
+          conversation={selectedConversation}
+          isOpen={showAnnouncementsPanel}
+          onClose={() => setShowAnnouncementsPanel(false)}
           currentUserId={currentUserId}
           onMessageClick={handleScrollToMessage}
         />

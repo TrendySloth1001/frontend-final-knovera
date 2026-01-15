@@ -80,6 +80,8 @@ export interface ChatMessage {
   seenBy?: Array<{
     userId: string;
     username: string;
+    displayName: string;
+    avatarUrl?: string; // Optional because backend might not send it if null
     seenAt: string;
   }>;
   replyToId?: string | null;

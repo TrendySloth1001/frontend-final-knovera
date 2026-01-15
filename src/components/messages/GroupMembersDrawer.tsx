@@ -5,6 +5,7 @@ import { ChatConversation } from '@/types/chat';
 import { useState, useRef, useEffect } from 'react';
 import ImageStack from './ImageStack';
 import CreatePollModal from '../group/CreatePollModal';
+import CreateAnnouncementModal from '../group/CreateAnnouncementModal';
 
 interface GroupMembersDrawerProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export default function GroupMembersDrawer({
   const [memberSearch, setMemberSearch] = useState('');
   const [activeMemberMenu, setActiveMemberMenu] = useState<string | null>(null);
   const [showPollModal, setShowPollModal] = useState(false);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Close menu when clicking outside
@@ -85,6 +87,7 @@ export default function GroupMembersDrawer({
     isAdmin,
     isModerator,
     canManage,
+    memberRole: currentMember?.role,
   });
 
   const handleUpdateName = async () => {
@@ -323,6 +326,16 @@ export default function GroupMembersDrawer({
                     <p className="text-xs text-zinc-600 uppercase tracking-wider px-2 mb-2">Admin Controls</p>
                   </div>
 
+                  {(isAdmin || isModerator || isCreator) && (
+                    <button
+                      onClick={() => setShowAnnouncementModal(true)}
+                      className="w-full py-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 px-4"
+                    >
+                      <Megaphone size={16} className="text-pink-400" />
+                      <span className="flex-1 text-left">Make Announcement</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => {
                       onGroupSettings?.();
@@ -487,6 +500,17 @@ export default function GroupMembersDrawer({
         onPollCreated={() => {
           setShowPollModal(false);
           // Optionally refresh or notify
+        }}
+      />
+
+      <CreateAnnouncementModal
+        isOpen={showAnnouncementModal}
+        onClose={() => setShowAnnouncementModal(false)}
+        conversationId={selectedGroupConversation.id}
+        onSuccess={() => {
+          // Announcement sent
+          setShowAnnouncementModal(false);
+          onClose(); // Close drawer to show banner?
         }}
       />
     </>

@@ -65,8 +65,8 @@ export default function ReactionPicker({
           onClick={() => handleReactionClick(reaction)}
           className={`
             flex items-center gap-1 px-2 py-1 rounded-full text-sm transition-all
-            ${reaction.userReacted 
-              ? 'bg-blue-500/20 border border-blue-500/50 text-blue-400' 
+            ${reaction.userReacted
+              ? 'bg-blue-500/20 border border-blue-500/50 text-blue-400'
               : 'bg-zinc-800/50 border border-zinc-700 text-zinc-300 hover:bg-zinc-700'
             }
           `}
@@ -95,7 +95,7 @@ export default function ReactionPicker({
 
         {/* Emoji picker popup */}
         {showPicker && (
-          <div className="absolute bottom-full mb-2 left-0 z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-2 grid grid-cols-4 gap-1">
+          <div className="absolute bottom-full mb-2 -left-2 z-[100] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-2 grid grid-cols-4 gap-1 min-w-[160px] animate-in zoom-in-95 duration-200">
             {QUICK_EMOJIS.map((emoji) => {
               const existingReaction = reactions.find(r => r.emoji === emoji);
               return (
@@ -103,8 +103,8 @@ export default function ReactionPicker({
                   key={emoji}
                   onClick={() => handleEmojiClick(emoji)}
                   className={`
-                    text-2xl p-2 rounded hover:bg-zinc-800 transition-colors
-                    ${existingReaction?.userReacted ? 'bg-blue-500/20' : ''}
+                    text-xl p-2 rounded-lg hover:bg-zinc-800 transition-colors flex items-center justify-center aspect-square
+                    ${existingReaction?.userReacted ? 'bg-blue-500/20 ring-1 ring-blue-500/50' : ''}
                   `}
                   title={emoji}
                 >
