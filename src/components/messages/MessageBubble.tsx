@@ -26,6 +26,7 @@ interface MessageBubbleProps {
   onAddReaction?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onViewHistory?: (messageId: string) => void;
+  onPinMessage?: (messageId: string) => void;
 }
 
 // Component to render text with clickable links
@@ -55,7 +56,7 @@ const LinkifiedText = ({ text }: { text: string }) => {
   );
 };
 
-export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory }: MessageBubbleProps) {
+export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage }: MessageBubbleProps) {
   // Check if message has been seen by any other user (not the sender)
   const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
   // Count how many users have seen it (excluding sender)
@@ -256,6 +257,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
         <MessageContextMenu
           message={msg}
           currentUserId={currentUserId}
+          isGroup={isGroup}
           onReply={(message) => {
             onReplyToMessage?.(message);
           }}
@@ -283,6 +285,9 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
           }}
           onViewHistory={(message) => {
             onViewHistory?.(message.id);
+          }}
+          onPin={(message) => {
+            onPinMessage?.(message.id);
           }}
         />
       </div>

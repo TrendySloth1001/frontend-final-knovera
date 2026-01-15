@@ -1,8 +1,8 @@
 'use client';
 
-import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, Camera } from 'lucide-react';
+import { X, Edit2, UserPlus, UserMinus, Search, Crown, MoreHorizontal, MoreVertical, Camera, Settings, Link as LinkIcon, UserCheck, Pin, Megaphone } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ImageStack from './ImageStack';
 
 interface GroupMembersDrawerProps {
@@ -15,6 +15,12 @@ interface GroupMembersDrawerProps {
   onRemoveMember?: (conversationId: string, userId: string) => Promise<void>;
   onAddMembers?: (conversationId: string) => void;
   onLeaveGroup?: (conversationId: string) => Promise<void>;
+  // Group Management
+  onGroupSettings?: () => void;
+  onMemberList?: () => void;
+  onInviteLinks?: () => void;
+  onJoinRequests?: () => void;
+  onPinnedMessages?: () => void;
 }
 
 export default function GroupMembersDrawer({
@@ -27,16 +33,43 @@ export default function GroupMembersDrawer({
   onRemoveMember,
   onAddMembers,
   onLeaveGroup,
+  onGroupSettings,
+  onMemberList,
+  onInviteLinks,
+  onJoinRequests,
+  onPinnedMessages,
 }: GroupMembersDrawerProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
+  const [activeMemberMenu, setActiveMemberMenu] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (activeMemberMenu && !target.closest('.member-menu-container')) {
+        setActiveMemberMenu(null);
+      }
+    };
+
+    if (activeMemberMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [activeMemberMenu]);
 
   if (!isOpen || !selectedGroupConversation) return null;
 
   const isCreator = selectedGroupConversation.createdBy === currentUserId;
+
+  // Check if current user is admin or moderator
+  const currentMember = selectedGroupConversation.members.find(m => m.userId === currentUserId);
+  const isAdmin = currentMember?.role === 'admin';
+  const isModerator = currentMember?.role === 'moderator';
+  const canManage = isAdmin || isModerator || isCreator; // Explicitly include creator
 
   console.log('[GroupMembersDrawer] Permission check:', {
     currentUserId,
@@ -45,7 +78,11 @@ export default function GroupMembersDrawer({
     groupName: selectedGroupConversation.name,
     canEditName: isCreator && !!onUpdateGroupName,
     canAddMembers: isCreator && !!onAddMembers,
-    canRemoveMembers: isCreator && !!onRemoveMember
+    canRemoveMembers: isCreator && !!onRemoveMember,
+    currentMember,
+    isAdmin,
+    isModerator,
+    canManage,
   });
 
   const handleUpdateName = async () => {
@@ -137,16 +174,16 @@ export default function GroupMembersDrawer({
             <div className="relative group/avatar mb-4">
               <div className="w-24 h-24 rounded-3xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-3xl font-bold text-zinc-400 overflow-hidden">
                 {selectedGroupConversation.avatarUrl ? (
-                  <img 
-                    src={selectedGroupConversation.avatarUrl} 
-                    alt={selectedGroupConversation.name || 'Group'} 
+                  <img
+                    src={selectedGroupConversation.avatarUrl}
+                    alt={selectedGroupConversation.name || 'Group'}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   selectedGroupConversation.name ? selectedGroupConversation.name.substring(0, 1).toUpperCase() : 'G'
                 )}
               </div>
-              
+
               {/* Camera overlay for creator */}
               {isCreator && onUpdateGroupAvatar && (
                 <>
@@ -253,6 +290,63 @@ export default function GroupMembersDrawer({
               </button>
             )}
 
+            {/* Group Management Actions */}
+            <div className="mt-4 space-y-2">
+              {/* All Members Can View */}
+              <button
+                onClick={() => {
+                  onPinnedMessages?.();
+                  onClose();
+                }}
+                className="w-full py-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 px-4"
+              >
+                <Pin size={16} className="text-blue-400" />
+                <span className="flex-1 text-left">Pinned Messages</span>
+              </button>
+
+              {/* Admin/Moderator Only */}
+              {canManage && (
+                <>
+                  <div className="border-t border-zinc-800 pt-2 mt-2">
+                    <p className="text-xs text-zinc-600 uppercase tracking-wider px-2 mb-2">Admin Controls</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      onGroupSettings?.();
+                      onClose();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 px-4"
+                  >
+                    <Settings size={16} className="text-purple-400" />
+                    <span className="flex-1 text-left">Group Settings</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onInviteLinks?.();
+                      onClose();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 px-4"
+                  >
+                    <LinkIcon size={16} className="text-green-400" />
+                    <span className="flex-1 text-left">Invite Links</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onJoinRequests?.();
+                      onClose();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 px-4"
+                  >
+                    <UserPlus size={16} className="text-yellow-400" />
+                    <span className="flex-1 text-left">Join Requests</span>
+                  </button>
+                </>
+              )}
+            </div>
+
             {!isCreator && onLeaveGroup && (
               <button
                 onClick={() => {
@@ -303,19 +397,63 @@ export default function GroupMembersDrawer({
                   </div>
                 </div>
 
-                {isCreator && member.userId !== currentUserId && onRemoveMember ? (
-                  <button
-                    onClick={() => handleRemoveMember(member.userId)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-                    title="Remove from group"
-                  >
-                    <UserMinus size={16} />
-                  </button>
-                ) : (
-                  <div className="opacity-0 group-hover:opacity-100 p-2 text-zinc-600">
-                    <MoreHorizontal size={16} />
+                {canManage && member.userId !== currentUserId ? (
+                  <div className="relative shrink-0 member-menu-container">
+                    <button
+                      onClick={() => setActiveMemberMenu(activeMemberMenu === member.userId ? null : member.userId)}
+                      className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-all"
+                      title="Member options"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+
+                    {activeMemberMenu === member.userId && (
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 py-1">
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => {
+                                onMemberList?.();
+                                setActiveMemberMenu(null);
+                                onClose();
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                            >
+                              <Crown size={14} className="text-purple-400" />
+                              <span>Change Role</span>
+                            </button>
+                            <div className="h-px bg-zinc-800 my-1" />
+                          </>
+                        )}
+
+                        {onRemoveMember && (
+                          <button
+                            onClick={() => {
+                              handleRemoveMember(member.userId);
+                              setActiveMemberMenu(null);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-orange-400 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                          >
+                            <UserMinus size={14} />
+                            <span>Kick Member</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            onMemberList?.();
+                            setActiveMemberMenu(null);
+                            onClose();
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                        >
+                          <X size={14} />
+                          <span>Ban Member</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
+                ) : null}
               </div>
             ))}
 

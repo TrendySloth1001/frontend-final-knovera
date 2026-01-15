@@ -26,9 +26,10 @@ interface MessagesListProps {
   onAddReaction?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onViewHistory?: (messageId: string) => void;
+  onPinMessage?: (messageId: string) => void;
 }
 
-export default function MessagesList({ messages, currentUserId, typingUsers, messagesEndRef, conversation, onAvatarClick, onReplyToMessage, messageRefs, highlightedMessageId, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory }: MessagesListProps) {
+export default function MessagesList({ messages, currentUserId, typingUsers, messagesEndRef, conversation, onAvatarClick, onReplyToMessage, messageRefs, highlightedMessageId, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage }: MessagesListProps) {
   // Helper to check if two dates are on different days
   const isDifferentDay = (date1: string, date2: string) => {
     const d1 = new Date(date1);
@@ -75,6 +76,7 @@ export default function MessagesList({ messages, currentUserId, typingUsers, mes
                   onAddReaction={onAddReaction}
                   onRemoveReaction={onRemoveReaction}
                   onViewHistory={onViewHistory}
+                  onPinMessage={onPinMessage}
                 />
               </div>
             )}

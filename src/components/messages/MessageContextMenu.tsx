@@ -7,13 +7,15 @@ import {
   Forward, 
   Star, 
   MoreVertical,
-  Clock
+  Clock,
+  Pin
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface MessageContextMenuProps {
   message: ChatMessage;
   currentUserId: string;
+  isGroup?: boolean;
   onReply: (message: ChatMessage) => void;
   onEdit: (message: ChatMessage) => void;
   onDelete: (message: ChatMessage, deleteForEveryone: boolean) => void;
@@ -21,11 +23,13 @@ interface MessageContextMenuProps {
   onStar: (message: ChatMessage) => void;
   onCopy: (content: string) => void;
   onViewHistory?: (message: ChatMessage) => void;
+  onPin?: (message: ChatMessage) => void;
 }
 
 export default function MessageContextMenu({
   message,
   currentUserId,
+  isGroup,
   onReply,
   onEdit,
   onDelete,
@@ -33,6 +37,7 @@ export default function MessageContextMenu({
   onStar,
   onCopy,
   onViewHistory,
+  onPin,
 }: MessageContextMenuProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
@@ -166,6 +171,19 @@ export default function MessageContextMenu({
                 <Forward size={16} />
                 <span>Forward</span>
               </button>
+
+              {isGroup && onPin && (
+                <button
+                  onClick={() => {
+                    onPin(message);
+                    setShowMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-400 hover:bg-zinc-800 transition-colors"
+                >
+                  <Pin size={16} />
+                  <span>Pin Message</span>
+                </button>
+              )}
 
               <button
                 onClick={handleStar}

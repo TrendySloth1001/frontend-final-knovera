@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, MoreVertical, UserCircle, Trash2, ArrowLeft, Info } from 'lucide-react';
+import { Users, MoreVertical, UserCircle, Trash2, ArrowLeft, Info, Settings, Link as LinkIcon, UserPlus, Pin, Megaphone } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
 import ImageStack from './ImageStack';
 
@@ -16,6 +16,12 @@ interface ChatHeaderProps {
   onDeleteClick: () => void;
   getConversationName: (conv: ChatConversation) => string;
   getConversationAvatar: (conv: ChatConversation) => string | null;
+  // Group Management Actions
+  onGroupSettings?: () => void;
+  onMemberList?: () => void;
+  onInviteLinks?: () => void;
+  onJoinRequests?: () => void;
+  onPinnedMessages?: () => void;
 }
 
 export default function ChatHeader({
@@ -30,9 +36,20 @@ export default function ChatHeader({
   onDeleteClick,
   getConversationName,
   getConversationAvatar,
+  onGroupSettings,
+  onMemberList,
+  onInviteLinks,
+  onJoinRequests,
+  onPinnedMessages,
 }: ChatHeaderProps) {
   const isCreator = selectedConversation.createdBy === currentUserId;
   const showDeleteButton = !selectedConversation.isGroup || isCreator;
+  
+  // Check if current user is admin or moderator
+  const currentMember = selectedConversation.members.find(m => m.userId === currentUserId);
+  const isAdmin = currentMember?.role === 'admin';
+  const isModerator = currentMember?.role === 'moderator';
+  const canManage = isAdmin || isModerator;
 
   console.log('[ChatHeader] Debug:', {
     isGroup: selectedConversation.isGroup,
@@ -111,7 +128,7 @@ export default function ChatHeader({
                 className="fixed inset-0 z-10"
                 onClick={() => setShowMenu(false)}
               />
-              <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg z-20 overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg z-20 overflow-hidden">
                 {!selectedConversation.isGroup && (
                   <button
                     onClick={() => {
@@ -124,6 +141,75 @@ export default function ChatHeader({
                     <span>View Profile</span>
                   </button>
                 )}
+                
+                {/* Group Management Options */}
+                {selectedConversation.isGroup && (
+                  <>
+                    <button
+                      onClick={() => {
+                        onMemberList?.();
+                        setShowMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                    >
+                      <Users size={16} className="text-zinc-400" />
+                      <span>View Members</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        onPinnedMessages?.();
+                        setShowMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                    >
+                      <Pin size={16} className="text-blue-400" />
+                      <span>Pinned Messages</span>
+                    </button>
+                    
+                    {canManage && (
+                      <>
+                        <div className="border-t border-zinc-800 my-1" />
+                        
+                        <button
+                          onClick={() => {
+                            onGroupSettings?.();
+                            setShowMenu(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                        >
+                          <Settings size={16} className="text-purple-400" />
+                          <span>Group Settings</span>
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            onInviteLinks?.();
+                            setShowMenu(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                        >
+                          <LinkIcon size={16} className="text-green-400" />
+                          <span>Invite Links</span>
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            onJoinRequests?.();
+                            setShowMenu(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                        >
+                          <UserPlus size={16} className="text-yellow-400" />
+                          <span>Join Requests</span>
+                        </button>
+                      </>
+                    )}
+                    
+                    <div className="border-t border-zinc-800 my-1" />
+                  </>
+                )}
+                
                 {showDeleteButton && (
                   <button
                     onClick={() => {

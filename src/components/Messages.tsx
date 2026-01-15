@@ -36,6 +36,15 @@ import MediaPreviewModal from './messages/MediaPreviewModal';
 import ForwardMessageModal from './messages/ForwardMessageModal';
 import EditHistoryModal from './messages/EditHistoryModal';
 
+// Group Management Components
+import GroupSettingsModal from './group/GroupSettingsModal';
+import MemberListModal from './group/MemberListModal';
+import InviteLinkManager from './group/InviteLinkManager';
+import JoinRequestList from './group/JoinRequestList';
+import PinnedMessagesPanel from './group/PinnedMessagesPanel';
+import AnnouncementBanner from './group/AnnouncementBanner';
+import { pinMessage } from '@/lib/groupManagementApi';
+
 interface MessagesProps {
   onClose?: () => void;
   initialUserId?: string; // User ID to start a chat with
@@ -80,6 +89,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null);
   const [editHistoryData, setEditHistoryData] = useState<{ current: string; history: Array<{ content: string; editedAt: string }> } | null>(null);
+
+  // Group Management States
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showMemberList, setShowMemberList] = useState(false);
+  const [showInviteLinks, setShowInviteLinks] = useState(false);
+  const [showJoinRequests, setShowJoinRequests] = useState(false);
+  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [showAnnouncements, setShowAnnouncements] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -489,7 +506,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         files,
         caption.trim() || undefined
       );
-      
+
       setMessages((prev) => [...prev, mediaMessage]);
       scrollToBottom();
       handleCloseMediaPreview();
@@ -507,7 +524,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     try {
       const updatedMessage = await messagesAPI.editMessage(token, messageId, newContent);
-      
+
       // Update local message state
       setMessages((prev) =>
         prev.map((msg) =>
@@ -516,7 +533,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             : msg
         )
       );
-      
+
       showNotification('success', 'Message edited');
     } catch (error: any) {
       console.error('[Messages] Failed to edit message:', error);
@@ -531,7 +548,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     try {
       if (forEveryone) {
         await messagesAPI.deleteMessageForEveryone(token, messageId);
-        
+
         // Update local state - mark as deleted for everyone
         setMessages((prev) =>
           prev.map((msg) =>
@@ -542,11 +559,11 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         );
       } else {
         await messagesAPI.deleteMessageForMe(token, messageId);
-        
+
         // Remove message from local state
         setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
       }
-      
+
       showNotification('success', 'Message deleted');
     } catch (error: any) {
       console.error('[Messages] Failed to delete message:', error);
@@ -584,14 +601,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     try {
       await messagesAPI.starMessage(token, messageId);
-      
+
       // Update local state
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === messageId ? { ...msg, isStarred: true } : msg
         )
       );
-      
+
       showNotification('success', 'Message starred');
     } catch (error: any) {
       console.error('[Messages] Failed to star message:', error);
@@ -605,14 +622,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     try {
       await messagesAPI.unstarMessage(token, messageId);
-      
+
       // Update local state
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === messageId ? { ...msg, isStarred: false } : msg
         )
       );
-      
+
       showNotification('success', 'Message unstarred');
     } catch (error: any) {
       console.error('[Messages] Failed to unstar message:', error);
@@ -626,14 +643,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     try {
       await messagesAPI.addReaction(token, messageId, emoji);
-      
+
       // Update local state optimistically
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
             const reactions = msg.reactions || [];
             const existingReaction = reactions.find((r) => r.emoji === emoji);
-            
+
             if (existingReaction) {
               // User already reacted, update the reaction
               return {
@@ -670,7 +687,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
     try {
       await messagesAPI.removeReaction(token, messageId, emoji);
-      
+
       // Update local state
       setMessages((prev) =>
         prev.map((msg) => {
@@ -682,7 +699,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
                   : r
               )
               .filter((r) => r.count > 0);
-            
+
             return { ...msg, reactions };
           }
           return msg;
@@ -975,6 +992,64 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     setSelectedGroupConversation(conv);
     setShowGroupMembers(true);
   };
+
+  // ==================== GROUP MANAGEMENT HANDLERS ====================
+
+  const handlePinMessage = async (messageId: string) => {
+    if (!selectedConversation || !currentUserId) return;
+    try {
+      await pinMessage(selectedConversation.id, messageId);
+      showNotification('success', 'Message pinned successfully');
+      // Reload messages to show updated pin status
+      await loadMessages();
+    } catch (error: any) {
+      showNotification('error', error.response?.data?.error || 'Failed to pin message');
+    }
+  };
+
+  const handleGroupSettingsUpdate = (settings: any) => {
+    if (!selectedConversation) return;
+    setSelectedConversation({
+      ...selectedConversation,
+      ...settings,
+    });
+    // Also update in conversations list
+    setConversations(prevConvs =>
+      prevConvs.map(conv =>
+        conv.id === selectedConversation.id
+          ? { ...conv, ...settings }
+          : conv
+      )
+    );
+    showNotification('success', 'Group settings updated');
+  };
+
+  const handleMemberUpdate = async () => {
+    if (!selectedConversation || !token || !currentUserId) return;
+    // Reload conversation to get updated member list
+    try {
+      const updatedConv = await messagesAPI.getConversation(token, selectedConversation.id, currentUserId);
+      setSelectedConversation(updatedConv);
+      setConversations(prevConvs =>
+        prevConvs.map(conv =>
+          conv.id === selectedConversation.id ? updatedConv : conv
+        )
+      );
+    } catch (error) {
+      console.error('Failed to reload conversation:', error);
+    }
+  };
+
+  const handleRequestHandled = async () => {
+    // Reload conversations to show new members
+    await loadConversations();
+    if (selectedConversation && token && currentUserId) {
+      const updatedConv = await messagesAPI.getConversation(token, selectedConversation.id, currentUserId);
+      setSelectedConversation(updatedConv);
+    }
+  };
+
+
 
 
   // Load available users for new chat
@@ -1397,7 +1472,20 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onDeleteClick={() => setShowDeleteConfirm(true)}
               getConversationName={getConversationName}
               getConversationAvatar={getConversationAvatar}
+              onGroupSettings={() => setShowGroupSettings(true)}
+              onMemberList={() => setShowMemberList(true)}
+              onInviteLinks={() => setShowInviteLinks(true)}
+              onJoinRequests={() => setShowJoinRequests(true)}
+              onPinnedMessages={() => setShowPinnedMessages(true)}
             />
+
+            {/* Announcement Banner for Groups */}
+            {selectedConversation.isGroup && showAnnouncements && (
+              <AnnouncementBanner
+                conversationId={selectedConversation.id}
+                onClose={() => setShowAnnouncements(false)}
+              />
+            )}
 
             <MessagesList
               messages={messages}
@@ -1418,6 +1506,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onAddReaction={handleAddReaction}
               onRemoveReaction={handleRemoveReaction}
               onViewHistory={handleViewHistory}
+              onPinMessage={handlePinMessage}
             />
 
             <MessageInput
@@ -1472,6 +1561,11 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onRemoveMember={handleRemoveMember}
         onAddMembers={handleAddMembersToGroup}
         onLeaveGroup={handleLeaveGroup}
+        onGroupSettings={() => setShowGroupSettings(true)}
+        onMemberList={() => setShowMemberList(true)}
+        onInviteLinks={() => setShowInviteLinks(true)}
+        onJoinRequests={() => setShowJoinRequests(true)}
+        onPinnedMessages={() => setShowPinnedMessages(true)}
       />
 
       <AddMembersModal
@@ -1521,6 +1615,62 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
             setShowEditHistoryModal(false);
             setEditHistoryData(null);
           }}
+        />
+      )}
+
+      {/* ==================== GROUP MANAGEMENT MODALS ==================== */}
+
+      {/* Group Settings Modal */}
+      {showGroupSettings && selectedConversation && currentUserId && (
+        <GroupSettingsModal
+          conversation={selectedConversation}
+          isOpen={showGroupSettings}
+          onClose={() => setShowGroupSettings(false)}
+          onUpdate={handleGroupSettingsUpdate}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {/* Member List Modal */}
+      {showMemberList && selectedConversation && currentUserId && (
+        <MemberListModal
+          conversation={selectedConversation}
+          isOpen={showMemberList}
+          onClose={() => setShowMemberList(false)}
+          currentUserId={currentUserId}
+          onMemberUpdate={handleMemberUpdate}
+        />
+      )}
+
+      {/* Invite Link Manager */}
+      {showInviteLinks && selectedConversation && currentUserId && (
+        <InviteLinkManager
+          conversation={selectedConversation}
+          isOpen={showInviteLinks}
+          onClose={() => setShowInviteLinks(false)}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {/* Join Request List */}
+      {showJoinRequests && selectedConversation && currentUserId && (
+        <JoinRequestList
+          conversation={selectedConversation}
+          isOpen={showJoinRequests}
+          onClose={() => setShowJoinRequests(false)}
+          currentUserId={currentUserId}
+          onRequestHandled={handleRequestHandled}
+        />
+      )}
+
+      {/* Pinned Messages Panel */}
+      {showPinnedMessages && selectedConversation && currentUserId && (
+        <PinnedMessagesPanel
+          conversation={selectedConversation}
+          isOpen={showPinnedMessages}
+          onClose={() => setShowPinnedMessages(false)}
+          currentUserId={currentUserId}
+          onMessageClick={handleScrollToMessage}
         />
       )}
 
