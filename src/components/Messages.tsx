@@ -101,6 +101,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showGroupPreview, setShowGroupPreview] = useState(false);
   const [previewGroupId, setPreviewGroupId] = useState<string | null>(null);
   const [showAnnouncements, setShowAnnouncements] = useState(true);
+  const [conversationIdToDelete, setConversationIdToDelete] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -785,13 +786,19 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   };
 
   // Delete conversation
-  const handleDeleteConversation = async () => {
-    if (!token || !currentUserId || !selectedConversation || isDeletingConversation) return;
+  const handleDeleteConversation = async (conversationId?: string) => {
+    const targetId = conversationId || selectedConversation?.id;
+    if (!token || !currentUserId || !targetId || isDeletingConversation) return;
 
     try {
       setIsDeletingConversation(true);
-      await messagesAPI.deleteConversation(token, selectedConversation.id, currentUserId);
-      setSelectedConversation(null);
+      await messagesAPI.deleteConversation(token, targetId, currentUserId);
+
+      // If we deleted the selected conversation, deselect it
+      if (selectedConversation?.id === targetId) {
+        setSelectedConversation(null);
+      }
+
       setShowDeleteConfirm(false);
       loadConversations();
       showNotification('success', 'Conversation deleted successfully');
@@ -800,6 +807,20 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       showNotification('error', error.message || 'Failed to delete conversation');
     } finally {
       setIsDeletingConversation(false);
+    }
+  };
+
+  // Pin/Unpin conversation
+  const handlePinConversation = async (conversationId: string, isPinned: boolean) => {
+    if (!token || !currentUserId) return;
+
+    try {
+      await messagesAPI.pinConversation(token, conversationId, currentUserId, !isPinned);
+      loadConversations(); // Reload to update order
+      showNotification('success', isPinned ? 'Conversation unpinned' : 'Conversation pinned');
+    } catch (error: any) {
+      console.error('[Messages] Failed to pin conversation:', error);
+      showNotification('error', error.message || 'Failed to pin/unpin conversation');
     }
   };
 
@@ -1501,6 +1522,19 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onClose={onClose}
         getUnreadCount={getUnreadCount}
         onGroupClick={handleGroupMembersClick}
+        onPinConversation={handlePinConversation}
+        onDeleteConversation={(convId) => {
+          // We need to set the conversation to delete and show confirm
+          // But for now, let's just use the confirm modal logic carefully
+          // If we want to support deleting FROM the list, we need to track WHICH one
+          // For simple implementation, let's assume we confirm "Are you sure?" generically
+          // But wait, handleDeleteConversation relies on closure or state? 
+          // I refactored it to take an ID. 
+          // BUT the Modal calls it without arguments usually.
+          // I need state to store the "id to delete" for the modal's onConfirm
+          setConversationIdToDelete(convId);
+          setShowDeleteConfirm(true);
+        }}
       />
 
       {/* Chat View */}

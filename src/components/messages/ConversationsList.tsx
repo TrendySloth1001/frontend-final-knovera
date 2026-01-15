@@ -19,6 +19,8 @@ interface ConversationsListProps {
   onClose?: () => void;
   getUnreadCount: (conv: ChatConversation) => number;
   onGroupClick: (conv: ChatConversation) => void;
+  onPinConversation: (conversationId: string, isPinned: boolean) => void;
+  onDeleteConversation: (conversationId: string) => void;
 }
 
 export default function ConversationsList({
@@ -36,6 +38,8 @@ export default function ConversationsList({
   onClose,
   getUnreadCount,
   onGroupClick,
+  onPinConversation,
+  onDeleteConversation,
 }: ConversationsListProps) {
   return (
     <aside className={`flex-shrink-0 w-full md:w-[380px] border-r border-zinc-800 flex flex-col transition-all duration-300 ${selectedConversation ? 'hidden md:flex' : 'flex'
@@ -140,6 +144,8 @@ export default function ConversationsList({
                     onClick={() => onSelectConversation(conv)}
                     unreadCount={getUnreadCount(conv)}
                     onGroupClick={onGroupClick}
+                    onPin={() => onPinConversation(conv.id, true)}
+                    onDelete={() => onDeleteConversation(conv.id)}
                   />
                 ))}
               </>
@@ -160,6 +166,8 @@ export default function ConversationsList({
                     onClick={() => onSelectConversation(conv)}
                     unreadCount={getUnreadCount(conv)}
                     onGroupClick={onGroupClick}
+                    onPin={() => onPinConversation(conv.id, false)}
+                    onDelete={() => onDeleteConversation(conv.id)}
                   />
                 ))}
               </>

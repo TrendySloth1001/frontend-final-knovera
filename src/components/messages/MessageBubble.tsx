@@ -1,4 +1,4 @@
-import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon, Star } from 'lucide-react';
+import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon, Star, Pin } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
@@ -40,7 +40,7 @@ interface MessageBubbleProps {
 const LinkifiedText = ({ text, onMentionClick }: { text: string; onMentionClick?: (userId: string) => void }) => {
   // First, split by mentions
   const mentionSegments = splitTextWithMentions(text);
-  
+
   return (
     <>
       {mentionSegments.map((segment, index) => {
@@ -54,7 +54,7 @@ const LinkifiedText = ({ text, onMentionClick }: { text: string; onMentionClick?
             />
           );
         }
-        
+
         // For text segments, parse for links
         const parts = parseTextWithLinks(segment.content);
         return (
@@ -272,6 +272,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
         <div className="flex items-center gap-1.5 mt-1.5 px-1 text-[10px] text-zinc-500 font-medium">
           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           {msg.isEdited && <span className="text-zinc-600">(edited)</span>}
+          {msg.isPinned && <Pin size={10} className="text-blue-400 rotate-45" />}
           {msg.isStarred && <Star size={10} className="text-yellow-500 fill-yellow-500" />}
           {isOwn && (
             msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId) ? (
