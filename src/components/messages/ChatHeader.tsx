@@ -1,8 +1,10 @@
 'use client';
 
-import { Users, MoreVertical, UserCircle, Trash2, ArrowLeft, Info, Settings, Link as LinkIcon, UserPlus, Pin, Megaphone } from 'lucide-react';
+import { useState } from 'react';
+import { Users, MoreVertical, UserCircle, Trash2, ArrowLeft, Info, Settings, Link as LinkIcon, UserPlus, Pin, Megaphone, Share2 } from 'lucide-react';
 import { ChatConversation } from '@/types/chat';
 import ImageStack from './ImageStack';
+import ShareGroupModal from './ShareGroupModal';
 
 interface ChatHeaderProps {
   selectedConversation: ChatConversation;
@@ -16,6 +18,7 @@ interface ChatHeaderProps {
   onDeleteClick: () => void;
   getConversationName: (conv: ChatConversation) => string;
   getConversationAvatar: (conv: ChatConversation) => string | null;
+  authToken: string; // Add auth token for share modal
   // Group Management Actions
   onGroupSettings?: () => void;
   onMemberList?: () => void;
@@ -36,12 +39,14 @@ export default function ChatHeader({
   onDeleteClick,
   getConversationName,
   getConversationAvatar,
+  authToken,
   onGroupSettings,
   onMemberList,
   onInviteLinks,
   onJoinRequests,
   onPinnedMessages,
 }: ChatHeaderProps) {
+  const [showShareModal, setShowShareModal] = useState(false);
   const isCreator = selectedConversation.createdBy === currentUserId;
   const showDeleteButton = !selectedConversation.isGroup || isCreator;
   
@@ -147,6 +152,17 @@ export default function ChatHeader({
                   <>
                     <button
                       onClick={() => {
+                        setShowShareModal(true);
+                        setShowMenu(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                    >
+                      <Share2 size={16} className="text-green-400" />
+                      <span>Share Group</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
                         onMemberList?.();
                         setShowMenu(false);
                       }}
@@ -227,6 +243,17 @@ export default function ChatHeader({
           )}
         </div>
       </div>
+
+      {/* Share Group Modal */}
+      {selectedConversation.isGroup && (
+        <ShareGroupModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          groupToShare={selectedConversation}
+          currentUserId={currentUserId}
+          authToken={authToken}
+        />
+      )}
     </header>
   );
 }

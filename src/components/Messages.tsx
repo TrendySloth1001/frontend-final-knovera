@@ -45,6 +45,7 @@ import PinnedMessagesPanel from './group/PinnedMessagesPanel';
 import AnnouncementBanner from './group/AnnouncementBanner';
 import { pinMessage } from '@/lib/groupManagementApi';
 import { votePoll } from '@/lib/pollApi';
+import GroupPreviewDrawer from './messages/GroupPreviewDrawer';
 
 interface MessagesProps {
   onClose?: () => void;
@@ -97,6 +98,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showInviteLinks, setShowInviteLinks] = useState(false);
   const [showJoinRequests, setShowJoinRequests] = useState(false);
   const [showPinnedMessages, setShowPinnedMessages] = useState(false);
+  const [showGroupPreview, setShowGroupPreview] = useState(false);
+  const [previewGroupId, setPreviewGroupId] = useState<string | null>(null);
   const [showAnnouncements, setShowAnnouncements] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1029,6 +1032,25 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     }
   };
 
+  const handleGroupPreview = (groupId: string) => {
+    // Check if we are already a member of this group
+    const existingConv = conversations.find(c => c.id === groupId);
+    if (existingConv) {
+      if (existingConv.isGroup) {
+        setSelectedConversation(existingConv); // Functionality is slightly different, maybe just show drawer?
+        // Actually, if we click preview, we might just want to see the members drawer
+        setSelectedGroupConversation(existingConv);
+        setShowGroupMembers(true);
+      } else {
+        // Should not happen for group preview but handle just in case
+        setSelectedConversation(existingConv);
+      }
+    } else {
+      setPreviewGroupId(groupId);
+      setShowGroupPreview(true);
+    }
+  };
+
   const handleGroupSettingsUpdate = (settings: any) => {
     if (!selectedConversation) return;
     setSelectedConversation({
@@ -1494,6 +1516,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onDeleteClick={() => setShowDeleteConfirm(true)}
               getConversationName={getConversationName}
               getConversationAvatar={getConversationAvatar}
+              authToken={token!}
               onGroupSettings={() => setShowGroupSettings(true)}
               onMemberList={() => setShowMemberList(true)}
               onInviteLinks={() => setShowInviteLinks(true)}
@@ -1530,6 +1553,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               onViewHistory={handleViewHistory}
               onPinMessage={handlePinMessage}
               onVote={handleVote}
+              onGroupPreview={handleGroupPreview}
             />
 
             <MessageInput
@@ -1589,6 +1613,21 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onInviteLinks={() => setShowInviteLinks(true)}
         onJoinRequests={() => setShowJoinRequests(true)}
         onPinnedMessages={() => setShowPinnedMessages(true)}
+      />
+
+      {/* Group Preview Drawer (for non-members or join flow) */}
+      <GroupPreviewDrawer
+        isOpen={showGroupPreview}
+        onClose={() => {
+          setShowGroupPreview(false);
+          setPreviewGroupId(null);
+        }}
+        groupId={previewGroupId || ''}
+        currentUserId={currentUserId!}
+        onJoinSuccess={() => {
+          // Maybe refresh conversations?
+          setTimeout(() => loadConversations(), 1000);
+        }}
       />
 
       <AddMembersModal

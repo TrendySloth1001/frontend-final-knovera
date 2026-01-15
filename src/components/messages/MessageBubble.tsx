@@ -5,9 +5,11 @@ import AudioPlayer from './AudioPlayer';
 import DocumentViewer from './DocumentViewer';
 import MediaGrid from './MediaGrid';
 import { parseTextWithLinks } from '@/utils/linkify';
+import { parseGroupShareLinks } from '@/utils/groupShareLink';
 import MessageContextMenu from './MessageContextMenu';
 import ReactionPicker from './ReactionPicker';
 import PollMessage from './PollMessage';
+import GroupSharePreview from './GroupSharePreview';
 
 interface MessageBubbleProps {
   msg: ChatMessage;
@@ -29,6 +31,7 @@ interface MessageBubbleProps {
   onViewHistory?: (messageId: string) => void;
   onPinMessage?: (messageId: string) => void;
   onVote?: (pollId: string, optionIndex: number) => void;
+  onGroupPreview?: (groupId: string) => void;
 }
 
 // Component to render text with clickable links
@@ -58,7 +61,7 @@ const LinkifiedText = ({ text }: { text: string }) => {
   );
 };
 
-export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote }: MessageBubbleProps) {
+export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote, onGroupPreview }: MessageBubbleProps) {
   // Check if message has been seen by any other user (not the sender)
   const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
   // Count how many users have seen it (excluding sender)
@@ -80,7 +83,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
       {!isOwn && isGroup && (
         <button
           onClick={() => onAvatarClick?.(msg.userId)}
-          className="flex-shrink-0 self-end mb-1"
+          className="flex-shrink-0 self-end mb-1 order-1"
         >
           <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden hover:border-zinc-500 transition-colors">
             {msg.user?.avatarUrl ? (
@@ -94,7 +97,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
         </button>
       )}
 
-      <div className={`max-w-[75%] md:max-w-[60%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[75%] md:max-w-[60%] flex flex-col ${isOwn ? 'items-end' : 'items-start'} order-2`}>
         {/* Sender Name in Group */}
         {!isOwn && isGroup && (
           <span className="text-[10px] text-zinc-500 mb-1 ml-1 cursor-pointer hover:underline" onClick={() => onAvatarClick?.(msg.userId)}>
@@ -206,11 +209,29 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               />
             </div>
           ) : (
-            msg.content && (
-              <div className="whitespace-pre-wrap break-words">
-                <LinkifiedText text={msg.content} />
-              </div>
-            )
+            msg.content && (() => {
+              // Parse group share links from message content
+              const { text, groupLinks } = parseGroupShareLinks(msg.content);
+
+              return (
+                <div className="space-y-2">
+                  {text && (
+                    <div className="whitespace-pre-wrap break-words">
+                      <LinkifiedText text={text} />
+                    </div>
+                  )}
+
+                  {/* Render group share previews */}
+                  {groupLinks.map((link, index) => (
+                    <GroupSharePreview
+                      key={index}
+                      groupId={link.groupId}
+                      onOpen={onGroupPreview}
+                    />
+                  ))}
+                </div>
+              );
+            })()
           )}
 
           {/* Reactions Display */}
@@ -241,10 +262,10 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-1 self-end mb-1">
+      <div className={`flex gap-1 self-center mb-1 ${isOwn ? 'order-1' : 'order-3'} opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity`}>
         {/* Reaction Picker (only show empty picker when no reactions) */}
         {(!msg.reactions || msg.reactions.length === 0) && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <div>
             <ReactionPicker
               messageId={msg.id}
               reactions={[]}
@@ -258,7 +279,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
         {onReplyToMessage && (
           <button
             onClick={() => onReplyToMessage(msg)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+            className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300"
             title="Reply to message"
           >
             <Reply size={14} />

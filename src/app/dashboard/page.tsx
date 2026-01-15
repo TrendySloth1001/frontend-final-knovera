@@ -116,7 +116,14 @@ export default function Dashboard() {
 
     // Set initial tab from URL hash
     const hash = window.location.hash.slice(1);
-    if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
+    
+    // Handle messages with chat ID: #messages/chatid
+    if (hash.startsWith('messages/')) {
+      setActiveTab('Messages');
+      const chatId = hash.split('/')[1];
+      // Set the message user ID to trigger opening that chat
+      setMessageUserId(chatId);
+    } else if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
       const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
       setActiveTab(tabName);
     } else if (hash === 'messages') {
@@ -126,7 +133,13 @@ export default function Dashboard() {
     // Listen for hash changes
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
+      
+      // Handle messages with chat ID
+      if (hash.startsWith('messages/')) {
+        setActiveTab('Messages');
+        const chatId = hash.split('/')[1];
+        setMessageUserId(chatId);
+      } else if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
         const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
         setActiveTab(tabName);
       } else if (hash === 'messages') {
