@@ -2,12 +2,12 @@
  * Chat API Service - Peer-to-peer messaging
  */
 
-import { 
-  ChatUser, 
-  ChatConversation, 
-  ChatMessage, 
+import {
+  ChatUser,
+  ChatConversation,
+  ChatMessage,
   CreateConversationPayload,
-  SendMessagePayload 
+  SendMessagePayload
 } from '@/types/chat';
 
 const API_BASE_URL = 'http://localhost:3001/api/chat';
@@ -258,6 +258,18 @@ class ChatAPI {
     }
 
     return response.json();
+  }
+
+  async saveDraft(token: string, conversationId: string, draft: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/draft`, {
+      method: 'PATCH',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ draft }),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to save draft');
+    }
   }
 }
 

@@ -40,6 +40,7 @@ export interface ChatConversation {
     isBanned?: boolean;
     bannedAt?: string | null;
     banReason?: string | null;
+    draft?: string | null;
   }>;
   lastMessage?: ChatMessage | null;
   isPinned?: boolean;
@@ -198,6 +199,7 @@ export interface GroupMember {
   joinedAt: string;
   isPinned: boolean;
   lastRead?: string | null;
+  draft?: string | null;
 }
 
 export interface GroupSettings {

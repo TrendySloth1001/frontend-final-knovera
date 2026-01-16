@@ -3,17 +3,17 @@
  * Complete API client for all chat endpoints
  */
 
-import { 
-  ChatUser, 
-  ChatConversation, 
+import {
+  ChatUser,
+  ChatConversation,
   ChatMessage,
   OnlineStatus,
   CreateConversationPayload,
-  SendMessagePayload 
+  SendMessagePayload
 } from '@/types/chat';
 
 // Get API base URL - chat API is on port 3001
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
   ? `${process.env.NEXT_PUBLIC_API_URL}/api/chat`
   : 'http://localhost:3001/api/chat';
 
@@ -58,11 +58,11 @@ class MessagesAPI {
     const headers: HeadersInit = {
       'Authorization': `Bearer ${token}`,
     };
-    
+
     if (!isMultipart) {
       headers['Content-Type'] = 'application/json';
     }
-    
+
     return headers;
   }
 
@@ -73,7 +73,7 @@ class MessagesAPI {
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      
+
       try {
         const errorData = JSON.parse(errorText);
         errorMessage = errorData.error || errorData.message || errorMessage;
@@ -83,7 +83,7 @@ class MessagesAPI {
           errorMessage = errorText;
         }
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -93,7 +93,7 @@ class MessagesAPI {
    */
   private async handleError(response: Response, defaultMessage: string): Promise<never> {
     let errorMessage = defaultMessage;
-    
+
     try {
       const errorData: ApiError = await response.json();
       errorMessage = errorData.error || defaultMessage;
@@ -101,7 +101,7 @@ class MessagesAPI {
       // If parsing fails, use status text or default message
       errorMessage = (response.statusText && response.statusText.trim()) ? response.statusText : defaultMessage;
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -290,7 +290,7 @@ class MessagesAPI {
   async getUserConversations(token: string, userId: string): Promise<ChatConversation[]> {
     console.log('[MessagesAPI] Fetching conversations for user:', userId);
     console.log('[MessagesAPI] API URL:', `${API_BASE_URL}/users/${userId}/conversations`);
-    
+
     const response = await fetch(`${API_BASE_URL}/users/${userId}/conversations`, {
       method: 'GET',
       headers: this.getHeaders(token),
@@ -469,13 +469,13 @@ class MessagesAPI {
    * Get messages from conversation
    */
   async getMessages(
-    token: string, 
-    conversationId: string, 
-    limit = 50, 
+    token: string,
+    conversationId: string,
+    limit = 50,
     before?: string
   ): Promise<ChatMessage[]> {
     let url = `${API_BASE_URL}/conversations/${conversationId}/messages?limit=${limit}`;
-    
+
     if (before) {
       url += `&before=${before}`;
     }
@@ -512,9 +512,9 @@ class MessagesAPI {
    * Search messages in conversation
    */
   async searchMessages(
-    token: string, 
-    conversationId: string, 
-    query: string, 
+    token: string,
+    conversationId: string,
+    query: string,
     limit = 20
   ): Promise<SearchMessagesResponse> {
     const response = await fetch(
@@ -557,9 +557,9 @@ class MessagesAPI {
    * Send media message
    */
   async sendMediaMessage(
-    token: string, 
-    conversationId: string, 
-    mediaUrl?: string, 
+    token: string,
+    conversationId: string,
+    mediaUrl?: string,
     mediaType?: string,
     content?: string,
     mediaUrls?: string[],
@@ -589,14 +589,14 @@ class MessagesAPI {
    * Upload and send media in one call
    */
   async uploadAndSendMedia(
-    token: string, 
-    conversationId: string, 
+    token: string,
+    conversationId: string,
     file: File,
     caption?: string
   ): Promise<ChatMessage> {
     // First upload the media
     const uploadResult = await this.uploadMedia(token, file);
-    
+
     // Then send as message
     return this.sendMediaMessage(
       token,
@@ -611,19 +611,19 @@ class MessagesAPI {
    * Upload multiple files and send as a single message
    */
   async uploadAndSendMultipleMedia(
-    token: string, 
-    conversationId: string, 
+    token: string,
+    conversationId: string,
     files: File[],
     caption?: string
   ): Promise<ChatMessage> {
     // Upload all files in parallel
     const uploadPromises = files.map(file => this.uploadMedia(token, file));
     const uploadResults = await Promise.all(uploadPromises);
-    
+
     // Extract URLs and types
     const mediaUrls = uploadResults.map(result => result.url);
     const mediaTypes = uploadResults.map(result => result.mimetype);
-    
+
     // Send as single message with multiple media
     return this.sendMediaMessage(
       token,
@@ -647,9 +647,9 @@ class MessagesAPI {
    * Create a study group
    */
   async createStudyGroup(
-    token: string, 
-    name: string, 
-    creatorId: string, 
+    token: string,
+    name: string,
+    creatorId: string,
     memberIds: string[]
   ): Promise<ChatConversation> {
     return this.createConversation(token, {
@@ -672,8 +672,8 @@ class MessagesAPI {
    * Load more messages (pagination)
    */
   async loadMoreMessages(
-    token: string, 
-    conversationId: string, 
+    token: string,
+    conversationId: string,
     oldestMessageId: string,
     limit = 50
   ): Promise<ChatMessage[]> {
@@ -801,6 +801,22 @@ class MessagesAPI {
     }
 
     return response.json();
+  }
+
+  /**
+   * Save draft message
+   */
+  async saveDraft(token: string, conversationId: string, userId: string, draft: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/draft`, {
+      method: 'PATCH',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ userId, draft }),
+    });
+
+    if (!response.ok) {
+      // Silently fail for drafts as it's not critical
+      console.warn('Failed to save draft');
+    }
   }
 
   /**
@@ -970,7 +986,7 @@ class MessagesAPI {
    * Get starred messages in a conversation
    */
   async getStarredMessages(token: string, conversationId?: string): Promise<ChatMessage[]> {
-    const url = conversationId 
+    const url = conversationId
       ? `${API_BASE_URL}/conversations/${conversationId}/starred`
       : `${API_BASE_URL}/starred`;
 

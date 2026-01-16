@@ -93,6 +93,8 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
   const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null);
   const [editHistoryData, setEditHistoryData] = useState<{ current: string; history: Array<{ content: string; editedAt: string }> } | null>(null);
+  const lastLoadedDraft = useRef<string>('');
+
 
   // Group Management States
   const [showGroupSettings, setShowGroupSettings] = useState(false);
@@ -458,6 +460,10 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
       // Reload conversations to update last message without showing loading spinner
       loadConversations(true);
+
+      // Clear draft on backend and local ref
+      messagesAPI.saveDraft(token, selectedConversation.id, currentUserId, '').catch(console.error);
+      lastLoadedDraft.current = '';
     } catch (error: any) {
       console.error('[Messages] Failed to send message:', error);
       showNotification('error', error.message || 'Failed to send message');
@@ -1069,13 +1075,14 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     const existingConv = conversations.find(c => c.id === groupId);
     if (existingConv) {
       if (existingConv.isGroup) {
-        setSelectedConversation(existingConv); // Functionality is slightly different, maybe just show drawer?
+        handleSelectConversation(existingConv); // Functionality is slightly different, maybe just show drawer?
+
         // Actually, if we click preview, we might just want to see the members drawer
         setSelectedGroupConversation(existingConv);
         setShowGroupMembers(true);
       } else {
         // Should not happen for group preview but handle just in case
-        setSelectedConversation(existingConv);
+        handleSelectConversation(existingConv);
       }
     } else {
       setPreviewGroupId(groupId);
@@ -1085,7 +1092,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
 
   const handleGroupSettingsUpdate = (settings: any) => {
     if (!selectedConversation) return;
-    setSelectedConversation({
+    handleSelectConversation({
       ...selectedConversation,
       ...settings,
     });
@@ -1105,7 +1112,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     // Reload conversation to get updated member list
     try {
       const updatedConv = await messagesAPI.getConversation(token, selectedConversation.id, currentUserId);
-      setSelectedConversation(updatedConv);
+      handleSelectConversation(updatedConv);
       setConversations(prevConvs =>
         prevConvs.map(conv =>
           conv.id === selectedConversation.id ? updatedConv : conv
@@ -1121,13 +1128,77 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
     await loadConversations();
     if (selectedConversation && token && currentUserId) {
       const updatedConv = await messagesAPI.getConversation(token, selectedConversation.id, currentUserId);
-      setSelectedConversation(updatedConv);
+      handleSelectConversation(updatedConv);
     }
   };
 
 
 
+  const handleSelectConversation = useCallback((conv: ChatConversation | null) => {
+    // If updating current conversation (e.g. member update), just update state
+    if (conv?.id === selectedConversation?.id) {
+      setSelectedConversation(conv);
+      return;
+    }
 
+    // Switching conversation - save old draft
+    if (selectedConversation && currentUserId && token) {
+      // Fire and forget save
+      messagesAPI.saveDraft(token, selectedConversation.id, currentUserId, messageInput).catch(console.error);
+    }
+
+    // Load new draft or clear input
+    if (conv) {
+      const member = conv.members.find(m => m.userId === currentUserId);
+      const draft = member?.draft || '';
+      setMessageInput(draft);
+      lastLoadedDraft.current = draft;
+    } else {
+      setMessageInput('');
+      lastLoadedDraft.current = '';
+    }
+
+    setSelectedConversation(conv);
+
+    // Clear typing state
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    isTypingRef.current = false;
+  }, [selectedConversation, currentUserId, token, messageInput]);
+
+  // Auto-save draft effect
+  useEffect(() => {
+    if (!selectedConversation || !token || !currentUserId) return;
+
+    // Skip if input matches loaded draft (no changes)
+    if (messageInput === lastLoadedDraft.current) return;
+
+    const timeoutId = setTimeout(() => {
+      messagesAPI.saveDraft(token, selectedConversation.id, currentUserId, messageInput)
+        .then(() => {
+          lastLoadedDraft.current = messageInput;
+          // Update local conversation state to reflect draft immediately
+          setConversations(prev => prev.map(conv => {
+            if (conv.id === selectedConversation.id) {
+              return {
+                ...conv,
+                members: conv.members.map(m =>
+                  m.userId === currentUserId
+                    ? { ...m, draft: messageInput }
+                    : m
+                )
+              };
+            }
+            return conv;
+          }));
+        })
+        .catch(console.error);
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [messageInput, selectedConversation, token, currentUserId]);
   // Load available users for new chat
   const loadAvailableUsers = useCallback(async () => {
     if (!token) return;
@@ -1308,7 +1379,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
       const startChat = async () => {
         try {
           const conversation = await messagesAPI.checkOrCreateOneToOne(token, initialUserId);
-          setSelectedConversation(conversation);
+          handleSelectConversation(conversation);
           setShowUserSearch(false);
           loadConversations();
         } catch (error: any) {
@@ -1522,7 +1593,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         filteredConversations={filteredConversations}
         selectedConversation={selectedConversation}
         currentUserId={currentUserId!}
-        onSelectConversation={setSelectedConversation}
+        onSelectConversation={handleSelectConversation}
         onShowUserSearch={() => setShowUserSearch(true)}
         onShowGroupCreate={() => {
           loadMutualFollowers();
@@ -1557,7 +1628,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               isConnected={isConnected}
               showMenu={showMenu}
               setShowMenu={setShowMenu}
-              onBack={() => setSelectedConversation(null)}
+              onBack={() => handleSelectConversation(null)}
               onProfileClick={() => handleProfileClick(selectedConversation)}
               onGroupMembersClick={() => handleGroupMembersClick(selectedConversation)}
               onDeleteClick={() => setShowDeleteConfirm(true)}

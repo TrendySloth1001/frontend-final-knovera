@@ -49,6 +49,12 @@ export default function ConversationItem({
 
   // Determine last message text with media support
   const getLastMessageText = () => {
+    // Check for draft first
+    const currentMember = conv.members.find(m => m.userId === currentUserId);
+    if (currentMember?.draft && currentMember.draft.trim()) {
+      return <span className="text-zinc-400"><span className="text-red-400 italic">Draft:</span> {currentMember.draft}</span>;
+    }
+
     if (!conv.lastMessage) return 'No messages yet';
 
     const prefix = conv.lastMessage.userId === currentUserId ? 'You: ' : '';
