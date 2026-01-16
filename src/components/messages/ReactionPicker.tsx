@@ -57,7 +57,7 @@ export default function ReactionPicker({
   };
 
   return (
-    <div className={`flex items-center gap-1 ${className}`} ref={pickerRef}>
+    <div className={`flex flex-wrap items-center gap-1 ${className}`} ref={pickerRef}>
       {/* Display existing reactions */}
       {reactions.map((reaction) => (
         <button
@@ -95,7 +95,7 @@ export default function ReactionPicker({
 
         {/* Emoji picker popup */}
         {showPicker && (
-          <div className="absolute bottom-full mb-2 -left-2 z-[100] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-2 grid grid-cols-4 gap-1 min-w-[160px] animate-in zoom-in-95 duration-200">
+          <div className="absolute bottom-full mb-2 right-0 z-[100] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-2 grid grid-cols-4 gap-1 min-w-[160px] animate-in zoom-in-95 origin-bottom-right duration-200">
             {QUICK_EMOJIS.map((emoji) => {
               const existingReaction = reactions.find(r => r.emoji === emoji);
               return (

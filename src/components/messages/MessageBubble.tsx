@@ -9,7 +9,7 @@ import { parseGroupShareLinks } from '@/utils/groupShareLink';
 import MessageContextMenu from './MessageContextMenu';
 import ReactionPicker from './ReactionPicker';
 import Mention from './Mention';
-import { splitTextWithMentions } from '@/utils/mentionParser';
+import { splitTextWithMentions, mentionToDisplayText } from '@/utils/mentionParser';
 import PollMessage from './PollMessage';
 import GroupSharePreview from './GroupSharePreview';
 
@@ -161,7 +161,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
                 </span>
               </div>
               <div className="text-zinc-400 text-xs line-clamp-2 flex items-center gap-1">
-                {msg.replyToMessage.content || (
+                {mentionToDisplayText(msg.replyToMessage.content) || (
                   <span className="flex items-center gap-1">
                     {(() => {
                       const mediaType = (msg.replyToMessage as any)?.mediaType;
