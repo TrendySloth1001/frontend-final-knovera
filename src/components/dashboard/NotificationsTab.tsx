@@ -51,8 +51,8 @@ export default function NotificationsTab({
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 sm:gap-0">
+        <div className="hidden sm:flex items-center space-x-3">
           <button
             onClick={() => changeTab('Overview')}
             className="p-2 hover:bg-neutral-800 rounded-lg transition-colors group"
@@ -69,10 +69,29 @@ export default function NotificationsTab({
           </div>
         </div>
 
+        {/* Mobile-only status bar since title is hidden */}
+        <div className="flex sm:hidden items-center justify-between w-full">
+          <span className="text-sm font-medium text-neutral-400">
+            {notifications.some(n => !n.read || !n.isRead)
+              ? `${notifications.filter(n => !n.read && !n.isRead).length} Unread`
+              : 'All caught up'}
+          </span>
+          {notifications.length > 0 && (
+            <button
+              onClick={markAllRead}
+              className="text-xs font-medium text-blue-400 hover:text-blue-300 flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <span>Mark all read</span>
+              <CheckCheck size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Desktop Mark all read */}
         {notifications.length > 0 && (
           <button
             onClick={markAllRead}
-            className="text-sm font-medium text-neutral-500 hover:text-blue-400 flex items-center gap-2 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-500/10"
+            className="hidden sm:flex text-sm font-medium text-neutral-500 hover:text-blue-400 items-center gap-2 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-500/10 whitespace-nowrap"
           >
             <span>Mark all read</span>
             <CheckCheck size={16} />
@@ -80,22 +99,24 @@ export default function NotificationsTab({
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="bg-black border border-neutral-800 rounded-2xl overflow-hidden">
         {notifications.length > 0 ? (
-          notifications.map((notif: any) => (
-            <NotificationItem
-              key={notif.id}
-              notification={mapNotification(notif)}
-              onDismiss={handleDismiss}
-              onMarkRead={handleMarkAsRead}
-            />
-          ))
+          <div>
+            {notifications.map((notif: any) => (
+              <NotificationItem
+                key={notif.id}
+                notification={mapNotification(notif)}
+                onDismiss={handleDismiss}
+                onMarkRead={handleMarkAsRead}
+              />
+            ))}
+          </div>
         ) : (
-          <div className="text-center py-24 px-4 bg-neutral-900/20 rounded-2xl border border-dashed border-neutral-800">
-            <div className="w-16 h-16 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-neutral-800">
-              <Bell className="w-8 h-8 text-neutral-600" />
+          <div className="text-center py-24 px-4 bg-neutral-900/10">
+            <div className="w-16 h-16 bg-neutral-900/50 rounded-full flex items-center justify-center mx-auto mb-6 border border-neutral-800/50">
+              <Bell className="w-8 h-8 text-neutral-700" />
             </div>
-            <h4 className="text-white font-medium mb-1">All caught up!</h4>
+            <h4 className="text-neutral-200 font-medium mb-1">All caught up!</h4>
             <p className="text-neutral-500 text-sm">No new notifications to show.</p>
           </div>
         )}

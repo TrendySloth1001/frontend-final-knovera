@@ -4,30 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import {
-  LayoutDashboard,
-  BarChart3,
-  Settings,
+
   Users,
-  Bell,
-  Search,
-  ChevronRight,
-  TrendingUp,
-  Activity,
-  ArrowUpRight,
-  MessageSquare,
-  Brain,
   BookOpen,
-  Zap,
-  ArrowLeft,
-  Check,
-  CheckCheck,
-  User,
   Mail,
   Calendar,
   GraduationCap,
-  Building,
   Award
 } from 'lucide-react';
 import { aiAPI } from '@/lib/ai-api';
@@ -36,9 +19,7 @@ import { discoverGroups, searchGroups } from '@/lib/groupDiscoveryApi';
 import { createJoinRequest } from '@/lib/groupManagementApi';
 import Drawer from '@/components/Drawer';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import Messages from '@/components/Messages';
 import AvatarSelectionModal from '@/components/AvatarSelectionModal';
-import ImageStack from '@/components/messages/ImageStack';
 import Sidebar from '@/components/Sidebar';
 import OverviewTab from '@/components/dashboard/OverviewTab';
 import NotificationsTab from '@/components/dashboard/NotificationsTab';
@@ -119,49 +100,74 @@ export default function Dashboard() {
   ];
 
   // Pick random illustration on page load
+  // Determine active tab from hash
+  const getTabFromHash = (hash: string) => {
+    const cleanHash = hash.replace('#', '').toLowerCase();
+
+    if (cleanHash.startsWith('messages/') || cleanHash.startsWith('massages/')) {
+      return 'Messages';
+    }
+
+    if (cleanHash.startsWith('teacher/')) {
+      return null;
+    }
+
+    switch (cleanHash) {
+      case 'notification':
+      case 'notifications':
+        return 'Notifications';
+      case 'messages':
+      case 'massages':
+        return 'Messages';
+      case 'community':
+        return 'Community';
+      case 'analytics':
+        return 'Analytics';
+      case 'settings':
+        return 'Settings';
+      case 'profile':
+        return 'Profile';
+      case 'overview':
+      default:
+        return 'Overview';
+    }
+  };
+
+  // Pick random illustration on page load
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * illustrations.length);
     setCurrentIllustration(illustrations[randomIndex]);
+  }, []);
 
-    // Set initial tab from URL hash
-    const hash = window.location.hash.slice(1);
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash;
+      const tab = getTabFromHash(hash);
 
-    // Handle messages with chat ID: #messages/chatid
-    if (hash.startsWith('messages/')) {
-      setActiveTab('Messages');
-      const chatId = hash.split('/')[1];
-      // Set the message user ID to trigger opening that chat
-      setMessageUserId(chatId);
-    } else if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
-      const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
-      setActiveTab(tabName);
-    } else if (hash === 'messages') {
-      setActiveTab('Messages');
-    } else if (!hash) {
-      // If no hash, set default to overview
-      window.location.hash = 'overview';
-      setActiveTab('Overview');
-    }
+      if (tab) {
+        setActiveTab(tab);
+      }
 
-    // Listen for hash changes
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-
-      // Handle messages with chat ID
-      if (hash.startsWith('messages/')) {
-        setActiveTab('Messages');
+      // Handle message ID parsing
+      if (hash.includes('messages/') || hash.includes('massages/')) {
         const chatId = hash.split('/')[1];
-        setMessageUserId(chatId);
-      } else if (hash && !hash.startsWith('teacher/') && hash !== 'messages') {
-        const tabName = hash.charAt(0).toUpperCase() + hash.slice(1);
-        setActiveTab(tabName);
-      } else if (hash === 'messages') {
-        setActiveTab('Messages');
+        if (chatId) setMessageUserId(chatId);
+      } else if (hash.includes('teacher/')) {
+        const teacherId = hash.split('/')[1];
+        setSelectedTeacherId(teacherId);
+        loadTeacherProfile(teacherId);
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    // Initial load
+    if (!window.location.hash) {
+      window.location.hash = 'overview';
+    } else {
+      onHashChange();
+    }
+
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
   useEffect(() => {
@@ -509,10 +515,7 @@ export default function Dashboard() {
       const hash = window.location.hash;
       if (hash.startsWith('#teacher/')) {
         const teacherId = hash.replace('#teacher/', '');
-        // Ensure we're on the Community tab when viewing a teacher profile
-        if (activeTab !== 'Community') {
-          setActiveTab('Community');
-        }
+        // Allow opening drawer on any tab
         setSelectedTeacherId(teacherId);
         loadTeacherProfile(teacherId);
       } else {
@@ -568,7 +571,7 @@ export default function Dashboard() {
 
   // Helper function to change tab and update URL hash
   const changeTab = (tabName: string) => {
-    setActiveTab(tabName);
+    // We only update the hash, the generic hash listener handles state
     window.location.hash = tabName.toLowerCase();
   };
 
@@ -582,9 +585,8 @@ export default function Dashboard() {
   const startMessagingWithTeacher = async (teacherUserId: string) => {
     if (!teacherUserId || !user?.user?.id) return;
 
-    // Set the user ID to message and switch to Messages tab
-    setMessageUserId(teacherUserId);
-    changeTab('Messages');
+    // Update hash to trigger navigation and state update via listener
+    window.location.hash = `messages/${teacherUserId}`;
   };
 
 
@@ -606,7 +608,7 @@ export default function Dashboard() {
 
       <Sidebar
         activeTab={activeTab}
-        changeTab={setActiveTab}
+        changeTab={changeTab}
         unreadCount={unreadCount}
         showMobileMenu={showMobileMenu}
         setShowMobileMenu={setShowMobileMenu}
