@@ -181,16 +181,24 @@ export default function MessageInput({
     // Replace clean mentions with ID format before sending
     let processedText = messageInput;
 
-    // This is a simple replacement strategy. 
-    // It iterates over known members and replaces @Name with @[id:name]
-    // Note: This replaces ALL occurrences of @Name.
-    members.forEach(member => {
-      const mentionText = `@${member.displayName}`;
-      if (processedText.includes(mentionText)) {
+    // Use regex to replace specific mentions robustly
+    // Sort members by display name length (descending) to match longest names first
+    // This prevents partial matches if one name contains another (e.g. @JohnDoe vs @John)
+    const sortedMembers = [...members].sort((a, b) => b.displayName.length - a.displayName.length);
+
+    sortedMembers.forEach(member => {
+      // Escape special regex characters in the display name
+      const escapedName = member.displayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Match @Name ensuring it's not preceded by word char (unless it's start of string)
+      // and not followed by word char. 
+      // Note: We use a capturing group for the @ to preserve it if needed or just replace the whole thing.
+      // We want to replace "@Name" with "@[id:Name]"
+      const regex = new RegExp(`@${escapedName}(?![\\w])`, 'g');
+
+      if (regex.test(processedText)) {
         const replacement = `@[${member.userId}:${member.displayName}]`;
-        // Use a regex to replace complete words only to avoid partial matches if needed,
-        // but simpler global replace for now.
-        processedText = processedText.split(mentionText).join(replacement);
+        processedText = processedText.replace(regex, replacement);
       }
     });
 
