@@ -1577,6 +1577,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
               <AnnouncementBanner
                 conversationId={selectedConversation.id}
                 onClose={() => setShowAnnouncements(false)}
+                onAnnouncementClick={handleScrollToMessage}
               />
             )}
 

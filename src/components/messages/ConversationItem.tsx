@@ -89,7 +89,7 @@ export default function ConversationItem({
       <button
         onClick={onClick}
         className={`
-          w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative border
+          w-full flex items-center gap-3 pl-3 py-3 pr-10 rounded-xl transition-all duration-200 relative border
           ${isSelected ? 'border-zinc-700 bg-zinc-900/30' : 'border-transparent hover:border-zinc-800'}
         `}
       >

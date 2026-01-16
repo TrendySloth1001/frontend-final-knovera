@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon, Star, Pin, Megaphone } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
@@ -85,10 +86,20 @@ const LinkifiedText = ({ text, onMentionClick }: { text: string; onMentionClick?
 };
 
 export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAvatarClick, onReplyToMessage, messageRef, isHighlighted, onScrollToMessage, onEditMessage, onDeleteMessage, onForwardMessage, onStarMessage, onUnstarMessage, onAddReaction, onRemoveReaction, onViewHistory, onPinMessage, onVote, onGroupPreview, onShowSeenBy }: MessageBubbleProps) {
+  const uniqueSeenBy = useMemo(() => {
+    if (!msg.seenBy) return [];
+    // Filter out sender first, then deduplicate
+    return msg.seenBy
+      .filter(s => s.userId !== msg.userId)
+      .filter((seen, index, self) =>
+        index === self.findIndex((t) => t.userId === seen.userId)
+      );
+  }, [msg.seenBy, msg.userId]);
+
   // Check if message has been seen by any other user (not the sender)
-  const isSeen = msg.seenBy && msg.seenBy.length > 0 && msg.seenBy.some((s) => s.userId !== msg.userId);
+  const isSeen = uniqueSeenBy.length > 0;
   // Count how many users have seen it (excluding sender)
-  const seenCount = msg.seenBy?.filter((s) => s.userId !== msg.userId).length || 0;
+  const seenCount = uniqueSeenBy.length;
 
   const handleReplyClick = () => {
     if (msg.replyToId && onScrollToMessage) {
@@ -281,17 +292,16 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
           )}
 
           {/* Seen By Facepile for Announcements */}
-          {msg.isAnnouncement && msg.seenBy && msg.seenBy.filter(s => s.userId !== msg.userId).length > 0 && (
+          {msg.isAnnouncement && uniqueSeenBy.length > 0 && (
             <div
               className="mt-3 pt-2 border-t border-zinc-800 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
               onClick={(e) => {
                 e.stopPropagation();
-                onShowSeenBy?.(msg.id, msg.seenBy || []);
+                onShowSeenBy?.(msg.id, uniqueSeenBy);
               }}
             >
               <div className="flex items-center -space-x-2 overflow-hidden pl-1">
-                {msg.seenBy
-                  .filter(seen => seen.userId !== msg.userId)
+                {uniqueSeenBy
                   .slice(0, 4)
                   .map((seen) => (
                     <div
@@ -306,14 +316,14 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
                       />
                     </div>
                   ))}
-                {(msg.seenBy.filter(s => s.userId !== msg.userId).length > 4) && (
+                {(uniqueSeenBy.length > 4) && (
                   <div className="w-5 h-5 rounded-full ring-2 ring-black bg-zinc-800 flex items-center justify-center text-[8px] font-bold text-zinc-400">
-                    +{msg.seenBy.filter(s => s.userId !== msg.userId).length - 4}
+                    +{uniqueSeenBy.length - 4}
                   </div>
                 )}
               </div>
               <span className="text-[10px] text-zinc-500 font-medium ml-2">
-                Seen by {msg.seenBy.filter(s => s.userId !== msg.userId).length}
+                Seen by {uniqueSeenBy.length}
               </span>
             </div>
           )}
