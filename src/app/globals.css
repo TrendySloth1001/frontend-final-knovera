@@ -95,3 +95,34 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(59, 130, 246, 0.5) rgba(59, 130, 246, 0.1);
 }
+
+/* Slide animations */
+@keyframes slide-up {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideUp {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-slideDown {
+  animation: slide-down 0.4s ease-out;
+}
