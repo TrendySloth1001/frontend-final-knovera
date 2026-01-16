@@ -34,7 +34,7 @@ export const discoverGroups = async (
 
   const url = `${CHAT_BASE_URL}/groups/discover?${params.toString()}`;
   console.log('[groupDiscoveryApi] Calling:', url);
-  
+
   try {
     const data = await apiClient.get<DiscoverableGroup[]>(url);
     console.log('[groupDiscoveryApi] Response data:', data);
@@ -51,5 +51,5 @@ export const searchGroups = async (query: string, limit: number = 20): Promise<D
   const response = await apiClient.get<DiscoverableGroup[]>(
     `${CHAT_BASE_URL}/groups/search?query=${encodeURIComponent(query)}&limit=${limit}`
   );
-  return response.data;
+  return response;
 };

@@ -117,9 +117,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       userId: user.user.id,
       user: {
         id: user.user.id,
-        username: user.user.username || '',
+        username: user.user.username || null,
         displayName: user.user.displayName,
-        avatarUrl: user.user.avatarUrl,
+        avatarUrl: user.user.avatarUrl || null,
         isOnline: true,
         lastActiveAt: new Date().toISOString(),
       },
@@ -145,7 +145,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Send actual message
-      const message = await chatAPI.sendMessage(token, { conversationId, content });
+      const message = await chatAPI.sendMessage(token, { conversationId, userId: user.user.id, content });
       
       // Replace optimistic message with real one
       setMessages(prev => prev.map(m => 
@@ -185,9 +185,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const conversation = await chatAPI.createConversation(token, {
-        memberUserIds,
+        memberIds: memberUserIds,
         isGroup,
         name,
+        creatorId: user?.user?.id || '',
       });
       setConversations(prev => [conversation, ...prev]);
       return conversation;
@@ -270,7 +271,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             });
           } else if (newMessage.userId !== user?.user?.id) {
             // Show notification for new message in other conversations
-            showNotification('info', `New message from ${newMessage.user.displayName}`);
+            showNotification('info', `New message from ${newMessage.user?.displayName || 'Someone'}`);
           }
 
           // Update conversation last message and unread count
@@ -310,15 +311,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         case 'seen':
         case 'message_seen':
           // Handle message seen updates
-          const { messageId, userId } = wsMessage.data;
+          const { messageId, userId: seenUserId, username: seenUsername, displayName: seenDisplayName, avatarUrl: seenAvatarUrl } = wsMessage.data;
           setMessages(prev => prev.map(msg => {
             if (msg.id === messageId) {
               const seenBy = msg.seenBy || [];
-              const alreadySeen = seenBy.find(s => s.userId === userId);
+              const alreadySeen = seenBy.find(s => s.userId === seenUserId);
               if (!alreadySeen) {
                 return {
                   ...msg,
-                  seenBy: [...seenBy, { id: '', messageId, userId, seenAt: new Date().toISOString(), user: {} as ChatUser }],
+                  seenBy: [...seenBy, { 
+                    userId: seenUserId, 
+                    username: seenUsername || '', 
+                    displayName: seenDisplayName || 'User',
+                    avatarUrl: seenAvatarUrl,
+                    seenAt: new Date().toISOString()
+                  }],
                 };
               }
             }

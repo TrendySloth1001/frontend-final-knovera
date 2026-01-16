@@ -15,12 +15,12 @@ import Link from 'next/link';
 export default function ConversationPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { showNotification } = useNotification();
-  const { 
-    activeConversation, 
-    messages, 
+  const {
+    activeConversation,
+    messages,
     typingUsers,
-    setActiveConversation, 
-    loadMessages, 
+    setActiveConversation,
+    loadMessages,
     sendMessage,
     setTyping,
     markMessageSeen,
@@ -86,7 +86,7 @@ export default function ConversationPage() {
     const messageContent = inputMessage.trim();
     setInputMessage(''); // Clear immediately for better UX
     setIsSending(true);
-    
+
     try {
       await sendMessage(conversationId, messageContent);
       setTyping(conversationId, false);
@@ -122,7 +122,7 @@ export default function ConversationPage() {
     if (!activeConversation) return 'Loading...';
     if (activeConversation.name) return activeConversation.name;
     if (activeConversation.isGroup) return 'Group Chat';
-    
+
     const otherMember = activeConversation.members.find(m => m.userId !== user?.user?.id);
     return otherMember?.user.displayName || 'Unknown User';
   };
@@ -166,7 +166,7 @@ export default function ConversationPage() {
       <div className="border-b border-gray-800 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link 
+            <Link
               href="/messages"
               className="p-2 hover:bg-gray-900 rounded-lg transition-colors"
             >
@@ -227,7 +227,7 @@ export default function ConversationPage() {
           ) : (
             messages.map((message) => {
               const isOwnMessage = message.userId === user?.user?.id;
-              
+
               return (
                 <div
                   key={message.id}
@@ -237,7 +237,7 @@ export default function ConversationPage() {
                     {/* Avatar */}
                     {!isOwnMessage && (
                       <div className="flex-shrink-0">
-                        {message.user.avatarUrl ? (
+                        {message.user?.avatarUrl ? (
                           <img
                             src={message.user.avatarUrl}
                             alt=""
@@ -245,7 +245,7 @@ export default function ConversationPage() {
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center text-white text-sm font-bold">
-                            {message.user.displayName.charAt(0).toUpperCase()}
+                            {message.user?.displayName?.charAt(0).toUpperCase() || '?'}
                           </div>
                         )}
                       </div>
@@ -254,11 +254,10 @@ export default function ConversationPage() {
                     {/* Message */}
                     <div>
                       <div
-                        className={`px-4 py-2 rounded-2xl ${
-                          isOwnMessage
+                        className={`px-4 py-2 rounded-2xl ${isOwnMessage
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-800 text-white'
-                        }`}
+                          }`}
                       >
                         <p className="break-words">{message.content}</p>
                       </div>

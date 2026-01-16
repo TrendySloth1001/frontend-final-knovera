@@ -20,14 +20,14 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
   // Parse thinking into parent/child structure
   const parseThinking = () => {
     const items: Array<{ text: string; isChild: boolean }> = [];
-    
+
     lines.forEach((line) => {
       const trimmed = line.trim();
       const isNumberedStep = /^Step \d+:/i.test(trimmed);
-      
-      items.push({ 
-        text: trimmed, 
-        isChild: isNumberedStep 
+
+      items.push({
+        text: trimmed,
+        isChild: isNumberedStep
       });
     });
 
@@ -48,9 +48,8 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
           <span className="text-xs md:text-sm font-medium text-purple-300">AI Reasoning</span>
         </div>
         <ChevronDown
-          className={`w-4 h-4 md:w-5 md:h-5 text-purple-400 transition-transform duration-200 flex-shrink-0 ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
+          className={`w-4 h-4 md:w-5 md:h-5 text-purple-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -61,31 +60,28 @@ export default function ThinkingBlock({ thinking }: ThinkingBlockProps) {
           <div className="relative pl-8 md:pl-10">
             {/* Vertical guide line - YELLOW */}
             <div className="absolute left-2 md:left-2.5 top-0 bottom-0 w-[2px] bg-yellow-500/60"></div>
-            
+
             {/* Timeline steps */}
             <div className="space-y-4 md:space-y-5">
-              { .map((item, index) => (
+              {thinkingItems.map((item, index) => (
                 <div key={index} className={`relative ${item.isChild ? 'ml-5 md:ml-6' : ''}`}>
                   {/* Node/Dot - YELLOW (smaller for child steps) */}
                   <div className={`absolute ${item.isChild ? '-left-[34px] md:-left-[42px]' : '-left-[29px] md:-left-[37px]'} top-[2px]`}>
-                    <div className={`${
-                      item.isChild 
-                        ? 'w-2 h-2 md:w-2.5 md:h-2.5 bg-yellow-300 border border-yellow-400' 
+                    <div className={`${item.isChild
+                        ? 'w-2 h-2 md:w-2.5 md:h-2.5 bg-yellow-300 border border-yellow-400'
                         : 'w-2.5 h-2.5 md:w-3 md:h-3 bg-yellow-400 border-2 border-yellow-500 shadow-md shadow-yellow-500/40'
-                    } rounded-full`}></div>
+                      } rounded-full`}></div>
                   </div>
-                  
+
                   {/* Horizontal connector line from node to content - YELLOW */}
-                  <div className={`absolute ${
-                    item.isChild 
-                      ? '-left-[31px] md:-left-[38px] w-6 md:w-7' 
+                  <div className={`absolute ${item.isChild
+                      ? '-left-[31px] md:-left-[38px] w-6 md:w-7'
                       : '-left-6 md:-left-[30px] w-4 md:w-5'
-                  } top-[6px] md:top-[7px] h-[1.5px] bg-yellow-500/50`}></div>
-                  
+                    } top-[6px] md:top-[7px] h-[1.5px] bg-yellow-500/50`}></div>
+
                   {/* Step content - PURPLE theme (slightly dimmed for child) */}
-                  <div className={`font-mono text-xs md:text-sm ${
-                    item.isChild ? 'text-purple-200/75' : 'text-purple-200/90'
-                  } whitespace-pre-wrap break-words leading-relaxed`}>
+                  <div className={`font-mono text-xs md:text-sm ${item.isChild ? 'text-purple-200/75' : 'text-purple-200/90'
+                    } whitespace-pre-wrap break-words leading-relaxed`}>
                     {item.text}
                   </div>
                 </div>

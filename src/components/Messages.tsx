@@ -37,6 +37,7 @@ import MediaPreviewModal from './messages/MediaPreviewModal';
 import ForwardMessageModal from './messages/ForwardMessageModal';
 import EditHistoryModal from './messages/EditHistoryModal';
 
+
 // Group Management Components
 import GroupSettingsModal from './group/GroupSettingsModal';
 import MemberListModal from './group/MemberListModal';
@@ -48,6 +49,7 @@ import AnnouncementBanner from './group/AnnouncementBanner';
 import { pinMessage } from '@/lib/groupManagementApi';
 import { votePoll } from '@/lib/pollApi';
 import GroupPreviewDrawer from './messages/GroupPreviewDrawer';
+
 
 interface MessagesProps {
   onClose?: () => void;
@@ -1730,6 +1732,7 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
         onClose={() => setShowGroupMembers(false)}
         selectedGroupConversation={selectedGroupConversation}
         currentUserId={currentUserId!}
+        authToken={token || ''}
         onUpdateGroupName={handleUpdateGroupName}
         onUpdateGroupAvatar={handleUpdateGroupAvatar}
         onRemoveMember={handleRemoveMember}
@@ -1888,6 +1891,15 @@ export default function Messages({ onClose, initialUserId }: MessagesProps) {
           selectedProfileUser={selectedProfileUser}
           profileLoading={profileLoading}
           profileData={profileData}
+          authToken={token || ''}
+          currentUserId={currentUserId || ''}
+          conversationId={
+            // If current conversation is direct and with this user
+            (selectedConversation?.type === 'direct' && selectedConversation.members.some(m => m.userId === selectedProfileUser?.id))
+              ? selectedConversation.id
+              // Or find a direct conversation with this user
+              : conversations.find(c => c.type === 'direct' && c.members.some(m => m.userId === selectedProfileUser?.id))?.id
+          }
         />
       </Drawer>
 

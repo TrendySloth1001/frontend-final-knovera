@@ -78,6 +78,7 @@ export interface ChatMessage {
   sharedContact?: SharedContact;
 
   createdAt: string;
+  updatedAt?: string; // Add optional updatedAt
   seenBy?: Array<{
     userId: string;
     username: string;
@@ -116,6 +117,18 @@ export interface OnlineStatus {
   userId: string;
   isOnline: boolean;
   lastActiveAt?: string | null;
+}
+
+export interface TypingStatus {
+  conversationId: string;
+  userId: string;
+  isTyping: boolean;
+  displayName?: string;
+}
+
+export interface WebSocketMessage {
+  type: 'connected' | 'conversation_joined' | 'conversation_left' | 'new_message' | 'message' | 'typing' | 'online' | 'seen' | 'message_seen' | 'error';
+  data: any;
 }
 
 export interface CreateConversationPayload {

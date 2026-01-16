@@ -149,6 +149,9 @@ export default function ChatHeader({
                   </button>
                 )}
 
+                {/* Common Options */}
+
+
                 {/* Group Management Options */}
                 {selectedConversation.isGroup && (
                   <>

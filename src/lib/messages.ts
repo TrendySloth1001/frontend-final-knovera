@@ -1033,9 +1033,24 @@ class MessagesAPI {
 
     return response.json();
   }
+
+  /**
+   * Get shared media for a conversation
+   */
+  async getSharedMedia(token: string, conversationId: string): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}/media`, {
+      method: 'GET',
+      headers: this.getHeaders(token),
+    });
+
+    if (!response.ok) {
+      await this.handleError(response, 'Failed to fetch shared media');
+    }
+
+    return response.json();
+  }
 }
 
-// Export singleton instance
 export const messagesAPI = new MessagesAPI();
 
 // Export class for custom instances
