@@ -12,7 +12,8 @@ import {
     ChevronRight,
     ChevronLeft,
     User,
-    LogOut
+    LogOut,
+    Compass
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -165,6 +166,13 @@ export default function Sidebar({
                         label="Community"
                         active={activeTab === 'Community'}
                         onClick={() => handleNavClick('Community')}
+                        isCollapsed={isCollapsed}
+                    />
+                    <NavItem
+                        icon={Compass}
+                        label="Discover"
+                        active={false} // Always false since we navigate away
+                        onClick={() => router.push('/dashboard/discover')}
                         isCollapsed={isCollapsed}
                     />
 
