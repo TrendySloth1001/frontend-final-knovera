@@ -38,12 +38,12 @@ export default function MessagesPage() {
   const filteredConversations = conversations.filter(conv => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    
+
     // Search in conversation name
     if (conv.name?.toLowerCase().includes(query)) return true;
-    
+
     // Search in member names
-    return conv.members.some(member => 
+    return conv.members.some(member =>
       member.user.displayName?.toLowerCase().includes(query) ||
       member.user.username?.toLowerCase().includes(query)
     );
@@ -74,7 +74,7 @@ export default function MessagesPage() {
   const getConversationName = (conv: any) => {
     if (conv.name) return conv.name;
     if (conv.isGroup) return 'Group Chat';
-    
+
     // For one-to-one, show other user's name
     const otherMember = conv.members.find((m: any) => m.userId !== user?.user?.id);
     return otherMember?.user.displayName || 'Unknown User';
@@ -91,7 +91,7 @@ export default function MessagesPage() {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
-    
+
     if (hours < 24) {
       return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     } else if (hours < 48) {
@@ -209,7 +209,7 @@ export default function MessagesPage() {
                         </div>
                         {conv.lastMessage && (
                           <p className="text-sm text-gray-400 truncate">
-                            {conv.lastMessage.user.displayName}: {conv.lastMessage.content}
+                            {conv.lastMessage.user?.displayName || 'Unknown'}: {conv.lastMessage.content}
                           </p>
                         )}
                       </div>
