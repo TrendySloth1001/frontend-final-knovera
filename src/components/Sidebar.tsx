@@ -171,8 +171,8 @@ export default function Sidebar({
                     <NavItem
                         icon={Compass}
                         label="Discover"
-                        active={false} // Always false since we navigate away
-                        onClick={() => router.push('/dashboard/discover')}
+                        active={activeTab === 'Discovery'}
+                        onClick={() => handleNavClick('Discovery')}
                         isCollapsed={isCollapsed}
                     />
 

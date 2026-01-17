@@ -28,6 +28,7 @@ import AnalyticsTab from '@/components/dashboard/AnalyticsTab';
 import SettingsTab from '@/components/dashboard/SettingsTab';
 import MessagesTab from '@/components/dashboard/MessagesTab';
 import ProfileTab from '@/components/dashboard/ProfileTab';
+import DiscoveryTab from '@/components/dashboard/DiscoveryTab';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -127,6 +128,8 @@ export default function Dashboard() {
         return 'Settings';
       case 'profile':
         return 'Profile';
+      case 'discovery':
+        return 'Discovery';
       case 'overview':
       default:
         return 'Overview';
@@ -622,7 +625,7 @@ export default function Dashboard() {
       <main className="flex-1 flex flex-col min-h-0 max-h-screen">
 
         {/* Header - Show hamburger for Messages on mobile, full header for others */}
-        {activeTab === 'Messages' ? (
+        {activeTab === 'Discovery' ? null : activeTab === 'Messages' ? (
           <header className="h-16 border-b border-neutral-800 flex items-center justify-between px-4 lg:hidden flex-shrink-0">
             <button
               onClick={() => setShowMobileMenu(true)}
@@ -719,6 +722,11 @@ export default function Dashboard() {
                   savingSettings={savingSettings}
                   setShowProfileConfirm={setShowProfileConfirm}
                 />
+              )}
+
+              {/* Discovery Tab */}
+              {activeTab === 'Discovery' && (
+                <DiscoveryTab />
               )}
             </div>
           )}

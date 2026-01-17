@@ -66,6 +66,8 @@ async function apiRequest<T>(
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.warn('[API] No auth token found for request:', endpoint);
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -75,7 +77,18 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    console.error('[API] Request failed:', {
+      endpoint,
+      status: response.status,
+      error,
+      hasToken: !!token
+    });
     throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  // Handle 204 No Content responses
+  if (response.status === 204) {
+    return null as T;
   }
 
   return response.json();
