@@ -5,11 +5,13 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { discoverApi } from '@/lib/discoverApi';
+import { useUserCommunities, useCommunities } from '@/hooks/useDiscover';
+import { useAuth } from '@/contexts/AuthContext';
 import { CreatePostRequest, PostType, PostVisibility } from '@/types/discover';
-import { X, Image, Video, Music, Link, Box, Upload } from 'lucide-react';
+import { X, Image, Video, Music, Link, Box, Upload, Search } from 'lucide-react';
 
 interface CreatePostFormProps {
   communityId?: string;
@@ -19,6 +21,19 @@ interface CreatePostFormProps {
 
 export default function CreatePostForm({ communityId, onSuccess, onCancel }: CreatePostFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
+
+  // State for Community Selector
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Data Fetching
+  const { communities: userCommunities, loading: loadingUserCommunities } = useUserCommunities(user?.user?.id);
+  const { communities: searchResults, loading: loadingSearch, refresh: searchCommunities } = useCommunities({
+    search: searchTerm,
+    limit: 5
+  });
+
   const [formData, setFormData] = useState<CreatePostRequest>({
     title: '',
     description: '',
@@ -174,17 +189,125 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
 
         {/* Community Selector */}
         {!communityId && (
-          <div>
+          <div className="relative">
             <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">
               Community (optional)
             </label>
-            <input
-              type="text"
-              value={formData.communityId || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, communityId: e.target.value }))}
-              placeholder="Community ID"
-              className="w-full bg-black border border-neutral-800 rounded-xl p-3 focus:ring-1 focus:ring-white focus:border-white transition-all text-white placeholder:text-neutral-700"
-            />
+
+            <div className="relative">
+              <div className="flex items-center bg-black border border-neutral-800 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white focus-within:border-white transition-all">
+                <Search size={18} className="text-neutral-500 mr-2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsDropdownOpen(true);
+                    if (e.target.value) {
+                      searchCommunities(); // This will trigger the search via effect or debounce
+                    }
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  placeholder="Select a community..."
+                  className="w-full bg-transparent border-none focus:ring-0 text-white placeholder:text-neutral-600 p-0 text-sm font-medium"
+                />
+                {formData.communityId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, communityId: undefined }));
+                      setSearchTerm('');
+                    }}
+                    className="p-1 hover:bg-neutral-800 rounded-full text-neutral-500 hover:text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Dropdown Results */}
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-black border border-neutral-800 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-50 max-h-60 overflow-y-auto">
+                  {/* Loading State */}
+                  {(loadingUserCommunities || (searchTerm && loadingSearch)) && (
+                    <div className="p-4 text-center text-neutral-500 text-sm">Loading...</div>
+                  )}
+
+                  {/* User Communities (Default View) */}
+                  {!searchTerm && userCommunities.length > 0 && (
+                    <div className="p-2">
+                      <div className="px-3 py-2 text-xs font-bold text-neutral-500 uppercase">My Communities</div>
+                      {userCommunities.map(community => (
+                        <button
+                          key={community.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, communityId: community.id }));
+                            setSearchTerm(community.name);
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-2 hover:bg-neutral-900 rounded-lg transition-colors text-left"
+                        >
+                          {community.avatarUrl ? (
+                            <img src={community.avatarUrl} alt={community.name} className="w-8 h-8 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
+                              {community.name[0]}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-bold text-white truncate">c/{community.name}</div>
+                            <div className="text-xs text-neutral-500 truncate">{community.memberCount} members</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Search Results */}
+                  {searchTerm && searchResults.length > 0 && (
+                    <div className="p-2">
+                      <div className="px-3 py-2 text-xs font-bold text-neutral-500 uppercase">Search Results</div>
+                      {searchResults.map(community => (
+                        <button
+                          key={community.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, communityId: community.id }));
+                            setSearchTerm(community.name);
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-2 hover:bg-neutral-900 rounded-lg transition-colors text-left"
+                        >
+                          {community.avatarUrl ? (
+                            <img src={community.avatarUrl} alt={community.name} className="w-8 h-8 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
+                              {community.name[0]}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-bold text-white truncate">c/{community.name}</div>
+                            <div className="text-xs text-neutral-500 truncate">{community.memberCount} members</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No Results */}
+                  {searchTerm && !loadingSearch && searchResults.length === 0 && (
+                    <div className="p-4 text-center text-neutral-500 text-sm">No communities found</div>
+                  )}
+
+                  {/* Close Backdrop (Invisible) */}
+                  <div
+                    className="fixed inset-0 z-[-1]"
+                    onClick={() => setIsDropdownOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -325,3 +325,34 @@ export function useSavedPosts() {
 
   return { posts, loading, error, savePost, unsavePost, refresh: fetchSavedPosts };
 }
+// ============ User Communities Hook ============
+
+export function useUserCommunities(userId?: string) {
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchUserCommunities = async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await discoverApi.getUserCommunities(userId);
+      setCommunities(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserCommunities();
+  }, [userId]);
+
+  return { communities, loading, error, refresh: fetchUserCommunities };
+}

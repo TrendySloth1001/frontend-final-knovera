@@ -11,7 +11,7 @@ import { useComments, useVoting } from '@/hooks/useDiscover';
 import VoteButtons from './VoteButtons';
 import { getAuthToken } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageSquare, Trash2, CornerDownRight } from 'lucide-react';
+import { MessageSquare, Trash2, CornerDownRight, ThumbsUp, ThumbsDown, MoreHorizontal, MessageCircle } from 'lucide-react';
 
 // Build nested comment tree from flat array
 function buildCommentTree(comments: Comment[]): Comment[] {
@@ -51,18 +51,27 @@ interface CommentItemProps {
   onDelete: (commentId: string) => void;
   onVote: (commentId: string, voteType: VoteType) => void;
   onRemoveVote: (commentId: string) => void;
+  depth?: number;
+  isLast?: boolean;
 }
 
-function CommentItem({ comment, currentUserId, onReply, onDelete, onVote, onRemoveVote }: CommentItemProps) {
+function CommentItem({
+  comment,
+  currentUserId,
+  onReply,
+  onDelete,
+  onVote,
+  onRemoveVote,
+  depth = 0,
+  isLast = false
+}: CommentItemProps) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyContent, setReplyContent] = useState('');
-  const voteScore = comment.voteCount || 0;
-  const isAuthenticated = !!getAuthToken();
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const isAuthor = currentUserId && comment.authorId === currentUserId;
 
   const handleVote = async (voteType: VoteType) => {
-    if (!isAuthenticated) return;
-
+    if (!getAuthToken()) return;
     const backendVoteType = voteType === VoteType.UPVOTE ? 'UP' : 'DOWN';
     if (comment.userVote === backendVoteType) {
       await onRemoveVote(comment.id);
@@ -73,116 +82,187 @@ function CommentItem({ comment, currentUserId, onReply, onDelete, onVote, onRemo
 
   const handleReplySubmit = () => {
     if (!replyContent.trim()) return;
-    if (!isAuthenticated) return;
     onReply(comment.id, replyContent);
     setReplyContent('');
     setShowReplyBox(false);
   };
 
-  const isRoot = comment.depth === 0;
-
   return (
-    <div className={`
-      ${!isRoot ? 'ml-6 border-l-2 border-neutral-800 pl-4 mt-4 relative' : 'border-t border-neutral-800 mt-6 pt-6'}
-    `}>
-      <div className="flex gap-4">
-        <div className="flex flex-col items-center gap-1 pt-1">
-          {/* Compact Vote for Comments */}
-          <button onClick={() => handleVote(VoteType.UPVOTE)} className={`p-1 hover:bg-neutral-800 rounded ${comment.userVote === 'UP' ? 'text-orange-500' : 'text-neutral-500'}`}>▲</button>
-          <span className={`text-xs font-bold ${comment.userVote === 'UP' ? 'text-orange-500' : comment.userVote === 'DOWN' ? 'text-indigo-500' : 'text-neutral-500'}`}>{voteScore}</span>
-          <button onClick={() => handleVote(VoteType.DOWNVOTE)} className={`p-1 hover:bg-neutral-800 rounded ${comment.userVote === 'DOWN' ? 'text-indigo-500' : 'text-neutral-500'}`}>▼</button>
-        </div>
+    <div className="relative">
+      {/* The Thread Connector - Precise L-Shape */}
+      {depth > 0 && (
+        <div
+          className="absolute"
+          style={{
+            left: '-28px',
+            top: '-24px', // Connects from the bottom of the previous element's spine
+            width: '28px',
+            height: '44px',
+            borderLeft: '2px solid #262626', // neutral-800
+            borderBottom: '2px solid #262626',
+            borderBottomLeftRadius: '20px',
+            zIndex: 0
+          }}
+        />
+      )}
 
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2 text-xs">
+      <div className="flex gap-3 py-2">
+        {/* Avatar Section */}
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center overflow-hidden border border-neutral-800 shadow-sm relative z-10">
             {comment.author?.avatarUrl ? (
-              <img
-                src={comment.author.avatarUrl}
-                alt={comment.author.displayName}
-                className="w-6 h-6 rounded-full border border-neutral-800"
-              />
+              <img src={comment.author.avatarUrl} alt={comment.author.displayName} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-6 h-6 rounded-full bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-neutral-400">
+              <div className="w-full h-full bg-neutral-900 flex items-center justify-center text-neutral-500 font-bold text-xs">
                 {comment.author?.displayName?.charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="font-bold text-white cursor-pointer hover:underline">{comment.author?.displayName}</span>
-            <span className="text-neutral-600 font-bold">•</span>
-            <span className="text-neutral-500">
-              {new Date(comment.createdAt).toLocaleDateString()}
-            </span>
-            {isAuthor && <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[10px] font-bold">OP</span>}
           </div>
 
-          <p className="text-neutral-300 text-sm mb-3 whitespace-pre-wrap leading-relaxed">{comment.content}</p>
-
-          <div className="flex gap-4 text-xs font-bold text-neutral-500">
-            <button
-              onClick={() => setShowReplyBox(!showReplyBox)}
-              className="flex items-center gap-1.5 hover:bg-neutral-800 px-2 py-1 rounded transition-colors hover:text-white"
-            >
-              <MessageSquare size={14} /> Reply
-            </button>
-            {isAuthor && (
-              <button
-                onClick={() => onDelete(comment.id)}
-                className="flex items-center gap-1.5 hover:bg-red-500/10 px-2 py-1 rounded transition-colors hover:text-red-500"
-              >
-                <Trash2 size={14} /> Delete
-              </button>
-            )}
-            <button className="hover:text-white transition-colors">Share</button>
-            <button className="hover:text-white transition-colors">Report</button>
-          </div>
-
-          {showReplyBox && (
-            <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex gap-2">
-                <textarea
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="What are your thoughts?"
-                  className="flex-1 bg-black border border-neutral-800 rounded-xl p-3 focus:ring-1 focus:ring-white focus:border-white transition-all text-sm text-white placeholder:text-neutral-600 min-h-[80px]"
-                />
-              </div>
-              <div className="flex gap-2 mt-2 justify-end">
-                <button
-                  onClick={() => {
-                    setShowReplyBox(false);
-                    setReplyContent('');
-                  }}
-                  className="px-4 py-2 text-neutral-400 rounded-lg text-xs font-bold hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReplySubmit}
-                  disabled={!replyContent.trim()}
-                  className="px-6 py-2 bg-white text-black rounded-full text-xs font-bold hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Reply
-                </button>
-              </div>
-            </div>
-          )}
-
-          {comment.replies && comment.replies.length > 0 && (
-            <div className="mt-2">
-              {comment.replies.map((reply) => (
-                <CommentItem
-                  key={reply.id}
-                  comment={reply}
-                  currentUserId={currentUserId}
-                  onReply={onReply}
-                  onDelete={onDelete}
-                  onVote={onVote}
-                  onRemoveVote={onRemoveVote}
-                />
-              ))}
-            </div>
+          {/* Vertical line that continues down if there are more replies or siblings */}
+          {((comment.replies && comment.replies.length > 0) || !isLast) && (
+            <div className="flex-1 w-[2px] bg-neutral-800 mt-1" />
           )}
         </div>
+
+        {/* Content Box */}
+        <div className="flex-1 bg-black rounded-2xl p-4 shadow-sm border border-neutral-800 hover:border-neutral-700 transition-all duration-200 group">
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex items-center gap-2">
+              <span className={`font-bold text-sm tracking-tight ${isAuthor ? 'text-blue-400' : 'text-white'}`}>
+                {comment.author?.displayName}
+              </span>
+              {isAuthor && <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[10px] font-bold">OP</span>}
+              <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">
+                {new Date(comment.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+
+            {/* More Menu Dropdown */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMoreMenu(!showMoreMenu);
+                }}
+                className={`text-neutral-500 hover:text-white p-1 rounded-full hover:bg-neutral-800 transition-all ${showMoreMenu ? 'opacity-100 bg-neutral-800 text-white' : 'opacity-0 group-hover:opacity-100'}`}
+              >
+                <MoreHorizontal size={14} />
+              </button>
+
+              {showMoreMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-32 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50 py-1">
+                    <button className="w-full text-left px-3 py-2 text-xs font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                      Share
+                    </button>
+                    <button className="w-full text-left px-3 py-2 text-xs font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors flex items-center gap-2">
+                      Report
+                    </button>
+                    {isAuthor && (
+                      <button
+                        onClick={() => onDelete(comment.id)}
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <p className="text-neutral-300 text-[14px] leading-relaxed mb-3 whitespace-pre-wrap">
+            {comment.content}
+          </p>
+
+          <div className="flex items-center gap-5 text-neutral-500">
+            {/* Compact Vote */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleVote(VoteType.UPVOTE)}
+                className={`p-1 rounded-md hover:bg-neutral-800 transition-colors group ${comment.userVote === 'UP' ? 'text-orange-500' : 'text-neutral-500 hover:text-orange-500'}`}
+              >
+                <ThumbsUp size={14} className="group-active:scale-125 transition-transform" fill={comment.userVote === 'UP' ? "currentColor" : "none"} />
+              </button>
+              <span className={`text-xs font-bold min-w-[12px] text-center ${comment.userVote === 'UP' ? 'text-orange-500' : comment.userVote === 'DOWN' ? 'text-indigo-500' : 'text-neutral-500'}`}>
+                {comment.voteCount || 0}
+              </span>
+              <button
+                onClick={() => handleVote(VoteType.DOWNVOTE)}
+                className={`p-1 rounded-md hover:bg-neutral-800 transition-colors group ${comment.userVote === 'DOWN' ? 'text-indigo-500' : 'text-neutral-500 hover:text-indigo-500'}`}
+              >
+                <ThumbsDown size={14} className="group-active:scale-125 transition-transform" fill={comment.userVote === 'DOWN' ? "currentColor" : "none"} />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowReplyBox(!showReplyBox)}
+              className="flex items-center gap-1.5 hover:text-blue-500 transition-colors"
+            >
+              <MessageCircle size={14} />
+              <span className="text-xs font-bold">Reply</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Reply Box */}
+      {showReplyBox && (
+        <div className="ml-[52px] mt-2 mb-4 animate-in fade-in slide-in-from-top-2 duration-200 relative z-20">
+          <div className="flex gap-2">
+            <textarea
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              placeholder="Reply to this comment..."
+              className="flex-1 bg-black border border-neutral-800 rounded-xl p-3 focus:ring-1 focus:ring-white focus:border-white transition-all text-sm text-white placeholder:text-neutral-600 min-h-[80px]"
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2 mt-2 justify-end">
+            <button
+              onClick={() => setShowReplyBox(false)}
+              className="px-3 py-1.5 text-neutral-500 rounded-lg text-xs font-bold hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReplySubmit}
+              disabled={!replyContent.trim()}
+              className="px-4 py-1.5 bg-white text-black rounded-lg text-xs font-bold hover:bg-neutral-200 disabled:opacity-50"
+            >
+              Reply
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recursive Replies Container */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="ml-[48px] relative">
+          {/* Main vertical spine for this specific branch */}
+          <div
+            className="absolute left-[-28px] top-0 bottom-0 w-[2px] bg-neutral-800"
+            style={{ display: isLast && comment.replies.length === 0 ? 'none' : 'block' }}
+          />
+
+          {comment.replies.map((reply, index) => (
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              currentUserId={currentUserId}
+              onReply={onReply}
+              onDelete={onDelete}
+              onVote={onVote}
+              onRemoveVote={onRemoveVote}
+              depth={depth + 1}
+              isLast={index === (comment.replies?.length || 0) - 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

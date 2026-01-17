@@ -20,6 +20,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { getAuthToken } from '@/lib/api';
+import VideoPlayer from './VideoPlayer';
 
 interface PostCardProps {
   post: Post;
@@ -101,8 +102,8 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
       }
       if (item.type === MediaType.VIDEO) {
         return (
-          <div className="bg-black rounded-xl overflow-hidden mb-4 border border-neutral-800 aspect-video flex items-center justify-center">
-            <video src={item.url} controls className="w-full h-full" />
+          <div className="bg-black rounded-xl overflow-hidden mb-4 border border-neutral-800 aspect-video group/video">
+            <VideoPlayer src={item.url} className="w-full h-full" />
           </div>
         );
       }
