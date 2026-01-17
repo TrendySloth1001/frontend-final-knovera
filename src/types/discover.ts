@@ -121,6 +121,7 @@ export interface PostListQuery {
   communityId?: string;
   sortBy?: 'hot' | 'new' | 'top' | 'trending';
   search?: string;
+  tags?: string[];
 }
 
 export interface PostListResponse {

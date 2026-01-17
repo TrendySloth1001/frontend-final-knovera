@@ -38,6 +38,9 @@ export const discoverApi = {
     if (query?.communityId) params.append('communityId', query.communityId);
     if (query?.sortBy) params.append('sortBy', query.sortBy);
     if (query?.search) params.append('search', query.search);
+    if (query?.tags && query.tags.length > 0) {
+      query.tags.forEach(tag => params.append('tags', tag));
+    }
 
     return apiClient.get<PostListResponse>(
       `${BASE_PATH}/posts?${params.toString()}`
@@ -278,6 +281,24 @@ export const discoverApi = {
   // Reading History
   async markPostAsRead(postId: string): Promise<void> {
     return apiClient.post(`${BASE_PATH}/posts/${postId}/read`, {});
+  },
+
+  // ============ Leaderboards & Analytics ============
+
+  async getLeaderboard(metric: 'posts' | 'votes' | 'comments' | 'engagement' = 'engagement', timeframe: 'day' | 'week' | 'month' | 'all' = 'week', limit: number = 10): Promise<LeaderboardEntry[]> {
+    return apiClient.get<LeaderboardEntry[]>(`${BASE_PATH}/leaderboard?metric=${metric}&timeframe=${timeframe}&limit=${limit}`);
+  },
+
+  async getPopularAuthors(limit: number = 10): Promise<PopularAuthor[]> {
+    return apiClient.get<PopularAuthor[]>(`${BASE_PATH}/authors/popular?limit=${limit}`);
+  },
+
+  async getRecommendedPosts(limit: number = 10): Promise<Post[]> {
+    return apiClient.get<Post[]>(`${BASE_PATH}/posts/recommended?limit=${limit}`);
+  },
+
+  async getTrendingTags(limit: number = 20): Promise<TrendingTag[]> {
+    return apiClient.get<TrendingTag[]>(`${BASE_PATH}/tags/trending?limit=${limit}`);
   }
 };
 
@@ -295,4 +316,42 @@ export interface ShareContentRequest {
   contentId: string;
   conversationId: string;
   message?: string;
+}
+
+// Types for leaderboards and analytics
+export interface LeaderboardEntry {
+  rank: number;
+  user: {
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+  score: number;
+  metric: string;
+}
+
+export interface PopularAuthor {
+  rank: number;
+  user: {
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+    bio?: string;
+    teacherId?: string;
+  };
+  stats: {
+    posts: number;
+    votes: number;
+    followers: number;
+  };
+  popularityScore: number;
+  isFollowing: boolean;
+}
+
+export interface TrendingTag {
+  tag: string;
+  postCount: number;
+  totalVotes: number;
+  totalComments: number;
+  trendingScore: number;
 }

@@ -1,28 +1,83 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useUserCommunities } from '@/hooks/useDiscover';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowRight, Flame, Compass } from 'lucide-react';
+import { discoverApi, TrendingTag, PopularAuthor, LeaderboardEntry } from '@/lib/discoverApi';
+import { teacherApi } from '@/lib/api';
+import { Flame, Compass, Trophy, TrendingUp, User, Check } from 'lucide-react';
 
 interface CommunitySidebarProps {
     onCommunityClick: (communityId: string) => void;
     onSeeAllClick: () => void;
+    onTopicClick: (tag: string) => void;
 }
 
-export default function CommunitySidebar({ onCommunityClick, onSeeAllClick }: CommunitySidebarProps) {
+export default function CommunitySidebar({ onCommunityClick, onSeeAllClick, onTopicClick }: CommunitySidebarProps) {
     const { user } = useAuth();
-    const { communities, loading } = useUserCommunities(user?.user?.id);
+    const { communities, loading: communitiesLoading } = useUserCommunities(user?.user?.id);
 
-    // Mock trending data since we don't have an endpoint for it yet
-    const trendingTopics = [
-        { name: 'WebDevelopment', posts: '1.2k' },
-        { name: 'OpenAI_o3', posts: '854' },
-        { name: 'ReactJS', posts: '620' },
-        { name: 'UI/UX', posts: '450' }
-    ];
+    // Analytics State
+    const [trendingTags, setTrendingTags] = useState<TrendingTag[]>([]);
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [popularAuthors, setPopularAuthors] = useState<PopularAuthor[]>([]);
+    const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            try {
+                const [tagsData, leaderboardData, authorsData] = await Promise.all([
+                    discoverApi.getTrendingTags(5),
+                    discoverApi.getLeaderboard('engagement', 'week', 3),
+                    discoverApi.getPopularAuthors(3)
+                ]);
+                setTrendingTags(tagsData);
+                setLeaderboard(leaderboardData);
+                setPopularAuthors(authorsData);
+            } catch (error) {
+                console.error('Failed to fetch analytics:', error);
+            } finally {
+                setLoadingAnalytics(false);
+            }
+        };
+
+        fetchAnalytics();
+    }, []);
+
+    const handleFollow = async (teacherId: string) => {
+        if (!teacherId) {
+            console.error('No teacher ID provided');
+            return;
+        }
+        
+        try {
+            // Find the author to check current follow status
+            const author = popularAuthors.find(a => a.user.teacherId === teacherId);
+            if (!author) return;
+
+            if (author.isFollowing) {
+                await teacherApi.unfollow(teacherId);
+            } else {
+                await teacherApi.follow(teacherId);
+            }
+            
+            // Update local state
+            setPopularAuthors(prev => prev.map(a => 
+                a.user.teacherId === teacherId 
+                    ? { ...a, isFollowing: !a.isFollowing }
+                    : a
+            ));
+
+            // Dispatch event for global follow state sync
+            window.dispatchEvent(new CustomEvent('teacherFollowUpdate', { 
+                detail: { teacherId, isFollowing: !author.isFollowing } 
+            }));
+        } catch (error) {
+            console.error('Failed to follow/unfollow user:', error);
+        }
+    };
 
     const getGradient = (name: string) => {
-        // Simple improved hashing for gradient selection based on name
         const gradients = [
             'from-purple-600 to-blue-500',
             'from-orange-400 to-red-600',
@@ -47,86 +102,197 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick }: Co
     };
 
     return (
-        <aside className="hidden lg:flex flex-col gap-4 w-80 shrink-0 sticky top-24 self-start">
+        <aside className="hidden lg:flex flex-col gap-4 w-80 shrink-0 sticky top-24 self-start h-[calc(100vh-120px)] overflow-y-auto no-scrollbar pb-4">
             {/* Your Communities Card */}
-            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-lg text-white">Your Communities</h3>
+            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm shrink-0">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                        <Compass size={16} className="text-blue-500" />
+                        Your Communities
+                    </h3>
                     <button
                         onClick={onSeeAllClick}
-                        className="text-xs text-neutral-400 hover:text-white uppercase tracking-wider font-bold transition-colors"
+                        className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-wider font-bold transition-colors"
                     >
                         See All
                     </button>
                 </div>
 
-                <div className="space-y-4">
-                    {loading ? (
-                        <div className="space-y-4 animate-pulse">
-                            {[1, 2, 3].map(i => (
+                <div className="space-y-3">
+                    {communitiesLoading ? (
+                        <div className="space-y-3 animate-pulse">
+                            {[1, 2].map(i => (
                                 <div key={i} className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-neutral-900" />
+                                    <div className="w-8 h-8 rounded-lg bg-neutral-900" />
                                     <div className="flex-1">
-                                        <div className="h-3 w-24 bg-neutral-900 rounded mb-1" />
-                                        <div className="h-2 w-12 bg-neutral-900 rounded" />
+                                        <div className="h-2 w-20 bg-neutral-900 rounded mb-1" />
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : communities.length > 0 ? (
-                        communities.slice(0, 5).map(community => (
+                        communities.slice(0, 4).map(community => (
                             <div
                                 key={community.id}
                                 onClick={() => onCommunityClick(community.id)}
-                                className="flex items-center justify-between group cursor-pointer p-1 rounded-xl transition-all hover:bg-neutral-900"
+                                className="flex items-center justify-between group cursor-pointer p-1.5 -mx-1.5 rounded-lg transition-all hover:bg-neutral-900"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getGradient(community.name)} flex items-center justify-center shadow-lg overflow-hidden`}>
+                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getGradient(community.name)} flex items-center justify-center shadow-lg overflow-hidden`}>
                                         {community.avatarUrl ? (
                                             <img src={community.avatarUrl} alt={community.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            <span className="text-xs font-black text-white">{getInitials(community.name)}</span>
+                                            <span className="text-[10px] font-black text-white">{getInitials(community.name)}</span>
                                         )}
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{community.name}</p>
-                                        <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">{community.memberCount} Members</p>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors truncate">{community.name}</p>
+                                        <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">{community.memberCount} Members</p>
                                     </div>
                                 </div>
-                                {/* Optional Status Dot - mocked for now or could be 'has new posts' */}
-                                {/* <div className="w-2 h-2 rounded-full bg-green-500"></div> */}
                             </div>
                         ))
                     ) : (
-                        <div className="text-center py-6">
-                            <p className="text-neutral-500 text-sm mb-2">You haven't joined any communities yet.</p>
+                        <div className="text-center py-4">
+                            <p className="text-neutral-500 text-xs">Join communities to see them here.</p>
                         </div>
                     )}
                 </div>
-
-                <button
-                    onClick={onSeeAllClick} // Or open create modal / explore
-                    className="w-full mt-6 py-2.5 rounded-xl bg-neutral-900 text-sm font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all border border-transparent hover:border-neutral-700 flex items-center justify-center gap-2"
-                >
-                    <Compass size={16} />
-                    Find New Communities
-                </button>
             </div>
 
-            {/* Trending Card */}
-            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm">
-                <h3 className="font-bold text-xs text-neutral-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Flame size={14} className="text-orange-500" />
-                    Trending Now
+            {/* Trending Tags Widget */}
+            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm shrink-0">
+                <h3 className="font-bold text-sm text-white mb-4 flex items-center gap-2">
+                    <TrendingUp size={16} className="text-blue-500" />
+                    Trending Topics
                 </h3>
-                <div className="space-y-4">
-                    {trendingTopics.map((topic, i) => (
-                        <div key={i} className="flex flex-col cursor-pointer group hover:bg-neutral-900/50 -mx-2 px-2 py-1 rounded-lg transition-colors">
-                            <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">#{topic.name}</span>
-                            <span className="text-[10px] font-medium text-neutral-500">{topic.posts} posts today</span>
-                        </div>
-                    ))}
-                </div>
+                {loadingAnalytics ? (
+                    <div className="animate-pulse space-y-3">
+                        <div className="h-8 bg-neutral-900 rounded" />
+                        <div className="h-8 bg-neutral-900 rounded" />
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {trendingTags.map((tag) => (
+                            <div
+                                key={tag.tag}
+                                onClick={() => onTopicClick(tag.tag)}
+                                className="group cursor-pointer"
+                            >
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-neutral-300 group-hover:text-blue-400 transition-colors">#{tag.tag}</span>
+                                    <span className="text-[10px] text-neutral-500 bg-neutral-900 px-1.5 py-0.5 rounded">
+                                        {tag.postCount}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Top Creators Widget */}
+            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm shrink-0">
+                <h3 className="font-bold text-sm text-white mb-4 flex items-center gap-2">
+                    <Trophy size={16} className="text-yellow-500" />
+                    Top Creators
+                </h3>
+                {loadingAnalytics ? (
+                    <div className="animate-pulse space-y-3">
+                        <div className="h-10 bg-neutral-900 rounded" />
+                        <div className="h-10 bg-neutral-900 rounded" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {leaderboard.map((entry) => (
+                            <div key={entry.user.id} className="flex items-center gap-3 group cursor-pointer">
+                                <div className="relative">
+                                    <div className="w-8 h-8 rounded-full bg-neutral-900 overflow-hidden border border-neutral-800">
+                                        {entry.user.avatarUrl ? (
+                                            <img src={entry.user.avatarUrl} alt={entry.user.displayName} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-neutral-500 text-xs font-bold">
+                                                {entry.user.displayName[0]}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-yellow-500 text-black text-[9px] font-bold flex items-center justify-center border border-black">
+                                        {entry.rank}
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-xs font-bold text-white truncate group-hover:text-yellow-500 transition-colors">
+                                        {entry.user.displayName}
+                                    </h4>
+                                    <p className="text-[10px] text-neutral-500">
+                                        {entry.score} pts
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Who to Follow Widget */}
+            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm shrink-0">
+                <h3 className="font-bold text-sm text-white mb-4 flex items-center gap-2">
+                    <User size={16} className="text-purple-500" />
+                    Who to Follow
+                </h3>
+                {loadingAnalytics ? (
+                    <div className="animate-pulse space-y-3">
+                        <div className="h-10 bg-neutral-900 rounded" />
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {popularAuthors.map((author) => (
+                            <div key={author.user.id} className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-neutral-900 overflow-hidden border border-neutral-800 shrink-0">
+                                    {author.user.avatarUrl ? (
+                                        <img src={author.user.avatarUrl} alt={author.user.displayName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-neutral-500 text-xs font-bold">
+                                            {author.user.displayName[0]}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-xs font-bold text-white truncate">
+                                        {author.user.displayName}
+                                    </h4>
+                                    <p className="text-[10px] text-neutral-500 truncate">
+                                        {author.stats.posts} posts
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => author.user.teacherId && handleFollow(author.user.teacherId)}
+                                    disabled={!author.user.teacherId}
+                                    className={`px-3 py-1.5 text-[10px] font-bold rounded-full transition-colors flex items-center gap-1 ${
+                                        !author.user.teacherId
+                                            ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
+                                            : author.isFollowing
+                                            ? 'bg-green-500 text-black hover:bg-green-600'
+                                            : 'bg-white text-black hover:bg-neutral-200'
+                                    }`}
+                                >
+                                    {author.isFollowing ? (
+                                        <>
+                                            <Check size={10} /> Following
+                                        </>
+                                    ) : 'Follow'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-neutral-600 px-2 pb-8">
+                <a href="#" className="hover:underline">Privacy</a>
+                <a href="#" className="hover:underline">Terms</a>
+                <a href="#" className="hover:underline">Cookies</a>
+                <span>© 2026 Knover</span>
             </div>
         </aside>
     );

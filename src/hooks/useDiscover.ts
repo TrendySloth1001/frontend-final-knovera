@@ -40,9 +40,12 @@ export function usePosts(query?: PostListQuery) {
     }
   };
 
+  // Create a stable key for tags to prevent infinite loops from array reference changes
+  const tagsKey = query?.tags ? [...query.tags].sort().join(',') : '';
+
   useEffect(() => {
     fetchPosts();
-  }, [page, query?.sortBy, query?.communityId, query?.search]);
+  }, [page, query?.sortBy, query?.communityId, query?.search, tagsKey]);
 
   const loadMore = () => {
     if (hasMore && !loading) {
@@ -355,4 +358,31 @@ export function useUserCommunities(userId?: string) {
   }, [userId]);
 
   return { communities, loading, error, refresh: fetchUserCommunities };
+}
+
+// ============ Recommended Posts Hook ============
+
+export function useRecommendedPosts(limit: number = 10) {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await discoverApi.getRecommendedPosts(limit);
+      setPosts(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, [limit]);
+
+  return { posts, loading, error, refresh: fetchPosts };
 }
