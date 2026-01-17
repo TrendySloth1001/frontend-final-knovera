@@ -26,6 +26,9 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
   // State for Community Selector
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedCommunities, setSelectedCommunities] = useState<Array<{ id: string; name: string; avatarUrl?: string }>>(
+    communityId ? [] : []
+  );
 
   // Data Fetching
   const { communities: userCommunities, loading: loadingUserCommunities } = useUserCommunities(user?.user?.id);
@@ -40,6 +43,7 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
     postType: PostType.TEXT,
     visibility: PostVisibility.PUBLIC,
     communityId: communityId,
+    communityIds: communityId ? [communityId] : [],
     tags: []
   });
   const [files, setFiles] = useState<File[]>([]);
@@ -187,12 +191,46 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
           />
         </div>
 
-        {/* Community Selector */}
+        {/* Community Selector - Multi-select for crossposting */}
         {!communityId && (
           <div className="relative">
             <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">
-              Community (optional)
+              Communities (optional - select multiple for crossposting)
             </label>
+
+            {/* Selected Communities */}
+            {selectedCommunities.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedCommunities.map((community) => (
+                  <div
+                    key={community.id}
+                    className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5"
+                  >
+                    {community.avatarUrl ? (
+                      <img src={community.avatarUrl} alt={community.name} className="w-5 h-5 rounded object-cover" />
+                    ) : (
+                      <div className="w-5 h-5 rounded bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
+                        {community.name[0]}
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-white">c/{community.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCommunities(prev => prev.filter(c => c.id !== community.id));
+                        setFormData(prev => ({
+                          ...prev,
+                          communityIds: prev.communityIds?.filter(id => id !== community.id)
+                        }));
+                      }}
+                      className="p-0.5 hover:bg-neutral-800 rounded text-neutral-500 hover:text-white transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="relative">
               <div className="flex items-center bg-black border border-neutral-800 rounded-xl p-3 focus-within:ring-1 focus-within:ring-white focus-within:border-white transition-all">
@@ -204,25 +242,13 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
                     setSearchTerm(e.target.value);
                     setIsDropdownOpen(true);
                     if (e.target.value) {
-                      searchCommunities(); // This will trigger the search via effect or debounce
+                      searchCommunities();
                     }
                   }}
                   onFocus={() => setIsDropdownOpen(true)}
-                  placeholder="Select a community..."
+                  placeholder="Search and select communities..."
                   className="w-full bg-transparent border-none focus:ring-0 text-white placeholder:text-neutral-600 p-0 text-sm font-medium"
                 />
-                {formData.communityId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(prev => ({ ...prev, communityId: undefined }));
-                      setSearchTerm('');
-                    }}
-                    className="p-1 hover:bg-neutral-800 rounded-full text-neutral-500 hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
               </div>
 
               {/* Dropdown Results */}
@@ -237,30 +263,48 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
                   {!searchTerm && userCommunities.length > 0 && (
                     <div className="p-2">
                       <div className="px-3 py-2 text-xs font-bold text-neutral-500 uppercase">My Communities</div>
-                      {userCommunities.map(community => (
-                        <button
-                          key={community.id}
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, communityId: community.id }));
-                            setSearchTerm(community.name);
-                            setIsDropdownOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 p-2 hover:bg-neutral-900 rounded-lg transition-colors text-left"
-                        >
-                          {community.avatarUrl ? (
-                            <img src={community.avatarUrl} alt={community.name} className="w-8 h-8 rounded-lg object-cover" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
-                              {community.name[0]}
+                      {userCommunities.map(community => {
+                        const isSelected = selectedCommunities.some(c => c.id === community.id);
+                        return (
+                          <button
+                            key={community.id}
+                            type="button"
+                            onClick={() => {
+                              if (!isSelected) {
+                                const newCommunity = {
+                                  id: community.id,
+                                  name: community.name,
+                                  avatarUrl: community.avatarUrl
+                                };
+                                setSelectedCommunities(prev => [...prev, newCommunity]);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  communityIds: [...(prev.communityIds || []), community.id]
+                                }));
+                              }
+                              setSearchTerm('');
+                            }}
+                            disabled={isSelected}
+                            className={`w-full flex items-center gap-3 p-2 hover:bg-neutral-900 rounded-lg transition-colors text-left ${
+                              isSelected ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            {community.avatarUrl ? (
+                              <img src={community.avatarUrl} alt={community.name} className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
+                                {community.name[0]}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-bold text-white truncate">
+                                c/{community.name} {isSelected && '✓'}
+                              </div>
+                              <div className="text-xs text-neutral-500 truncate">{community.memberCount} members</div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold text-white truncate">c/{community.name}</div>
-                            <div className="text-xs text-neutral-500 truncate">{community.memberCount} members</div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -268,30 +312,48 @@ export default function CreatePostForm({ communityId, onSuccess, onCancel }: Cre
                   {searchTerm && searchResults.length > 0 && (
                     <div className="p-2">
                       <div className="px-3 py-2 text-xs font-bold text-neutral-500 uppercase">Search Results</div>
-                      {searchResults.map(community => (
-                        <button
-                          key={community.id}
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, communityId: community.id }));
-                            setSearchTerm(community.name);
-                            setIsDropdownOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 p-2 hover:bg-neutral-900 rounded-lg transition-colors text-left"
-                        >
-                          {community.avatarUrl ? (
-                            <img src={community.avatarUrl} alt={community.name} className="w-8 h-8 rounded-lg object-cover" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
-                              {community.name[0]}
+                      {searchResults.map(community => {
+                        const isSelected = selectedCommunities.some(c => c.id === community.id);
+                        return (
+                          <button
+                            key={community.id}
+                            type="button"
+                            onClick={() => {
+                              if (!isSelected) {
+                                const newCommunity = {
+                                  id: community.id,
+                                  name: community.name,
+                                  avatarUrl: community.avatarUrl
+                                };
+                                setSelectedCommunities(prev => [...prev, newCommunity]);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  communityIds: [...(prev.communityIds || []), community.id]
+                                }));
+                              }
+                              setSearchTerm('');
+                            }}
+                            disabled={isSelected}
+                            className={`w-full flex items-center gap-3 p-2 hover:bg-neutral-900 rounded-lg transition-colors text-left ${
+                              isSelected ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            {community.avatarUrl ? (
+                              <img src={community.avatarUrl} alt={community.name} className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center text-white text-xs font-bold">
+                                {community.name[0]}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-bold text-white truncate">
+                                c/{community.name} {isSelected && '✓'}
+                              </div>
+                              <div className="text-xs text-neutral-500 truncate">{community.memberCount} members</div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold text-white truncate">c/{community.name}</div>
-                            <div className="text-xs text-neutral-500 truncate">{community.memberCount} members</div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 

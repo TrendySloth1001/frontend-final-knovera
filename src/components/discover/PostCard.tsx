@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Post, VoteType, PostMedia, MediaType } from '@/types/discover';
 import { discoverApi } from '@/lib/discoverApi';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   MessageSquare,
   ThumbsUp,
@@ -18,10 +19,12 @@ import {
   Flag,
   Clock,
   Image as ImageIcon,
+  Repeat,
 } from 'lucide-react';
 import { getAuthToken } from '@/lib/api';
 import VideoPlayer from './VideoPlayer';
 import ShareToChatDrawer from './ShareToChatDrawer';
+import CrosspostDrawer from './CrosspostDrawer';
 
 interface PostCardProps {
   post: Post;
@@ -31,10 +34,12 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPostUpdate, showCommunity = false, detailed = false }: PostCardProps) {
+  const { user } = useAuth();
   const [currentPost, setCurrentPost] = useState(post);
   const [isVoting, setIsVoting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showShareDrawer, setShowShareDrawer] = useState(false);
+  const [showCrosspostDrawer, setShowCrosspostDrawer] = useState(false);
   const isAuthenticated = !!getAuthToken();
 
   const handleVote = async (type: VoteType) => {
@@ -151,8 +156,30 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
         {/* Content Column */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-2 text-xs text-neutral-400 mb-3 font-medium">
-            {(showCommunity && currentPost.community) && (
+          <div className="flex items-center gap-2 text-xs text-neutral-400 mb-3 font-medium flex-wrap">
+            {/* Show communities if crossposted */}
+            {(showCommunity && currentPost.communities && currentPost.communities.length > 0) && (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentPost.communities.map((community, index) => (
+                    <div key={community.id} className="flex items-center gap-2">
+                      <span className="text-white font-bold bg-neutral-900 px-2 py-1 rounded-md border border-neutral-800 flex items-center gap-1.5">
+                        {community.avatarUrl && (
+                          <img src={community.avatarUrl} alt={community.name} className="w-4 h-4 rounded object-cover" />
+                        )}
+                        c/{community.name}
+                      </span>
+                      {index < (currentPost.communities?.length || 0) - 1 && (
+                        <span className="text-neutral-600">+</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-neutral-600">•</span>
+              </>
+            )}
+            {/* Fallback to legacy community */}
+            {(showCommunity && !currentPost.communities && currentPost.community) && (
               <>
                 <span className="text-white font-bold bg-neutral-900 px-2 py-1 rounded-md border border-neutral-800">
                   c/{currentPost.community.name}
@@ -160,7 +187,16 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
                 <span className="text-neutral-600">•</span>
               </>
             )}
-            <span className="hover:text-white transition-colors cursor-pointer">u/{currentPost.author?.displayName}</span>
+            <div className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer group/author">
+              {currentPost.author?.avatarUrl ? (
+                <img src={currentPost.author.avatarUrl} alt={currentPost.author.displayName} className="w-4 h-4 rounded-full object-cover" />
+              ) : (
+                <div className="w-4 h-4 rounded-full bg-neutral-800 flex items-center justify-center text-[8px] font-bold text-neutral-500">
+                  {currentPost.author?.displayName?.[0]?.toUpperCase()}
+                </div>
+              )}
+              <span>u/{currentPost.author?.displayName}</span>
+            </div>
             <span className="text-neutral-600">•</span>
             <span className="flex items-center gap-1">
               <Clock size={12} /> {formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true })}
@@ -185,6 +221,20 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
             <button className="flex items-center gap-2 hover:bg-neutral-900 hover:text-white px-4 py-2 rounded-full transition-colors border border-transparent hover:border-neutral-800">
               <MessageSquare size={16} /> {currentPost.commentCount} Comments
             </button>
+
+            {/* Crosspost for Owner */}
+            {user?.user?.id === currentPost.authorId && (
+              <button
+                className="flex items-center gap-2 hover:bg-neutral-900 hover:text-white px-4 py-2 rounded-full transition-colors border border-transparent hover:border-neutral-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCrosspostDrawer(true);
+                }}
+              >
+                <Repeat size={16} /> Crosspost
+              </button>
+            )}
+
             <button
               onClick={(e) => { e.stopPropagation(); handleSave(); }}
               disabled={isSaving}
@@ -215,6 +265,25 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
         sharedPostId={post.id}
         previewTitle={post.title}
         previewImage={post.media?.[0]?.thumbnailUrl || post.media?.[0]?.url}
+      />
+
+      {/* Crosspost Drawer */}
+      <CrosspostDrawer
+        isOpen={showCrosspostDrawer}
+        onClose={() => setShowCrosspostDrawer(false)}
+        postId={post.id}
+        postTitle={post.title}
+        existingCommunityIds={currentPost.communities?.map(c => c.id) || []}
+        onSuccess={async () => {
+          // Refresh the post to show new communities
+          try {
+            const updatedPost = await discoverApi.getPostById(post.id);
+            setCurrentPost(updatedPost);
+          } catch (error) {
+            console.error('Failed to refresh post:', error);
+          }
+          onPostUpdate?.();
+        }}
       />
     </div>
   );

@@ -70,6 +70,11 @@ export interface Post {
   };
   communityId?: string;
   community?: Community;
+  communities?: Array<{
+    id: string;
+    name: string;
+    avatarUrl?: string;
+  }>;  // Multiple communities for crossposting
   linkUrl?: string;
   media: PostMedia[];
   tags?: string[];
@@ -88,7 +93,8 @@ export interface CreatePostRequest {
   postType: PostType;
   visibility?: PostVisibility;
   tags?: string[];
-  communityId?: string;
+  communityId?: string;      // Legacy: single community
+  communityIds?: string[];   // New: multiple communities for crossposting
   linkUrl?: string;
 }
 

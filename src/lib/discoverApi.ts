@@ -56,6 +56,10 @@ export const discoverApi = {
     return apiClient.put<Post>(`${BASE_PATH}/posts/${postId}`, data);
   },
 
+  async crosspostToCommunities(postId: string, communityIds: string[]): Promise<Post> {
+    return apiClient.post<Post>(`${BASE_PATH}/posts/${postId}/crosspost`, { communityIds });
+  },
+
   async deletePost(postId: string): Promise<void> {
     return apiClient.delete(`${BASE_PATH}/posts/${postId}`);
   },
