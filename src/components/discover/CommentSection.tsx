@@ -6,12 +6,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Comment, VoteType } from '@/types/discover';
+import { Comment, VoteType, ReactionType } from '@/types/discover';
 import { useComments, useVoting } from '@/hooks/useDiscover';
 import VoteButtons from './VoteButtons';
+import CommentReactions, { HeaderReactionPicker } from './CommentReactions';
+import CommentSortDropdown, { CommentSortOption } from './CommentSortDropdown';
 import { getAuthToken } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageSquare, Trash2, CornerDownRight, ThumbsUp, ThumbsDown, MoreHorizontal, MessageCircle } from 'lucide-react';
+import { discoverApi } from '@/lib/discoverApi';
+import { MessageSquare, Trash2, CornerDownRight, ThumbsUp, ThumbsDown, MoreHorizontal, MessageCircle, Award } from 'lucide-react';
 
 // Build nested comment tree from flat array
 function buildCommentTree(comments: Comment[]): Comment[] {
@@ -42,15 +45,20 @@ function buildCommentTree(comments: Comment[]): Comment[] {
 
 interface CommentSectionProps {
   postId: string;
+  postAuthorId?: string;
 }
 
 interface CommentItemProps {
   comment: Comment;
   currentUserId?: string;
+  postAuthorId?: string;
   onReply: (commentId: string, content: string) => void;
   onDelete: (commentId: string) => void;
   onVote: (commentId: string, voteType: VoteType) => void;
   onRemoveVote: (commentId: string) => void;
+  onReact: (commentId: string, reactionType: ReactionType) => Promise<void>;
+  onRemoveReaction: (commentId: string) => Promise<void>;
+  onToggleHighlight: (commentId: string) => Promise<void>;
   depth?: number;
   isLast?: boolean;
 }
@@ -58,10 +66,14 @@ interface CommentItemProps {
 function CommentItem({
   comment,
   currentUserId,
+  postAuthorId,
   onReply,
   onDelete,
   onVote,
   onRemoveVote,
+  onReact,
+  onRemoveReaction,
+  onToggleHighlight,
   depth = 0,
   isLast = false
 }: CommentItemProps) {
@@ -69,6 +81,7 @@ function CommentItem({
   const [replyContent, setReplyContent] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const isAuthor = currentUserId && comment.authorId === currentUserId;
+  const isPostAuthor = currentUserId && postAuthorId === currentUserId;
 
   const handleVote = async (voteType: VoteType) => {
     if (!getAuthToken()) return;
@@ -128,14 +141,30 @@ function CommentItem({
         {/* Content Box */}
         <div className="flex-1 bg-black rounded-2xl p-4 shadow-sm border border-neutral-800 hover:border-neutral-700 transition-all duration-200 group">
           <div className="flex justify-between items-start mb-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`font-bold text-sm tracking-tight ${isAuthor ? 'text-blue-400' : 'text-white'}`}>
                 {comment.author?.displayName}
               </span>
               {isAuthor && <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[10px] font-bold">OP</span>}
+              {comment.isHighlighted && (
+                <span className="bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                  <Award size={10} />
+                  Best Comment
+                </span>
+              )}
               <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">
                 {new Date(comment.createdAt).toLocaleDateString()}
               </span>
+
+              {/* Header Reaction Picker */}
+              <div className="ml-1 border-l border-neutral-800 pl-3">
+                <HeaderReactionPicker
+                  commentId={comment.id}
+                  userReaction={comment.userReaction}
+                  onReact={onReact}
+                  onRemoveReaction={onRemoveReaction}
+                />
+              </div>
             </div>
 
             {/* More Menu Dropdown */}
@@ -153,13 +182,25 @@ function CommentItem({
               {showMoreMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-32 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50 py-1">
                     <button className="w-full text-left px-3 py-2 text-xs font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors flex items-center gap-2">
                       Share
                     </button>
                     <button className="w-full text-left px-3 py-2 text-xs font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors flex items-center gap-2">
                       Report
                     </button>
+                    {isPostAuthor && !isAuthor && (
+                      <button
+                        onClick={() => {
+                          onToggleHighlight(comment.id);
+                          setShowMoreMenu(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-yellow-500 hover:bg-yellow-500/10 transition-colors flex items-center gap-2"
+                      >
+                        <Award size={12} />
+                        {comment.isHighlighted ? 'Remove Highlight' : 'Highlight as Best'}
+                      </button>
+                    )}
                     {isAuthor && (
                       <button
                         onClick={() => onDelete(comment.id)}
@@ -178,7 +219,7 @@ function CommentItem({
             {comment.content}
           </p>
 
-          <div className="flex items-center gap-5 text-neutral-500">
+          <div className="flex items-center gap-5 text-neutral-500 mb-2">
             {/* Compact Vote */}
             <div className="flex items-center gap-1">
               <button
@@ -205,6 +246,16 @@ function CommentItem({
               <MessageCircle size={14} />
               <span className="text-xs font-bold">Reply</span>
             </button>
+
+            {/* Comment Reactions */}
+            <CommentReactions
+              commentId={comment.id}
+              reactions={comment.reactions || { LIKE: 0, FUNNY: 0, HELPFUL: 0, INSIGHTFUL: 0, HEART: 0 }}
+              userReaction={comment.userReaction}
+              onReact={onReact}
+              onRemoveReaction={onRemoveReaction}
+              showAddButton={false}
+            />
           </div>
         </div>
       </div>
@@ -253,10 +304,14 @@ function CommentItem({
               key={reply.id}
               comment={reply}
               currentUserId={currentUserId}
+              postAuthorId={postAuthorId}
               onReply={onReply}
               onDelete={onDelete}
               onVote={onVote}
               onRemoveVote={onRemoveVote}
+              onReact={onReact}
+              onRemoveReaction={onRemoveReaction}
+              onToggleHighlight={onToggleHighlight}
               depth={depth + 1}
               isLast={index === (comment.replies?.length || 0) - 1}
             />
@@ -267,8 +322,9 @@ function CommentItem({
   );
 }
 
-export default function CommentSection({ postId }: CommentSectionProps) {
-  const { comments, loading, error, addComment, deleteComment, refresh } = useComments(postId);
+export default function CommentSection({ postId, postAuthorId }: CommentSectionProps) {
+  const [sortBy, setSortBy] = useState<CommentSortOption>('best');
+  const { comments, loading, error, addComment, deleteComment, refresh } = useComments(postId, sortBy);
   const { voteComment, removeCommentVote } = useVoting();
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
@@ -277,6 +333,10 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
   // Build nested comment tree
   const commentTree = buildCommentTree(comments);
+
+  const handleSortChange = (newSort: CommentSortOption) => {
+    setSortBy(newSort);
+  };
 
   const handleSubmit = async () => {
     if (!newComment.trim()) return;
@@ -300,6 +360,33 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   const handleVote = async (commentId: string, voteType: VoteType) => {
     await voteComment(commentId, voteType);
     refresh();
+  };
+
+  const handleReact = async (commentId: string, reactionType: ReactionType) => {
+    try {
+      await discoverApi.reactToComment(commentId, reactionType);
+      refresh();
+    } catch (error) {
+      console.error('Failed to react to comment:', error);
+    }
+  };
+
+  const handleRemoveReaction = async (commentId: string) => {
+    try {
+      await discoverApi.removeCommentReaction(commentId);
+      refresh();
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+    }
+  };
+
+  const handleToggleHighlight = async (commentId: string) => {
+    try {
+      await discoverApi.toggleCommentHighlight(commentId);
+      refresh();
+    } catch (error) {
+      console.error('Failed to toggle highlight:', error);
+    }
   };
 
   const handleRemoveVote = async (commentId: string) => {
@@ -340,10 +427,16 @@ export default function CommentSection({ postId }: CommentSectionProps) {
 
   return (
     <div className="mt-8">
-      <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-2">
-        <MessageSquare size={18} />
-        {comments.length} Comments
-      </h3>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <MessageSquare size={18} />
+          {comments.length} Comments
+        </h3>
+
+        {comments.length > 0 && (
+          <CommentSortDropdown currentSort={sortBy} onSortChange={handleSortChange} />
+        )}
+      </div>
 
       {/* Add Comment Form */}
       <div className="mb-8 bg-neutral-900 border border-neutral-800 rounded-3xl p-1">
@@ -381,10 +474,14 @@ export default function CommentSection({ postId }: CommentSectionProps) {
               key={comment.id}
               comment={comment}
               currentUserId={user?.user?.id}
+              postAuthorId={postAuthorId}
               onReply={handleReply}
               onDelete={handleDelete}
               onVote={handleVote}
               onRemoveVote={handleRemoveVote}
+              onReact={handleReact}
+              onRemoveReaction={handleRemoveReaction}
+              onToggleHighlight={handleToggleHighlight}
             />
           ))
         )}

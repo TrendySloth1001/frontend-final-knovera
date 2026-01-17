@@ -1,7 +1,9 @@
 import { usePost } from '@/hooks/useDiscover';
 import PostCard from '@/components/discover/PostCard';
 import CommentSection from '@/components/discover/CommentSection';
+import { discoverApi } from '@/lib/discoverApi';
 import { ArrowLeft } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface PostDetailProps {
     postId: string;
@@ -10,6 +12,13 @@ interface PostDetailProps {
 
 export default function PostDetail({ postId, onBack }: PostDetailProps) {
     const { post, loading, error, refresh } = usePost(postId);
+
+    // Mark post as read when viewed
+    useEffect(() => {
+        if (postId) {
+            discoverApi.markPostAsRead(postId).catch(console.error);
+        }
+    }, [postId]);
 
     if (loading) {
         return (
@@ -44,7 +53,7 @@ export default function PostDetail({ postId, onBack }: PostDetailProps) {
 
             {/* Comments */}
             <div className="mt-8">
-                <CommentSection postId={postId} />
+                <CommentSection postId={postId} postAuthorId={post.authorId} />
             </div>
         </div>
     );

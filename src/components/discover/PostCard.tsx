@@ -20,6 +20,8 @@ import {
   Clock,
   Image as ImageIcon,
   Repeat,
+  Eye,
+  CheckCircle2,
 } from 'lucide-react';
 import { getAuthToken } from '@/lib/api';
 import VideoPlayer from './VideoPlayer';
@@ -127,7 +129,7 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
   };
 
   return (
-    <div className={`bg-black border border-neutral-800 rounded-2xl overflow-hidden mb-6 shadow-sm group relative ${!detailed ? 'hover:border-neutral-700 hover:shadow-md hover:shadow-neutral-900/20 transition-all duration-300' : ''}`}>
+    <div className={`bg-black border border-neutral-800 rounded-2xl overflow-hidden mb-6 shadow-sm group relative ${!detailed ? 'hover:border-neutral-700 hover:shadow-md hover:shadow-neutral-900/20 transition-all duration-300' : ''} ${currentPost.isRead ? 'opacity-75' : ''}`}>
       {/* Subtle Gradient Glow on Hover */}
       {!detailed && <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />}
 
@@ -218,6 +220,10 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
 
           {/* Actions */}
           <div className="flex items-center gap-2 text-neutral-400 font-bold text-xs uppercase tracking-wide flex-wrap pt-2">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-transparent text-neutral-500" title="Views">
+              <Eye size={16} /> {currentPost.viewCount || 0}
+            </div>
+
             <button className="flex items-center gap-2 hover:bg-neutral-900 hover:text-white px-4 py-2 rounded-full transition-colors border border-transparent hover:border-neutral-800">
               <MessageSquare size={16} /> {currentPost.commentCount} Comments
             </button>

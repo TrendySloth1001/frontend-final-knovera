@@ -44,6 +44,14 @@ export enum ReportReason {
   OTHER = 'OTHER'
 }
 
+export enum ReactionType {
+  LIKE = 'LIKE',
+  FUNNY = 'FUNNY',
+  HELPFUL = 'HELPFUL',
+  INSIGHTFUL = 'INSIGHTFUL',
+  HEART = 'HEART'
+}
+
 // Post Types
 export interface PostMedia {
   id: string;
@@ -83,6 +91,7 @@ export interface Post {
   viewCount?: number;
   userVote?: 'UP' | 'DOWN' | null;
   isSaved?: boolean;
+  isRead?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -138,6 +147,15 @@ export interface Comment {
   depth: number;
   voteCount: number;
   userVote?: 'UP' | 'DOWN' | null;
+  isHighlighted?: boolean;
+  reactions?: {
+    LIKE: number;
+    FUNNY: number;
+    HELPFUL: number;
+    INSIGHTFUL: number;
+    HEART: number;
+  };
+  userReaction?: ReactionType | null;
   createdAt: Date;
   updatedAt: Date;
 }

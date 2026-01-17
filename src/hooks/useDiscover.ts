@@ -143,7 +143,7 @@ export function useVoting() {
 
 // ============ Comments Hooks ============
 
-export function useComments(postId: string) {
+export function useComments(postId: string, sortBy: string = 'best') {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +152,7 @@ export function useComments(postId: string) {
     try {
       setLoading(true);
       setError(null);
-      const data = await discoverApi.getComments(postId);
+      const data = await discoverApi.getComments(postId, sortBy);
       setComments(data);
     } catch (err: any) {
       setError(err.message);
@@ -165,7 +165,7 @@ export function useComments(postId: string) {
     if (postId) {
       fetchComments();
     }
-  }, [postId]);
+  }, [postId, sortBy]);
 
   const addComment = async (data: CreateCommentRequest) => {
     try {

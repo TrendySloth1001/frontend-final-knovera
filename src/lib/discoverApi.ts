@@ -112,8 +112,8 @@ export const discoverApi = {
 
   // ============ Comments ============
 
-  async getComments(postId: string): Promise<Comment[]> {
-    return apiClient.get<Comment[]>(`${BASE_PATH}/posts/${postId}/comments`);
+  async getComments(postId: string, sortBy: string = 'best'): Promise<Comment[]> {
+    return apiClient.get<Comment[]>(`${BASE_PATH}/posts/${postId}/comments?sortBy=${sortBy}`);
   },
 
   async createComment(postId: string, data: CreateCommentRequest): Promise<Comment> {
@@ -259,6 +259,25 @@ export const discoverApi = {
 
   async shareContent(data: ShareContentRequest): Promise<any> {
     return apiClient.post(`${BASE_PATH}/share`, data);
+  },
+
+  // Comment Reactions
+  async reactToComment(commentId: string, reactionType: string): Promise<Comment> {
+    return apiClient.post<Comment>(`${BASE_PATH}/comments/${commentId}/react`, { reactionType });
+  },
+
+  async removeCommentReaction(commentId: string): Promise<Comment> {
+    return apiClient.delete<Comment>(`${BASE_PATH}/comments/${commentId}/react`);
+  },
+
+  // Comment Highlights
+  async toggleCommentHighlight(commentId: string): Promise<Comment> {
+    return apiClient.post<Comment>(`${BASE_PATH}/comments/${commentId}/highlight`, {});
+  },
+
+  // Reading History
+  async markPostAsRead(postId: string): Promise<void> {
+    return apiClient.post(`${BASE_PATH}/posts/${postId}/read`, {});
   }
 };
 
