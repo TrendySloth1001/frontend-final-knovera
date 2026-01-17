@@ -79,11 +79,9 @@ export default function CommunityCard({ community, onUpdate }: CommunityCardProp
           </div>
 
           <div className="flex-1 pt-6">
-            <Link href={`/community/${community.id}`}>
-              <h3 className="font-bold text-lg text-white hover:text-neutral-300 cursor-pointer transition-colors mb-1">
-                c/{community.name}
-              </h3>
-            </Link>
+            <h3 className="font-bold text-lg text-white hover:text-neutral-300 cursor-pointer transition-colors mb-1">
+              c/{community.name}
+            </h3>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-neutral-500">
               <span className="flex items-center gap-1"><Users size={12} /> {memberCount.toLocaleString()} members</span>
               <span className="flex items-center gap-1"><FileText size={12} /> {community.postCount} posts</span>

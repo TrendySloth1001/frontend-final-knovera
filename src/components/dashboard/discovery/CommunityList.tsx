@@ -57,7 +57,7 @@ export default function CommunityList({ onNavigate }: CommunityListProps) {
             {/* Communities Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {communities.map((community) => (
-                    <div key={community.id} onClick={() => onNavigate('community-detail', { id: community.id })}>
+                    <div key={community.id} onClick={() => onNavigate('detail', { id: community.id })}>
                         <CommunityCard community={community} onUpdate={refresh} />
                     </div>
                 ))}

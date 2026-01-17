@@ -81,8 +81,12 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick }: Co
                                 className="flex items-center justify-between group cursor-pointer p-1 rounded-xl transition-all hover:bg-neutral-900"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getGradient(community.name)} flex items-center justify-center shadow-lg`}>
-                                        <span className="text-xs font-black text-white">{getInitials(community.name)}</span>
+                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getGradient(community.name)} flex items-center justify-center shadow-lg overflow-hidden`}>
+                                        {community.avatarUrl ? (
+                                            <img src={community.avatarUrl} alt={community.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-xs font-black text-white">{getInitials(community.name)}</span>
+                                        )}
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{community.name}</p>

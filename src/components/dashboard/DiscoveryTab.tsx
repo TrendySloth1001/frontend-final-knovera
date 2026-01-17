@@ -12,6 +12,46 @@ import { Search, Plus, X, Compass, Users, Bookmark } from 'lucide-react';
 
 export default function DiscoveryTab() {
     const [activeTab, setActiveTab] = useState('feed');
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash;
+
+            if (hash === '#discovery/communities') {
+                setActiveTab('communities');
+            } else if (hash === '#discovery/saved') {
+                setActiveTab('saved');
+            } else if (hash.startsWith('#discovery/community/')) {
+                const communityId = hash.replace('#discovery/community/', '');
+                if (communityId) {
+                    setActiveCommunityId(communityId);
+                    setActiveTab('community_detail');
+                } else {
+                    setActiveTab('feed');
+                }
+            } else if (hash === '#discovery/feed' || hash === '' || hash === '#discovery') {
+                setActiveTab('feed');
+            } else if (hash.startsWith('#discovery/')) {
+                // Fallback for other discovery routes
+                setActiveTab('feed');
+            }
+        };
+
+        // Initial check
+        handleHashChange();
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
+    const handleTabChange = (tab: string, id?: string) => {
+        if (tab === 'feed') window.location.hash = 'discovery/feed';
+        if (tab === 'communities') window.location.hash = 'discovery/communities';
+        if (tab === 'saved') window.location.hash = 'discovery/saved';
+        if (tab === 'community_detail' && id) {
+            window.location.hash = `discovery/community/${id}`;
+        }
+    };
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null);
     const [showCreatePost, setShowCreatePost] = useState(false);
@@ -24,13 +64,18 @@ export default function DiscoveryTab() {
     const { posts: savedPosts, loading: savedLoading, error: savedError } = useSavedPosts();
 
     const handleCommunityClick = (communityId: string) => {
-        setActiveCommunityId(communityId);
-        setActiveTab('community_detail');
+        handleTabChange('community_detail', communityId);
     };
 
     const renderContent = () => {
         if (activeTab === 'community_detail' && activeCommunityId) {
-            return <CommunityDetail communityId={activeCommunityId} onBack={() => setActiveTab('feed')} />;
+            return (
+                <CommunityDetail
+                    communityId={activeCommunityId}
+                    onBack={() => handleTabChange('feed')}
+                    onCreatePost={() => setShowCreatePost(true)}
+                />
+            );
         }
 
         switch (activeTab) {
@@ -105,7 +150,7 @@ export default function DiscoveryTab() {
                         {/* Right Sidebar */}
                         <CommunitySidebar
                             onCommunityClick={handleCommunityClick}
-                            onSeeAllClick={() => setActiveTab('communities')}
+                            onSeeAllClick={() => handleTabChange('communities')}
                         />
                     </div>
                 );
@@ -121,19 +166,19 @@ export default function DiscoveryTab() {
 
                     <nav className="flex items-center gap-1">
                         <button
-                            onClick={() => setActiveTab('feed')}
+                            onClick={() => handleTabChange('feed')}
                             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'feed' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white hover:bg-white/5'}`}
                         >
                             Feed
                         </button>
                         <button
-                            onClick={() => setActiveTab('communities')}
+                            onClick={() => handleTabChange('communities')}
                             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'communities' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white hover:bg-white/5'}`}
                         >
                             Communities
                         </button>
                         <button
-                            onClick={() => setActiveTab('saved')}
+                            onClick={() => handleTabChange('saved')}
                             className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'saved' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white hover:bg-white/5'}`}
                         >
                             Saved

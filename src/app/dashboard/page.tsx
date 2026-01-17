@@ -113,6 +113,10 @@ export default function Dashboard() {
       return null;
     }
 
+    if (cleanHash.startsWith('discovery')) {
+      return 'Discovery';
+    }
+
     switch (cleanHash) {
       case 'notification':
       case 'notifications':

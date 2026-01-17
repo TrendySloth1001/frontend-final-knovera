@@ -29,7 +29,7 @@ const BASE_PATH = '/api/discover';
 // Posts
 export const discoverApi = {
   // ============ Posts ============
-  
+
   async getPosts(query?: PostListQuery): Promise<PostListResponse> {
     const params = new URLSearchParams();
     if (query?.page) params.append('page', query.page.toString());
@@ -38,7 +38,7 @@ export const discoverApi = {
     if (query?.communityId) params.append('communityId', query.communityId);
     if (query?.sortBy) params.append('sortBy', query.sortBy);
     if (query?.search) params.append('search', query.search);
-    
+
     return apiClient.get<PostListResponse>(
       `${BASE_PATH}/posts?${params.toString()}`
     );
@@ -85,7 +85,7 @@ export const discoverApi = {
   },
 
   // ============ Voting ============
-  
+
   async votePost(postId: string, voteType: VoteType): Promise<void> {
     // Backend expects 'UP' or 'DOWN', not 'UPVOTE' or 'DOWNVOTE'
     const backendVoteType = voteType === VoteType.UPVOTE ? 'UP' : 'DOWN';
@@ -107,7 +107,7 @@ export const discoverApi = {
   },
 
   // ============ Comments ============
-  
+
   async getComments(postId: string): Promise<Comment[]> {
     return apiClient.get<Comment[]>(`${BASE_PATH}/posts/${postId}/comments`);
   },
@@ -125,7 +125,7 @@ export const discoverApi = {
   },
 
   // ============ Saved Posts ============
-  
+
   async savePost(postId: string): Promise<void> {
     return apiClient.post(`${BASE_PATH}/posts/${postId}/save`);
   },
@@ -139,7 +139,7 @@ export const discoverApi = {
   },
 
   // ============ Reporting ============
-  
+
   async reportPost(postId: string, data: ReportRequest): Promise<void> {
     return apiClient.post(`${BASE_PATH}/posts/${postId}/report`, data);
   },
@@ -149,14 +149,14 @@ export const discoverApi = {
   },
 
   // ============ Communities ============
-  
+
   async getCommunities(query?: CommunityListQuery): Promise<CommunityListResponse> {
     const params = new URLSearchParams();
     if (query?.page) params.append('page', query.page.toString());
     if (query?.limit) params.append('limit', query.limit.toString());
     if (query?.search) params.append('search', query.search);
     if (query?.sortBy) params.append('sortBy', query.sortBy);
-    
+
     return apiClient.get<CommunityListResponse>(
       `${BASE_PATH}/communities?${params.toString()}`
     );
@@ -178,6 +178,8 @@ export const discoverApi = {
     return apiClient.delete(`${BASE_PATH}/communities/${communityId}`);
   },
 
+
+
   async joinCommunity(communityId: string): Promise<void> {
     return apiClient.post(`${BASE_PATH}/communities/${communityId}/join`);
   },
@@ -196,6 +198,46 @@ export const discoverApi = {
 
   async removeMember(communityId: string, userId: string): Promise<void> {
     return apiClient.delete(`${BASE_PATH}/communities/${communityId}/members/${userId}`);
+  },
+
+  async uploadCommunityAvatar(communityId: string, file: File): Promise<{ avatarUrl: string }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const token = getAuthToken();
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${BASE_PATH}/communities/${communityId}/avatar`, {
+      method: 'POST',
+      headers: token ? {
+        'Authorization': `Bearer ${token}`
+      } : {},
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload avatar');
+    }
+
+    return response.json();
+  },
+
+  async uploadCommunityBackground(communityId: string, file: File): Promise<{ bannerUrl: string }> {
+    const formData = new FormData();
+    formData.append('background', file);
+
+    const token = getAuthToken();
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${BASE_PATH}/communities/${communityId}/background`, {
+      method: 'POST',
+      headers: token ? {
+        'Authorization': `Bearer ${token}`
+      } : {},
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload background');
+    }
+
+    return response.json();
   },
 
   async getUserCommunities(userId: string): Promise<Community[]> {
