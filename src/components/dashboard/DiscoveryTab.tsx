@@ -6,11 +6,14 @@ import CreateCommunityForm from '@/components/discover/CreateCommunityForm';
 import CommunityList from './discovery/CommunityList';
 import CommunityDetail from './discovery/CommunityDetail';
 import PostDetail from './discovery/PostDetail';
+import CommunitySidebar from '@/components/discover/CommunitySidebar';
+
 import { Search, Plus, X, Compass, Users, Bookmark } from 'lucide-react';
 
 export default function DiscoveryTab() {
     const [activeTab, setActiveTab] = useState('feed');
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+    const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null);
     const [showCreatePost, setShowCreatePost] = useState(false);
     const [showCreateCommunity, setShowCreateCommunity] = useState(false);
 
@@ -20,11 +23,22 @@ export default function DiscoveryTab() {
     // Saved Data
     const { posts: savedPosts, loading: savedLoading, error: savedError } = useSavedPosts();
 
+    const handleCommunityClick = (communityId: string) => {
+        setActiveCommunityId(communityId);
+        setActiveTab('community_detail');
+    };
+
     const renderContent = () => {
+        if (activeTab === 'community_detail' && activeCommunityId) {
+            return <CommunityDetail communityId={activeCommunityId} onBack={() => setActiveTab('feed')} />;
+        }
+
         switch (activeTab) {
             case 'communities':
                 return <CommunityList onNavigate={(view, params) => {
-                    console.log('Navigate', view, params);
+                    if (view === 'detail' && params?.id) {
+                        handleCommunityClick(params.id);
+                    }
                 }} />;
 
             case 'saved':
@@ -50,40 +64,49 @@ export default function DiscoveryTab() {
             case 'feed':
             default:
                 return (
-                    <div className="max-w-3xl mx-auto">
-                        {/* Inline Create Trigger */}
-                        <div onClick={() => setShowCreatePost(true)} className="bg-black border border-neutral-800 rounded-2xl p-4 mb-8 shadow-sm cursor-pointer hover:border-neutral-600 transition-colors">
-                            <div className="flex gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center shrink-0 border border-neutral-800 text-neutral-400 font-bold">U</div>
-                                <div className="flex-1">
-                                    <input readOnly placeholder="What's on your mind?" className="w-full text-lg font-bold placeholder:text-neutral-600 focus:outline-none bg-transparent cursor-pointer text-white" />
+                    <div className="flex justify-center gap-8">
+                        {/* Feed Column */}
+                        <div className="flex-1 max-w-2xl">
+                            {/* Inline Create Trigger */}
+                            <div onClick={() => setShowCreatePost(true)} className="bg-black border border-neutral-800 rounded-2xl p-4 mb-8 shadow-sm cursor-pointer hover:border-neutral-600 transition-colors">
+                                <div className="flex gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center shrink-0 border border-neutral-800 text-neutral-400 font-bold">U</div>
+                                    <div className="flex-1">
+                                        <input readOnly placeholder="What's on your mind?" className="w-full text-lg font-bold placeholder:text-neutral-600 focus:outline-none bg-transparent cursor-pointer text-white" />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
+                                    <div className="flex gap-2">
+                                        <span className="p-2 text-neutral-400 bg-neutral-800 rounded-lg text-sm font-medium">🖼️ Media</span>
+                                    </div>
+                                    <button className="bg-white text-black px-6 py-2 rounded-full text-sm font-bold hover:bg-neutral-200 transition-colors">Create Post</button>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
-                                <div className="flex gap-2">
-                                    <span className="p-2 text-neutral-400 bg-neutral-800 rounded-lg text-sm font-medium">🖼️ Media</span>
+
+                            {/* Feed Posts */}
+                            {feedLoading ? (
+                                <div className="text-center py-12"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {feedPosts.map(post => (
+                                        <div key={post.id} onClick={() => setSelectedPostId(post.id)} className="cursor-pointer">
+                                            <PostCard post={post} showCommunity={true} />
+                                        </div>
+                                    ))}
+                                    {hasMoreFeed && (
+                                        <button onClick={loadMoreFeed} className="w-full py-4 text-white font-bold hover:bg-neutral-900 rounded-xl transition-colors border border-neutral-800">
+                                            Load More
+                                        </button>
+                                    )}
                                 </div>
-                                <button className="bg-white text-black px-6 py-2 rounded-full text-sm font-bold hover:bg-neutral-200 transition-colors">Create Post</button>
-                            </div>
+                            )}
                         </div>
 
-                        {/* Feed Posts */}
-                        {feedLoading ? (
-                            <div className="text-center py-12"><div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>
-                        ) : (
-                            <div className="space-y-4">
-                                {feedPosts.map(post => (
-                                    <div key={post.id} onClick={() => setSelectedPostId(post.id)} className="cursor-pointer">
-                                        <PostCard post={post} showCommunity={true} />
-                                    </div>
-                                ))}
-                                {hasMoreFeed && (
-                                    <button onClick={loadMoreFeed} className="w-full py-4 text-white font-bold hover:bg-neutral-900 rounded-xl transition-colors border border-neutral-800">
-                                        Load More
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                        {/* Right Sidebar */}
+                        <CommunitySidebar
+                            onCommunityClick={handleCommunityClick}
+                            onSeeAllClick={() => setActiveTab('communities')}
+                        />
                     </div>
                 );
         }
