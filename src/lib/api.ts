@@ -296,3 +296,34 @@ export const teacherApi = {
     return apiClient.delete(`/api/teachers/${teacherId}/follow`);
   },
 };
+
+// Profile API endpoints
+export const profileAPI = {
+  // Get current user's profile
+  getMe: async () => {
+    return apiClient.get('/api/profile/me');
+  },
+
+  // Update teacher profile
+  updateTeacher: async (teacherId: string, data: {
+    firstName?: string;
+    lastName?: string;
+    bio?: string;
+    specialization?: string;
+    qualification?: string;
+    experience?: number;
+  }) => {
+    return apiClient.put(`/api/profile/teacher/${teacherId}`, data);
+  },
+
+  // Update student profile
+  updateStudent: async (studentId: string, data: {
+    firstName?: string;
+    lastName?: string;
+    grade?: string;
+    institution?: string;
+    interests?: string;
+  }) => {
+    return apiClient.put(`/api/profile/student/${studentId}`, data);
+  },
+};

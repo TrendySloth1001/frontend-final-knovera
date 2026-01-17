@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { discoverApi, TrendingTag, PopularAuthor, LeaderboardEntry } from '@/lib/discoverApi';
 import { Hash, User, TrendingUp, Trophy, ChevronRight, Loader2 } from 'lucide-react';
 
+import { useAuth } from '@/contexts/AuthContext';
+
 export default function TrendingSidebar() {
+    const { user } = useAuth();
     const [tags, setTags] = useState<TrendingTag[]>([]);
     const [authors, setAuthors] = useState<PopularAuthor[]>([]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -13,12 +16,25 @@ export default function TrendingSidebar() {
             try {
                 const [tagsData, authorsData, leaderboardData] = await Promise.all([
                     discoverApi.getTrendingTags(5),
-                    discoverApi.getPopularAuthors(3),
-                    discoverApi.getLeaderboard('engagement', 'week', 3)
+                    discoverApi.getPopularAuthors(10), // Fetch more to ensure we have enough after filtering
+                    discoverApi.getLeaderboard('engagement', 'week', 10)
                 ]);
+
                 setTags(tagsData);
-                setAuthors(authorsData);
-                setLeaderboard(leaderboardData);
+
+                // Filter out current user
+                const currentUserId = user?.user?.id;
+
+                const filteredAuthors = currentUserId
+                    ? authorsData.filter(a => a.user.id !== currentUserId)
+                    : authorsData;
+
+                const filteredLeaderboard = currentUserId
+                    ? leaderboardData.filter(e => e.user.id !== currentUserId)
+                    : leaderboardData;
+
+                setAuthors(filteredAuthors.slice(0, 3));
+                setLeaderboard(filteredLeaderboard.slice(0, 3));
             } catch (error) {
                 console.error('Failed to fetch trending data:', error);
             } finally {
@@ -27,7 +43,7 @@ export default function TrendingSidebar() {
         };
 
         fetchData();
-    }, []);
+    }, [user?.user?.id]);
 
     if (loading) {
         return (

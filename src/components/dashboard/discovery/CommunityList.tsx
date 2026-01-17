@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useCommunities } from '@/hooks/useDiscover';
 import CommunityCard from '@/components/discover/CommunityCard';
-import { Search } from 'lucide-react';
+import { Search, Flame, Sparkles, SortAsc } from 'lucide-react';
 
 interface CommunityListProps {
     onNavigate: (view: string, params?: any) => void;
@@ -15,8 +15,6 @@ export default function CommunityList({ onNavigate }: CommunityListProps) {
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-black text-white mb-6 tracking-tight">Communities</h1>
-
                 {/* Search & Sort Row */}
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
@@ -31,18 +29,36 @@ export default function CommunityList({ onNavigate }: CommunityListProps) {
                     </div>
 
                     <div className="flex gap-2">
-                        {(['popular', 'new', 'name'] as const).map((sort) => (
-                            <button
-                                key={sort}
-                                onClick={() => setSortBy(sort)}
-                                className={`px-4 py-2.5 rounded-xl capitalize transition-all font-bold text-sm ${sortBy === sort
-                                    ? 'bg-white text-black'
-                                    : 'bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800 border border-neutral-800'
-                                    }`}
-                            >
-                                {sort === 'popular' ? '🔥 Popular' : sort === 'new' ? '✨ New' : '📝 A-Z'}
-                            </button>
-                        ))}
+                        <button
+                            onClick={() => setSortBy('popular')}
+                            className={`px-4 py-2.5 rounded-xl capitalize transition-all font-bold text-sm flex items-center gap-2 ${sortBy === 'popular'
+                                ? 'bg-white text-black'
+                                : 'bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800 border border-neutral-800'
+                                }`}
+                        >
+                            <Flame size={16} className={sortBy === 'popular' ? 'text-orange-500' : ''} />
+                            Popular
+                        </button>
+                        <button
+                            onClick={() => setSortBy('new')}
+                            className={`px-4 py-2.5 rounded-xl capitalize transition-all font-bold text-sm flex items-center gap-2 ${sortBy === 'new'
+                                ? 'bg-white text-black'
+                                : 'bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800 border border-neutral-800'
+                                }`}
+                        >
+                            <Sparkles size={16} className={sortBy === 'new' ? 'text-yellow-500' : ''} />
+                            New
+                        </button>
+                        <button
+                            onClick={() => setSortBy('name')}
+                            className={`px-4 py-2.5 rounded-xl capitalize transition-all font-bold text-sm flex items-center gap-2 ${sortBy === 'name'
+                                ? 'bg-white text-black'
+                                : 'bg-neutral-900 text-neutral-400 hover:text-white hover:bg-neutral-800 border border-neutral-800'
+                                }`}
+                        >
+                            <SortAsc size={16} className={sortBy === 'name' ? 'text-blue-500' : ''} />
+                            A-Z
+                        </button>
                     </div>
                 </div>
             </div>

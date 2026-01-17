@@ -49,7 +49,7 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick, onTo
             console.error('No teacher ID provided');
             return;
         }
-        
+
         try {
             // Find the author to check current follow status
             const author = popularAuthors.find(a => a.user.teacherId === teacherId);
@@ -60,17 +60,17 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick, onTo
             } else {
                 await teacherApi.follow(teacherId);
             }
-            
+
             // Update local state
-            setPopularAuthors(prev => prev.map(a => 
-                a.user.teacherId === teacherId 
+            setPopularAuthors(prev => prev.map(a =>
+                a.user.teacherId === teacherId
                     ? { ...a, isFollowing: !a.isFollowing }
                     : a
             ));
 
             // Dispatch event for global follow state sync
-            window.dispatchEvent(new CustomEvent('teacherFollowUpdate', { 
-                detail: { teacherId, isFollowing: !author.isFollowing } 
+            window.dispatchEvent(new CustomEvent('teacherFollowUpdate', {
+                detail: { teacherId, isFollowing: !author.isFollowing }
             }));
         } catch (error) {
             console.error('Failed to follow/unfollow user:', error);
@@ -102,30 +102,30 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick, onTo
     };
 
     return (
-        <aside className="hidden lg:flex flex-col gap-4 w-80 shrink-0 sticky top-24 self-start h-[calc(100vh-120px)] overflow-y-auto no-scrollbar pb-4">
-            {/* Your Communities Card */}
-            <div className="bg-black border border-neutral-800 rounded-2xl p-5 shadow-sm shrink-0">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                        <Compass size={16} className="text-blue-500" />
+        <aside className="flex flex-col gap-3 sm:gap-4 w-full shrink-0 pb-4">
+            {/* Your Communities Card - Responsive */}
+            <div className="bg-black border border-neutral-800 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-sm shrink-0">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5 sm:gap-2">
+                        <Compass size={14} className="sm:w-4 sm:h-4 text-blue-500" />
                         Your Communities
                     </h3>
                     <button
                         onClick={onSeeAllClick}
-                        className="text-[10px] text-neutral-500 hover:text-white uppercase tracking-wider font-bold transition-colors"
+                        className="text-[9px] sm:text-[10px] text-neutral-500 hover:text-white uppercase tracking-wider font-bold transition-colors"
                     >
                         See All
                     </button>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                     {communitiesLoading ? (
-                        <div className="space-y-3 animate-pulse">
+                        <div className="space-y-2 sm:space-y-3 animate-pulse">
                             {[1, 2].map(i => (
-                                <div key={i} className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-neutral-900" />
+                                <div key={i} className="flex items-center gap-2 sm:gap-3">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-neutral-900" />
                                     <div className="flex-1">
-                                        <div className="h-2 w-20 bg-neutral-900 rounded mb-1" />
+                                        <div className="h-2 w-16 sm:w-20 bg-neutral-900 rounded mb-1" />
                                     </div>
                                 </div>
                             ))}
@@ -135,19 +135,19 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick, onTo
                             <div
                                 key={community.id}
                                 onClick={() => onCommunityClick(community.id)}
-                                className="flex items-center justify-between group cursor-pointer p-1.5 -mx-1.5 rounded-lg transition-all hover:bg-neutral-900"
+                                className="flex items-center justify-between group cursor-pointer p-1 sm:p-1.5 -mx-1 sm:-mx-1.5 rounded-lg transition-all hover:bg-neutral-900"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getGradient(community.name)} flex items-center justify-center shadow-lg overflow-hidden`}>
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br ${getGradient(community.name)} flex items-center justify-center shadow-lg overflow-hidden flex-shrink-0`}>
                                         {community.avatarUrl ? (
                                             <img src={community.avatarUrl} alt={community.name} className="w-full h-full object-cover" />
                                         ) : (
-                                            <span className="text-[10px] font-black text-white">{getInitials(community.name)}</span>
+                                            <span className="text-[9px] sm:text-[10px] font-black text-white">{getInitials(community.name)}</span>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors truncate">{community.name}</p>
-                                        <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">{community.memberCount} Members</p>
+                                        <p className="text-[8px] sm:text-[9px] text-neutral-500 font-bold uppercase tracking-wider">{community.memberCount} Members</p>
                                     </div>
                                 </div>
                             </div>
@@ -268,13 +268,12 @@ export default function CommunitySidebar({ onCommunityClick, onSeeAllClick, onTo
                                 <button
                                     onClick={() => author.user.teacherId && handleFollow(author.user.teacherId)}
                                     disabled={!author.user.teacherId}
-                                    className={`px-3 py-1.5 text-[10px] font-bold rounded-full transition-colors flex items-center gap-1 ${
-                                        !author.user.teacherId
+                                    className={`px-3 py-1.5 text-[10px] font-bold rounded-full transition-colors flex items-center gap-1 ${!author.user.teacherId
                                             ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
                                             : author.isFollowing
-                                            ? 'bg-green-500 text-black hover:bg-green-600'
-                                            : 'bg-white text-black hover:bg-neutral-200'
-                                    }`}
+                                                ? 'bg-green-500 text-black hover:bg-green-600'
+                                                : 'bg-white text-black hover:bg-neutral-200'
+                                        }`}
                                 >
                                     {author.isFollowing ? (
                                         <>

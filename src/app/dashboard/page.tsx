@@ -16,6 +16,7 @@ import {
   Search // Adding search if needed, but X is critical
 } from 'lucide-react';
 import { aiAPI } from '@/lib/ai-api';
+import { messagesAPI } from '@/lib/messages';
 import { apiClient, teacherApi } from '@/lib/api';
 import { discoverGroups, searchGroups } from '@/lib/groupDiscoveryApi';
 import { createJoinRequest } from '@/lib/groupManagementApi';
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const previousUnreadCountRef = useRef<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -297,6 +299,18 @@ export default function Dashboard() {
 
       setNotifications(unreadNotifications);
       setUnreadCount(newUnreadCount);
+
+      // Fetch unread message count
+      const token = localStorage.getItem('token');
+      if (token && user?.user?.id) {
+        try {
+          const unreadMsg = await messagesAPI.getAllUnreadCount(token, user.user.id);
+          console.log('[Dashboard] Unread MSG count:', unreadMsg);
+          setMessageCount(unreadMsg);
+        } catch (e) {
+          console.error('Failed to load message count', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to load notifications:', error);
     }
@@ -635,6 +649,7 @@ export default function Dashboard() {
         activeTab={activeTab}
         changeTab={changeTab}
         unreadCount={unreadCount}
+        messageCount={messageCount}
         showMobileMenu={showMobileMenu}
         setShowMobileMenu={setShowMobileMenu}
         user={user}
@@ -678,8 +693,8 @@ export default function Dashboard() {
         )}
 
         {/* Dashboard Body */}
-        <section className={`flex-1 overflow-y-auto overflow-x-hidden w-full ${activeTab === 'Messages' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'}`}>
-          {activeTab !== 'Messages' && (
+        <section className={`flex-1 overflow-y-auto overflow-x-hidden w-full ${(activeTab === 'Messages' || activeTab === 'Discovery') ? 'p-0' : 'p-4 sm:p-6 lg:p-8'}`}>
+          {(activeTab !== 'Messages' && activeTab !== 'Discovery') && (
             <div className="mx-auto w-full max-w-7xl">
               {/* Show different content based on active tab */}
               {activeTab === 'Overview' && (
@@ -751,6 +766,11 @@ export default function Dashboard() {
                 <DiscoveryTab />
               )}
             </div>
+          )}
+
+          {/* Discovery Tab - Full Width */}
+          {activeTab === 'Discovery' && (
+            <DiscoveryTab />
           )}
 
           {/* Messages Tab */}

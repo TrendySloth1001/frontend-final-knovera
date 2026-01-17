@@ -21,6 +21,7 @@ interface SidebarProps {
     activeTab: string;
     changeTab: (tab: string) => void;
     unreadCount: number;
+    messageCount: number;
     showMobileMenu: boolean;
     setShowMobileMenu: (show: boolean) => void;
     user: any;
@@ -74,6 +75,7 @@ export default function Sidebar({
     activeTab,
     changeTab,
     unreadCount,
+    messageCount,
     showMobileMenu,
     setShowMobileMenu,
     user,
@@ -153,6 +155,7 @@ export default function Sidebar({
                         active={activeTab === 'Messages'}
                         onClick={() => handleNavClick('Messages')}
                         isCollapsed={isCollapsed}
+                        badge={messageCount}
                     />
                     <NavItem
                         icon={BarChart3}
