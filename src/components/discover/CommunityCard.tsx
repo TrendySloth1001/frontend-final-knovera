@@ -9,13 +9,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Community } from '@/types/discover';
 import { discoverApi } from '@/lib/discoverApi';
+import ShareToChatDrawer from './ShareToChatDrawer';
 
 interface CommunityCardProps {
   community: Community;
   onUpdate?: () => void;
 }
 
-import { Users, FileText } from 'lucide-react';
+import { Users, FileText, Share2 } from 'lucide-react';
 
 interface CommunityCardProps {
   community: Community;
@@ -26,6 +27,7 @@ export default function CommunityCard({ community, onUpdate }: CommunityCardProp
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(community.isMember);
   const [memberCount, setMemberCount] = useState(community.memberCount);
+  const [showShareDrawer, setShowShareDrawer] = useState(false);
 
   const handleJoinToggle = async () => {
     try {
@@ -91,23 +93,48 @@ export default function CommunityCard({ community, onUpdate }: CommunityCardProp
 
         {/* Description */}
         {community.description && (
-          <p className="text-sm text-neutral-400 mb-6 line-clamp-2 leading-relaxed h-10">
+          <p className="text-sm text-neutral-400 mb-4 line-clamp-2 leading-relaxed h-10">
             {community.description}
           </p>
         )}
 
-        {/* Join Button */}
-        <button
-          onClick={handleJoinToggle}
-          disabled={isJoining || (isMember && community.userRole === 'CREATOR')}
-          className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95 ${isMember
-            ? 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 disabled:opacity-50'
-            : 'bg-white text-black hover:bg-neutral-200 border border-white'
-            }`}
-        >
-          {isJoining ? 'Wait...' : (isMember && community.userRole === 'CREATOR') ? 'Creator' : isMember ? 'Joined' : 'Join Community'}
-        </button>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleJoinToggle();
+            }}
+            disabled={isJoining || (isMember && community.userRole === 'CREATOR')}
+            className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95 ${isMember
+              ? 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 disabled:opacity-50'
+              : 'bg-white text-black hover:bg-neutral-200 border border-white'
+              }`}
+          >
+            {isJoining ? 'Wait...' : (isMember && community.userRole === 'CREATOR') ? 'Creator' : isMember ? 'Joined' : 'Join Community'}
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowShareDrawer(true);
+            }}
+            className="px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
+            title="Share Community"
+          >
+            <Share2 size={16} />
+          </button>
+        </div>
       </div>
+
+      {/* Share Drawer */}
+      <ShareToChatDrawer
+        isOpen={showShareDrawer}
+        onClose={() => setShowShareDrawer(false)}
+        sharedCommunityId={community.id}
+        previewTitle={community.name}
+        previewImage={community.avatarUrl || undefined}
+      />
     </div>
   );
 }

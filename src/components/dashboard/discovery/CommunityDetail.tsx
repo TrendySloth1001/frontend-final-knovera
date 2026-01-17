@@ -3,6 +3,7 @@ import { useCommunity, usePosts } from '@/hooks/useDiscover';
 import PostCard from '@/components/discover/PostCard';
 import { getAuthToken } from '@/lib/api';
 import { discoverApi } from '@/lib/discoverApi';
+import ShareToChatDrawer from '@/components/discover/ShareToChatDrawer';
 import {
     Camera,
     Image as ImageIcon,
@@ -12,7 +13,9 @@ import {
     ArrowLeft,
     Info,
     Users,
-    X
+    X,
+    Share2,
+    Save
 } from 'lucide-react';
 
 interface CommunityDetailProps {
@@ -27,7 +30,8 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
     const [isjoining, setIsJoining] = useState(false);
     const [activeTab, setActiveTab] = useState<'Posts' | 'About'>('Posts');
     const [isUploading, setIsUploading] = useState<{ type: 'avatar' | 'banner' | null; status: boolean }>({ type: null, status: false });
-    const [showEditModal, setShowEditModal] = useState(false);
+    const [showEditDrawer, setShowEditDrawer] = useState(false);
+    const [showShareDrawer, setShowShareDrawer] = useState(false);
     const [editForm, setEditForm] = useState({ name: '', description: '', rules: '' });
     const isAuthenticated = !!getAuthToken();
 
@@ -92,20 +96,20 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
     // Determine if user can edit (creator or moderator)
     const canEdit = community.userRole === 'CREATOR' || community.userRole === 'MODERATOR';
 
-    const openEditModal = () => {
+    const openEditDrawer = () => {
         setEditForm({
             name: community?.name || '',
             description: community?.description || '',
             rules: community?.rules || ''
         });
-        setShowEditModal(true);
+        setShowEditDrawer(true);
     };
 
     const handleUpdateCommunity = async () => {
         try {
             await discoverApi.updateCommunity(communityId, editForm);
             await refreshCommunity();
-            setShowEditModal(false);
+            setShowEditDrawer(false);
         } catch (error) {
             console.error('Failed to update community:', error);
             alert('Failed to update community');
@@ -114,7 +118,14 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
 
     return (
         <div className="max-w-6xl mx-auto pb-20 animate-in fade-in duration-500">
-            {/* ... (Header and other parts unchanged) ... */}
+            {/* Share Drawer */}
+            <ShareToChatDrawer
+                isOpen={showShareDrawer}
+                onClose={() => setShowShareDrawer(false)}
+                sharedCommunityId={community.id}
+                previewTitle={community.name}
+                previewImage={community.avatarUrl}
+            />
 
             {/* Nav / Back Button */}
             <div className="mb-6 flex items-center justify-between">
@@ -123,6 +134,12 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
                     className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm font-medium"
                 >
                     <ArrowLeft size={18} /> Back to Feed
+                </button>
+                <button
+                    onClick={() => setShowShareDrawer(true)}
+                    className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm font-medium"
+                >
+                    <Share2 size={18} /> Share
                 </button>
             </div>
 
@@ -346,7 +363,7 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-black text-xs uppercase tracking-widest text-neutral-500">Community Info</h3>
                                 {canEdit && (
-                                    <button onClick={openEditModal} className="text-neutral-500 hover:text-white transition-colors">
+                                    <button onClick={openEditDrawer} className="text-neutral-500 hover:text-white transition-colors">
                                         <Settings size={16} />
                                     </button>
                                 )}
@@ -378,56 +395,62 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
                 </div>
             </div>
 
-            {/* Edit Community Modal */}
-            {showEditModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-neutral-900 border border-white/10 w-full max-w-lg rounded-3xl shadow-2xl p-8 animate-in zoom-in duration-300">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-black text-white">Edit Community</h2>
-                            <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-white/10 rounded-full text-white">
-                                <X size={20} />
-                            </button>
+            {/* Settings Drawer (Right Side) */}
+            <div className={`fixed inset-0 z-50 pointer-events-none ${showEditDrawer ? '' : 'invisible'}`}>
+                <div
+                    className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 pointer-events-auto ${showEditDrawer ? 'opacity-100' : 'opacity-0'}`}
+                    onClick={() => setShowEditDrawer(false)}
+                />
+                <div className={`absolute right-0 top-0 bottom-0 w-full max-w-md bg-neutral-900 border-l border-white/10 shadow-2xl transform transition-transform duration-300 pointer-events-auto flex flex-col ${showEditDrawer ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                        <h2 className="text-xl font-black text-white">Community Settings</h2>
+                        <button onClick={() => setShowEditDrawer(false)} className="p-2 hover:bg-white/10 rounded-full text-white transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Community Name</label>
+                            <input
+                                value={editForm.name}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-colors font-medium"
+                            />
                         </div>
 
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Name</label>
-                                <input
-                                    value={editForm.name}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                    className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-colors font-medium"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Description</label>
-                                <textarea
-                                    rows={3}
-                                    value={editForm.description}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                                    className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-colors font-medium resize-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Rules</label>
-                                <textarea
-                                    rows={4}
-                                    value={editForm.rules}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, rules: e.target.value }))}
-                                    className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-colors font-medium resize-none"
-                                    placeholder="One rule per line"
-                                />
-                            </div>
+                        <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Description</label>
+                            <textarea
+                                rows={4}
+                                value={editForm.description}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-colors font-medium resize-none"
+                            />
+                        </div>
 
-                            <button
-                                onClick={handleUpdateCommunity}
-                                className="w-full bg-white text-black font-black py-4 rounded-xl hover:bg-neutral-200 transition-colors shadow-lg active:scale-95"
-                            >
-                                Save Changes
-                            </button>
+                        <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Rules</label>
+                            <textarea
+                                rows={6}
+                                value={editForm.rules}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, rules: e.target.value }))}
+                                className="w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white focus:border-blue-500 outline-none transition-colors font-medium resize-none"
+                                placeholder="One rule per line"
+                            />
                         </div>
                     </div>
+
+                    <div className="p-6 border-t border-white/10 bg-neutral-900">
+                        <button
+                            onClick={handleUpdateCommunity}
+                            className="w-full bg-white text-black font-black py-4 rounded-xl hover:bg-neutral-200 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <Save size={18} /> Save Changes
+                        </button>
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 }

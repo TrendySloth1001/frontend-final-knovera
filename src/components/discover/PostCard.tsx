@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { getAuthToken } from '@/lib/api';
 import VideoPlayer from './VideoPlayer';
+import ShareToChatDrawer from './ShareToChatDrawer';
 
 interface PostCardProps {
   post: Post;
@@ -33,6 +34,7 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
   const [currentPost, setCurrentPost] = useState(post);
   const [isVoting, setIsVoting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showShareDrawer, setShowShareDrawer] = useState(false);
   const isAuthenticated = !!getAuthToken();
 
   const handleVote = async (type: VoteType) => {
@@ -190,7 +192,13 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
             >
               <Bookmark size={16} fill={currentPost.isSaved ? "currentColor" : "none"} /> {currentPost.isSaved ? 'Saved' : 'Save'}
             </button>
-            <button className="flex items-center gap-2 hover:bg-neutral-900 hover:text-white px-4 py-2 rounded-full transition-colors border border-transparent hover:border-neutral-800">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowShareDrawer(true);
+              }}
+              className="flex items-center gap-2 hover:bg-neutral-900 hover:text-white px-4 py-2 rounded-full transition-colors border border-transparent hover:border-neutral-800"
+            >
               <Share2 size={16} /> Share
             </button>
             <button className="flex items-center gap-2 hover:bg-red-500/10 hover:text-red-500 px-4 py-2 rounded-full transition-colors ml-auto">
@@ -199,6 +207,15 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
           </div>
         </div>
       </div>
+
+      {/* Share Drawer */}
+      <ShareToChatDrawer
+        isOpen={showShareDrawer}
+        onClose={() => setShowShareDrawer(false)}
+        sharedPostId={post.id}
+        previewTitle={post.title}
+        previewImage={post.media?.[0]?.thumbnailUrl || post.media?.[0]?.url}
+      />
     </div>
   );
 }

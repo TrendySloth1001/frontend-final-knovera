@@ -76,6 +76,10 @@ export interface ChatMessage {
   linkPreview?: LinkPreview;
   poll?: Poll;
   sharedContact?: SharedContact;
+  sharedPostId?: string;
+  sharedPost?: any; // Avoiding circular dependency
+  sharedCommunityId?: string;
+  sharedCommunity?: any; // Avoiding circular dependency
 
   createdAt: string;
   updatedAt?: string; // Add optional updatedAt
@@ -145,6 +149,12 @@ export interface SendMessagePayload {
   mediaUrl?: string;
   mediaType?: string;
   replyToId?: string;
+
+  // Shared Content
+  sharedPostId?: string;
+  sharedPost?: any; // Avoiding circular dependency for now, or use Post type if available
+  sharedCommunityId?: string;
+  sharedCommunity?: any; // Avoiding circular dependency
 }
 
 // WebSocket message types

@@ -563,7 +563,10 @@ class MessagesAPI {
     mediaType?: string,
     content?: string,
     mediaUrls?: string[],
-    mediaTypes?: string[]
+    mediaTypes?: string[],
+    replyToId?: string,
+    sharedPostId?: string,
+    sharedCommunityId?: string
   ): Promise<ChatMessage> {
     const response = await fetch(`${API_BASE_URL}/messages/media`, {
       method: 'POST',

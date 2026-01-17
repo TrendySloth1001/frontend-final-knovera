@@ -13,6 +13,8 @@ import Mention from './Mention';
 import { splitTextWithMentions, mentionToDisplayText } from '@/utils/mentionParser';
 import PollMessage from './PollMessage';
 import GroupSharePreview from './GroupSharePreview';
+import PostCard from '../discover/PostCard';
+import CommunityCard from '../discover/CommunityCard';
 
 interface MessageBubbleProps {
   msg: ChatMessage;
@@ -254,29 +256,63 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               />
             </div>
           ) : (
-            msg.content && (() => {
-              // Parse group share links from message content
-              const { text, groupLinks } = parseGroupShareLinks(msg.content);
 
-              return (
-                <div className="space-y-2">
-                  {text && (
-                    <div className="whitespace-pre-wrap break-words">
-                      <LinkifiedText text={text} onMentionClick={onAvatarClick} />
-                    </div>
-                  )}
+            <div className="space-y-2">
+              {msg.content && (() => {
+                // Parse group share links from message content
+                const { text, groupLinks } = parseGroupShareLinks(msg.content);
 
-                  {/* Render group share previews */}
-                  {groupLinks.map((link, index) => (
-                    <GroupSharePreview
-                      key={index}
-                      groupId={link.groupId}
-                      onOpen={onGroupPreview}
-                    />
-                  ))}
+                return (
+                  <>
+                    {text && (
+                      <div className="whitespace-pre-wrap break-words">
+                        <LinkifiedText text={text} onMentionClick={onAvatarClick} />
+                      </div>
+                    )}
+
+                    {/* Render group share previews */}
+                    {groupLinks.map((link, index) => (
+                      <GroupSharePreview
+                        key={index}
+                        groupId={link.groupId}
+                        onOpen={onGroupPreview}
+                      />
+                    ))}
+                  </>
+                );
+              })()}
+
+              {/* Shared Post */}
+              {msg.sharedPost && (
+                <div
+                  className="mt-2 text-left rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.hash = `post/${msg.sharedPostId || msg.sharedPost.id}`;
+                  }}
+                >
+                  {/* Transform to match Post type if needed, or assume it matches */}
+                  <div className="scale-90 origin-top-left w-[111%] -mb-[10%]">
+                    <PostCard post={msg.sharedPost} detailed={false} />
+                  </div>
                 </div>
-              );
-            })()
+              )}
+
+              {/* Shared Community */}
+              {msg.sharedCommunity && (
+                <div
+                  className="mt-2 text-left max-w-sm rounded-xl overflow-hidden border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.hash = `discovery/community/${msg.sharedCommunityId || msg.sharedCommunity.id}`;
+                  }}
+                >
+                  <div className="scale-90 origin-top-left w-[111%] -mb-[10%]">
+                    <CommunityCard community={msg.sharedCommunity} />
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Reactions Display */}

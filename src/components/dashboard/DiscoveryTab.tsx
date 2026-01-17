@@ -29,6 +29,12 @@ export default function DiscoveryTab() {
                 } else {
                     setActiveTab('feed');
                 }
+            } else if (hash.startsWith('#discovery/post/')) {
+                const postId = hash.replace('#discovery/post/', '');
+                if (postId) {
+                    setSelectedPostId(postId);
+                    setActiveTab('feed'); // Or keep current tab context? Feed matches overlay best.
+                }
             } else if (hash === '#discovery/feed' || hash === '' || hash === '#discovery') {
                 setActiveTab('feed');
             } else if (hash.startsWith('#discovery/')) {

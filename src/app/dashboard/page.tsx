@@ -11,7 +11,9 @@ import {
   Mail,
   Calendar,
   GraduationCap,
-  Award
+  Award,
+  X,
+  Search // Adding search if needed, but X is critical
 } from 'lucide-react';
 import { aiAPI } from '@/lib/ai-api';
 import { apiClient, teacherApi } from '@/lib/api';
@@ -29,6 +31,7 @@ import SettingsTab from '@/components/dashboard/SettingsTab';
 import MessagesTab from '@/components/dashboard/MessagesTab';
 import ProfileTab from '@/components/dashboard/ProfileTab';
 import DiscoveryTab from '@/components/dashboard/DiscoveryTab';
+import PostDetail from '@/components/dashboard/discovery/PostDetail';
 
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -101,12 +104,18 @@ export default function Dashboard() {
   ];
 
   // Pick random illustration on page load
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
   // Determine active tab from hash
   const getTabFromHash = (hash: string) => {
     const cleanHash = hash.replace('#', '').toLowerCase();
 
     if (cleanHash.startsWith('messages/') || cleanHash.startsWith('massages/')) {
       return 'Messages';
+    }
+
+    if (cleanHash.startsWith('post/')) {
+      return null; // Don't change tab, just show overlay
     }
 
     if (cleanHash.startsWith('teacher/')) {
@@ -163,6 +172,15 @@ export default function Dashboard() {
         const teacherId = hash.split('/')[1];
         setSelectedTeacherId(teacherId);
         loadTeacherProfile(teacherId);
+      } else if (hash.startsWith('#post/')) {
+        const postId = hash.split('/')[1];
+        setSelectedPostId(postId);
+      } else {
+        // Only clear selectedPostId if we strictly navigated away from it
+        // and it's not a teacher profile or something that can coexist
+        if (!hash.startsWith('#post/')) {
+          setSelectedPostId(null);
+        }
       }
     };
 
@@ -1081,6 +1099,41 @@ export default function Dashboard() {
           currentAvatarUrl={user?.user.avatarUrl}
           onAvatarUpdated={handleAvatarUpdated}
         />
+      )}
+
+      {/* Global Post Detail Overlay */}
+      {selectedPostId && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-black border border-white/10 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-end p-4 border-b border-white/10">
+              <button
+                onClick={() => {
+                  setSelectedPostId(null);
+                  // Restore hash logic: go back or default to active tab
+                  if (window.history.length > 1) {
+                    // Check if prev hash was same tab, safe to back
+                    window.history.back();
+                  } else {
+                    changeTab(activeTab);
+                  }
+                }}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-0">
+              <PostDetail postId={selectedPostId} onBack={() => {
+                setSelectedPostId(null);
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  changeTab(activeTab);
+                }
+              }} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -245,5 +245,31 @@ export const discoverApi = {
       `${BASE_PATH}/users/${userId}/communities`
     );
     return response.communities;
+  },
+
+  // ============ Sharing ============
+
+  async getShareConversations(): Promise<ShareConversation[]> {
+    return apiClient.get<ShareConversation[]>(`${BASE_PATH}/share/conversations`);
+  },
+
+  async shareContent(data: ShareContentRequest): Promise<any> {
+    return apiClient.post(`${BASE_PATH}/share`, data);
   }
 };
+
+// Types for sharing
+export interface ShareConversation {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  isGroup: boolean;
+  memberCount: number;
+}
+
+export interface ShareContentRequest {
+  contentType: 'POST' | 'COMMUNITY';
+  contentId: string;
+  conversationId: string;
+  message?: string;
+}

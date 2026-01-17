@@ -11,4 +11,6 @@ export { default as CreatePostForm } from './CreatePostForm';
 export { default as CreateCommunityForm } from './CreateCommunityForm';
 export { default as SortMenu } from './SortMenu';
 export { default as SearchBar } from './SearchBar';
+export { default as ShareModal } from './ShareModal';
+export { default as ShareToChatDrawer } from './ShareToChatDrawer';
 
