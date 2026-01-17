@@ -283,7 +283,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               })()}
 
               {/* Shared Post */}
-              {msg.sharedPost && (
+              {msg.sharedPost && !msg.deletedForEveryone && (
                 <div
                   className="mt-2 text-left rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
                   onClick={(e) => {
@@ -299,7 +299,7 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
               )}
 
               {/* Shared Community */}
-              {msg.sharedCommunity && (
+              {msg.sharedCommunity && !msg.deletedForEveryone && (
                 <div
                   className="mt-2 text-left max-w-sm rounded-xl overflow-hidden border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
                   onClick={(e) => {
