@@ -98,6 +98,33 @@ export default function CommunityCard({ community, onUpdate }: CommunityCardProp
           </p>
         )}
 
+        {/* Mutuals */}
+        {community.mutualMembers && community.mutualMembers.length > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex -space-x-2 overflow-hidden">
+              {community.mutualMembers.map((member) => (
+                <div key={member.id} className="relative w-6 h-6 rounded-full border-2 border-black bg-neutral-800" title={member.displayName}>
+                  {member.avatarUrl ? (
+                    <img
+                      src={member.avatarUrl}
+                      alt={member.displayName}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white">
+                      {member.displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <span className="text-xs text-neutral-500 font-medium">
+              Also joined by {community.mutualMembers[0].displayName.split(' ')[0]}
+              {community.mutualMembers.length > 1 && ` and ${community.mutualMembers.length - 1} others`}
+            </span>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-2">
           <button

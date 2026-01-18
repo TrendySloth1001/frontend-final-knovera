@@ -186,6 +186,11 @@ export interface Community {
   postCount: number;
   userRole?: CommunityRole;
   isMember: boolean;
+  mutualMembers?: {
+    id: string;
+    displayName: string;
+    avatarUrl?: string | null;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
