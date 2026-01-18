@@ -16,15 +16,15 @@ export default function CommunityList({ onNavigate }: CommunityListProps) {
         <div className="space-y-6 max-w-5xl mx-auto">
             <div className="mb-8">
                 {/* Search & Sort Row */}
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1">
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="relative flex-1 min-w-0">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={16} />
                         <input
                             type="text"
                             placeholder="Search communities..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl focus:ring-1 focus:ring-white focus:border-white transition-all text-sm font-medium text-white placeholder:text-neutral-600"
+                            className="w-full pl-10 pr-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl focus:ring-1 focus:ring-white focus:border-white transition-all text-sm font-medium text-white placeholder:text-neutral-600"
                         />
                     </div>
 
