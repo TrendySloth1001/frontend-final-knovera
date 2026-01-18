@@ -60,7 +60,7 @@ export default function CommunityList({ onNavigate }: CommunityListProps) {
     ] as const;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
+<div className="max-w-6xl mx-auto mt-8 space-y-8">
             {/* Header Section */}
             <header className="space-y-2">
                 <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
