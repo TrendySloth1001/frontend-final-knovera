@@ -118,9 +118,13 @@ export default function CommunityCard({ community, onUpdate }: CommunityCardProp
                 </div>
               ))}
             </div>
-            <span className="text-xs text-neutral-500 font-medium">
-              Also joined by {community.mutualMembers[0].displayName.split(' ')[0]}
-              {community.mutualMembers.length > 1 && ` and ${community.mutualMembers.length - 1} others`}
+            <span className="text-xs text-neutral-400">
+              {community.mutualMembers.length === 1
+                ? <><span className="text-white">{community.mutualMembers[0].displayName.split(' ')[0]}</span> is here too 👋</>
+                : community.mutualMembers.length === 2
+                  ? <><span className="text-white">{community.mutualMembers[0].displayName.split(' ')[0]}</span> & <span className="text-white">{community.mutualMembers[1].displayName.split(' ')[0]}</span> are in this ✨</>
+                  : <><span className="text-white">{community.mutualMembers[0].displayName.split(' ')[0]}</span>, <span className="text-white">{community.mutualMembers[1].displayName.split(' ')[0]}</span> + more are here 🔥</>
+              }
             </span>
           </div>
         )}

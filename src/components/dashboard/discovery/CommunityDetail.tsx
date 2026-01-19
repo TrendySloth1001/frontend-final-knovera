@@ -220,6 +220,33 @@ export default function CommunityDetail({ communityId, onBack, onCreatePost }: C
                                 <Users size={14} className="text-neutral-400" />
                                 {community.memberCount.toLocaleString()} Members
                             </p>
+
+                            {/* Mutuals */}
+                            {community.mutualMembers && community.mutualMembers.length > 0 && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <div className="flex -space-x-2">
+                                        {community.mutualMembers.slice(0, 3).map((member) => (
+                                            <div key={member.id} className="w-6 h-6 rounded-full border-2 border-black/60 bg-neutral-700 overflow-hidden" title={member.displayName}>
+                                                {member.avatarUrl ? (
+                                                    <img src={member.avatarUrl} alt={member.displayName} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white">
+                                                        {member.displayName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <span className="text-xs text-white/70">
+                                        {community.mutualMembers.length === 1
+                                            ? <><span className="text-white font-medium">{community.mutualMembers[0].displayName.split(' ')[0]}</span> is here too 👋</>
+                                            : community.mutualMembers.length === 2
+                                                ? <><span className="text-white font-medium">{community.mutualMembers[0].displayName.split(' ')[0]}</span> & <span className="text-white font-medium">{community.mutualMembers[1].displayName.split(' ')[0]}</span> are in this ✨</>
+                                                : <><span className="text-white font-medium">{community.mutualMembers[0].displayName.split(' ')[0]}</span>, <span className="text-white font-medium">{community.mutualMembers[1].displayName.split(' ')[0]}</span> + more are here 🔥</>
+                                        }
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
