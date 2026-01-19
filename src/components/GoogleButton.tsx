@@ -11,12 +11,12 @@ interface GoogleButtonProps {
   className?: string;
 }
 
-export default function GoogleButton({ 
+export default function GoogleButton({
   text = 'Sign in with Google',
   className = ''
 }: GoogleButtonProps) {
   const handleGoogleLogin = () => {
-    window.location.href = authAPI.googleLogin();
+    window.location.href = authAPI.googleLogin('web');
   };
 
   return (

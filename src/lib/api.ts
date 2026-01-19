@@ -4,9 +4,9 @@
  */
 
 import Cookies from 'js-cookie';
-import { 
-  AuthResponse, 
-  TempTokenResponse, 
+import {
+  AuthResponse,
+  TempTokenResponse,
   UserProfileResponse,
   TeacherSignupInput,
   StudentSignupInput
@@ -53,7 +53,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getAuthToken() || getTempToken();
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -99,25 +99,25 @@ export const apiClient = {
   get: async <T>(endpoint: string): Promise<T> => {
     return apiRequest<T>(endpoint, { method: 'GET' });
   },
-  
+
   post: async <T>(endpoint: string, data?: any): Promise<T> => {
     return apiRequest<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     });
   },
-  
+
   put: async <T>(endpoint: string, data?: any): Promise<T> => {
     return apiRequest<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     });
   },
-  
+
   delete: async <T>(endpoint: string): Promise<T> => {
     return apiRequest<T>(endpoint, { method: 'DELETE' });
   },
-  
+
   patch: async <T>(endpoint: string, data?: any): Promise<T> => {
     return apiRequest<T>(endpoint, {
       method: 'PATCH',
@@ -129,8 +129,9 @@ export const apiClient = {
 // Auth API endpoints
 export const authAPI = {
   // Initiate Google OAuth
-  googleLogin: (): string => {
-    return `${API_BASE_URL}/api/auth/google`;
+  googleLogin: (platform?: 'web' | 'mobile'): string => {
+    const baseUrl = `${API_BASE_URL}/api/auth/google`;
+    return platform ? `${baseUrl}?platform=${platform}` : baseUrl;
   },
 
   // Get current user profile
@@ -163,13 +164,13 @@ export const signupAPI = {
         body: JSON.stringify(data),
       }
     );
-    
+
     // Save the full token after signup
     if (response.data.token) {
       clearTempToken();
       setAuthToken(response.data.token);
     }
-    
+
     return response.data;
   },
 
@@ -182,13 +183,13 @@ export const signupAPI = {
         body: JSON.stringify(data),
       }
     );
-    
+
     // Save the full token after signup
     if (response.data.token) {
       clearTempToken();
       setAuthToken(response.data.token);
     }
-    
+
     return response.data;
   },
 };
@@ -274,10 +275,10 @@ export const teacherApi = {
     if (params?.specialization) queryParams.append('specialization', params.specialization);
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
-    
+
     const queryString = queryParams.toString();
     const endpoint = queryString ? `/api/teachers?${queryString}` : '/api/teachers';
-    
+
     return apiClient.get(endpoint);
   },
 
