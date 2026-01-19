@@ -271,7 +271,7 @@ export default function MessageInput({
               // Don't submit if mention autocomplete is open and Enter is pressed
               if (e.key === 'Enter' && !e.shiftKey && !showMentions) {
                 e.preventDefault();
-                onSendMessage();
+                handleSend(); // Use handleSend to process mentions before sending
               } else if (e.key === 'Escape' && showMentions) {
                 e.preventDefault();
                 setShowMentions(false);

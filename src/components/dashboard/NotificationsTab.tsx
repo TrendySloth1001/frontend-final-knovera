@@ -47,6 +47,9 @@ export default function NotificationsTab({
     read: n.read || n.isRead || false,
     message: n.message || n.content || 'No content',
     title: n.title || 'Notification',
+    // Ensure time/createdAt is passed through for date display
+    time: n.time,
+    createdAt: n.createdAt || n.created_at || n.timestamp,
   });
 
   return (
