@@ -20,7 +20,7 @@ export function generateGroupShareLink(groupId: string, groupName: string): stri
 export function detectGroupShareLink(text: string): GroupShareLinkData | null {
   const groupLinkRegex = /(?:https?:\/\/[^\/]+)?\/dashboard#group\/([a-f0-9-]+)/i;
   const match = text.match(groupLinkRegex);
-  
+
   if (match) {
     return {
       groupId: match[1],
@@ -28,7 +28,7 @@ export function detectGroupShareLink(text: string): GroupShareLinkData | null {
       url: match[0],
     };
   }
-  
+
   return null;
 }
 
@@ -41,20 +41,20 @@ export function parseGroupShareLinks(content: string): {
 } {
   const groupLinks: GroupShareLinkData[] = [];
   let text = content;
-  
+
   const groupLinkRegex = /(?:https?:\/\/[^\/\s]+)?\/dashboard#group\/([a-f0-9-]+)/gi;
   const matches = Array.from(content.matchAll(groupLinkRegex));
-  
+
   for (const match of matches) {
     groupLinks.push({
       groupId: match[1],
       groupName: '',
       url: match[0],
     });
-    
+
     // Replace the URL with a placeholder
     text = text.replace(match[0], '');
   }
-  
+
   return { text: text.trim(), groupLinks };
 }
