@@ -201,7 +201,25 @@ export default function PostCard({ post, onPostUpdate, showCommunity = false, de
             </div>
             <span className="text-neutral-600 hidden sm:inline">•</span>
             <span className="flex items-center gap-0.5 sm:gap-1 text-xs">
-              <Clock size={11} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true })}</span><span className="sm:hidden">{formatDistanceToNow(new Date(currentPost.createdAt))}</span>
+              <Clock size={11} className="sm:w-3 sm:h-3" />
+              <span className="hidden sm:inline">
+                {(() => {
+                  try {
+                    return currentPost.createdAt ? formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true }) : '';
+                  } catch (e) {
+                    return '';
+                  }
+                })()}
+              </span>
+              <span className="sm:hidden">
+                {(() => {
+                  try {
+                    return currentPost.createdAt ? formatDistanceToNow(new Date(currentPost.createdAt)) : '';
+                  } catch (e) {
+                    return '';
+                  }
+                })()}
+              </span>
             </span>
           </div>
 
