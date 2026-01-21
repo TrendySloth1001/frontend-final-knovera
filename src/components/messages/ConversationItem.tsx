@@ -8,6 +8,11 @@ import { useState, useRef, useEffect } from 'react';
 // Format time helper function
 function formatTime(dateString: string): string {
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string:', dateString);
+    return '';
+  }
+
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
