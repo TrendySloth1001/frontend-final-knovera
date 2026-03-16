@@ -64,25 +64,25 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
   // Function to get simplified model display name
   const getSimplifiedName = (model: OllamaModel): string => {
     const name = model.name.toLowerCase();
-    
+
     // Extract parameter size (like 3b, 7b, 14b)
     const sizeMatch = name.match(/(\d+)b/);
     const size = sizeMatch ? sizeMatch[1] + 'B' : '';
-    
+
     // Determine tier based on size and model type
     if (name.includes('deepseek')) {
       if (size === '14B') return 'KAi 14B Reasoning';
       if (size === '7B') return 'KAi 7B Reasoning';
       return 'KAi DeepSeek';
     }
-    
+
     if (name.includes('qwen')) {
       if (size === '3B' || size === '1B') return 'KAi ' + size + ' General';
       if (size === '7B') return 'KAi 7B Pro';
       if (size === '14B' || size === '32B') return 'KAi ' + size + ' Advanced';
       return 'KAi Qwen';
     }
-    
+
     if (name.includes('llama')) {
       if (size === '3B') return 'KAi 3B General';
       if (size === '7B') return 'KAi 7B Pro';
@@ -90,13 +90,13 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
       if (size === '70B') return 'KAi 70B Expert';
       return 'KAi Llama';
     }
-    
+
     if (name.includes('mistral')) {
       if (size === '7B') return 'KAi 7B Pro';
       if (size === '8B') return 'KAi 8B Pro';
       return 'KAi Mistral';
     }
-    
+
     // Default fallback
     if (size) return 'KAi ' + size + ' Model';
     return 'KAi ' + model.displayName;
@@ -116,9 +116,9 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
         <span className="text-xs font-medium text-white/80 group-hover:text-white">
           {currentModel ? getSimplifiedName(currentModel) : 'Model'}
         </span>
-        <ChevronDown 
-          size={12} 
-          className={`text-white/60 group-hover:text-white/80 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        <ChevronDown
+          size={12}
+          className={`text-white/60 group-hover:text-white/80 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -147,7 +147,7 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
             <div className="p-2">
               {models.map((model) => {
                 const isSelected = selectedModel === model.name;
-                
+
                 return (
                   <button
                     key={model.name}
@@ -158,11 +158,10 @@ export default function ModelSelector({ selectedModel, onModelChange }: ModelSel
                       }
                       setIsOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-                      isSelected 
-                        ? 'bg-blue-500/20 border border-blue-500/40' 
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-all ${isSelected
+                        ? 'bg-blue-500/20 border border-blue-500/40'
                         : 'hover:bg-white/5 border border-transparent'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-sm font-medium ${isSelected ? 'text-blue-300' : 'text-white'}`}>

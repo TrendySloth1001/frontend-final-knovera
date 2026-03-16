@@ -3,7 +3,9 @@
  * Client-side API for avatar management
  */
 
-const API_BASE_URL = 'http://localhost:3001/api/avatar';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api/avatar`
+  : 'http://localhost:3001/api/avatar';
 
 interface PredefinedAvatar {
   id: string;
@@ -24,7 +26,7 @@ class AvatarAPI {
     });
 
     console.log('[AvatarAPI] Response status:', response.status);
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('[AvatarAPI] Error response:', errorData);

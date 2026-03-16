@@ -10,7 +10,9 @@ import {
   SendMessagePayload
 } from '@/types/chat';
 
-const API_BASE_URL = 'http://localhost:3001/api/chat';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api/chat`
+  : 'http://localhost:3001/api/chat';
 
 class ChatAPI {
   private getHeaders(token: string): HeadersInit {

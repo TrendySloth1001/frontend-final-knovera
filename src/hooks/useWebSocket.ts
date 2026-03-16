@@ -69,16 +69,29 @@ export function useWebSocket({
       // Get WebSocket URL from environment or derive from API URL
       let wsUrl = process.env.NEXT_PUBLIC_WS_URL;
       if (!wsUrl) {
-        // Get base URL without path
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        // Extract protocol and domain only
-        const url = new URL(apiUrl);
-        wsUrl = apiUrl.replace(/^http/, 'ws').replace(/\/api.*$/, '');
+        // Handle explicit replacements ensuring correct protocol
+        if (apiUrl.startsWith('https://')) {
+          wsUrl = apiUrl.replace('https://', 'wss://');
+        } else if (apiUrl.startsWith('http://')) {
+          wsUrl = apiUrl.replace('http://', 'ws://');
+        } else {
+          // Fallback or handle raw domain
+          wsUrl = apiUrl.startsWith('http') ? apiUrl.replace(/^http/, 'ws') : `wss://${apiUrl}`;
+        }
+
+        // Remove trailing slash if present
+        if (wsUrl.endsWith('/')) {
+          wsUrl = wsUrl.slice(0, -1);
+        }
+
+        // Remove known API paths if they exist
+        wsUrl = wsUrl.replace(/\/api\/?$/, '');
       }
-      
+
       const fullUrl = `${wsUrl}?userId=${userId}`;
       console.log('[WebSocket] Connecting to:', fullUrl.replace(/userId=[^&]+/, 'userId=***'));
-      
+
       const ws = new WebSocket(fullUrl);
 
       ws.onopen = () => {
@@ -107,7 +120,7 @@ export function useWebSocket({
             type: event.type,
             readyState: ws.readyState,
           });
-          
+
           // Provide more specific error message
           let errorMessage = 'WebSocket connection failed';
           if (ws.readyState === WebSocket.CLOSED) {
@@ -115,10 +128,10 @@ export function useWebSocket({
           } else if (ws.readyState === WebSocket.CONNECTING) {
             errorMessage = 'WebSocket connection timeout';
           }
-          
+
           onError?.(new Error(errorMessage));
         }
-        
+
         isConnectingRef.current = false;
       };
 
@@ -155,24 +168,24 @@ export function useWebSocket({
 
   const disconnect = useCallback(() => {
     isConnectingRef.current = false;
-    
+
     // Clear any pending reconnection attempts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     // Close WebSocket connection if it exists
     if (wsRef.current) {
       const ws = wsRef.current;
-      
+
       // Remove event listeners first to prevent any callbacks during cleanup
       // This prevents console errors in React Strict Mode
       ws.onopen = null;
       ws.onmessage = null;
       ws.onerror = null;
       ws.onclose = null;
-      
+
       // Close the connection silently
       // Only attempt to close if in a valid state
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
@@ -182,10 +195,10 @@ export function useWebSocket({
           // Expected in React Strict Mode - ignore
         }
       }
-      
+
       wsRef.current = null;
     }
-    
+
     setIsConnected(false);
     setReconnectAttempts(0);
   }, []);
@@ -210,7 +223,7 @@ export function useWebSocket({
       // This handles React Strict Mode double-invoke gracefully
       disconnect();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]); // Only re-connect when userId changes
 
   return {

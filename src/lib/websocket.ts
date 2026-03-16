@@ -9,7 +9,7 @@ type ConnectionHandler = () => void;
 
 class WebSocketService {
   private ws: WebSocket | null = null;
-  private url: string = 'ws://localhost:3001';
+  private url: string = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/^http/, 'ws');
   private userId: string | null = null;
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;

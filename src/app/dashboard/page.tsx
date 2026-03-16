@@ -336,7 +336,8 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token || !user?.user.id) return;
 
-      const settingsRes = await fetch(`http://localhost:3001/api/users/${user.user.id}/ai-settings`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const settingsRes = await fetch(`${baseUrl}/api/users/${user.user.id}/ai-settings`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -347,7 +348,7 @@ export default function Dashboard() {
         }
       }
 
-      const contextRes = await fetch(`http://localhost:3001/api/users/${user.user.id}/context`, {
+      const contextRes = await fetch(`${baseUrl}/api/users/${user.user.id}/context`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -368,7 +369,8 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      await fetch(`http://localhost:3001/api/users/${user?.user.id}/ai-settings`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      await fetch(`${baseUrl}/api/users/${user?.user.id}/ai-settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -378,7 +380,7 @@ export default function Dashboard() {
       });
 
       if (aiSettings.profileEnabled) {
-        await fetch(`http://localhost:3001/api/users/${user?.user.id}/context`, {
+        await fetch(`${baseUrl}/api/users/${user?.user.id}/context`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,

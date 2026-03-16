@@ -23,7 +23,7 @@ export default function QuizGenerator({ conversationId, token, onQuizGenerated }
       setError('');
 
       const response = await fetch(
-        `http://localhost:3001/api/conversations/${conversationId}/generate-quiz`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/conversations/${conversationId}/generate-quiz`,
         {
           method: 'POST',
           headers: {
@@ -107,11 +107,10 @@ export default function QuizGenerator({ conversationId, token, onQuizGenerated }
                     <button
                       key={count}
                       onClick={() => setQuestionCount(count)}
-                      className={`flex-1 py-2 rounded-lg font-medium transition-all ${
-                        questionCount === count
+                      className={`flex-1 py-2 rounded-lg font-medium transition-all ${questionCount === count
                           ? 'bg-purple-500 text-white'
                           : 'bg-white/5 text-white/60 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       {count}
                     </button>
@@ -156,11 +155,10 @@ export default function QuizGenerator({ conversationId, token, onQuizGenerated }
                     <button
                       key={diff}
                       onClick={() => setDifficulty(diff)}
-                      className={`py-2 rounded-lg font-medium text-sm capitalize transition-all ${
-                        difficulty === diff
+                      className={`py-2 rounded-lg font-medium text-sm capitalize transition-all ${difficulty === diff
                           ? 'bg-purple-500 text-white'
                           : 'bg-white/5 text-white/60 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       {diff}
                     </button>

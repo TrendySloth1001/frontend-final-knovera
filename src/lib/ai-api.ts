@@ -84,7 +84,7 @@ export const aiAPI = {
 
   // Get user conversations
   async getConversations(userId?: string): Promise<Conversation[]> {
-    const endpoint = userId 
+    const endpoint = userId
       ? `/api/ai/conversations?userId=${userId}`
       : '/api/ai/conversations';
     const response = await apiClient.get<ApiResponse<Conversation[]>>(endpoint);
@@ -128,19 +128,20 @@ export const aiAPI = {
       characterCount: number;
     };
   }> {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/helper/form`, {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const response = await fetch(`${baseUrl}/api/ai/helper/form`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(request),
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
       throw new Error(error.message || `HTTP ${response.status}`);
     }
-    
+
     return response.json();
   },
 };
