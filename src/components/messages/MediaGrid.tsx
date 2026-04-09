@@ -3,6 +3,7 @@ import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
 import DocumentViewer from './DocumentViewer';
 import { FileText, X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
+import { resolveMediaUrl } from '@/utils/mediaUrl';
 
 interface MediaGridProps {
   mediaUrls: string[];
@@ -71,15 +72,9 @@ export default function MediaGrid({ mediaUrls, mediaTypes }: MediaGridProps) {
     return '';
   };
 
-  const renderMedia = (url: string, type: string, index: number, inLightbox = false) => {
-    // Validate URL
-    try {
-      const urlObj = new URL(url, window.location.origin);
-      const isValidUrl = urlObj.protocol === 'http:' || urlObj.protocol === 'https:' || urlObj.protocol === 'blob:';
-      if (!isValidUrl) return null;
-    } catch (error) {
-      return null;
-    }
+  const renderMedia = (rawUrl: string, type: string, index: number, inLightbox = false) => {
+    const url = resolveMediaUrl(rawUrl);
+    if (!url) return null;
 
     if (type?.startsWith('image/')) {
       return (

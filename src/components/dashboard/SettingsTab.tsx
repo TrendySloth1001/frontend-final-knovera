@@ -228,10 +228,10 @@ export default function SettingsTab({
                 </div>
                 <button
                   onClick={() => setAiSettings({ ...aiSettings, useHeaders: !aiSettings.useHeaders })}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${aiSettings.useHeaders ? 'bg-white' : 'bg-neutral-800'
+                  className={`relative w-11 h-6 rounded-full transition-colors ${aiSettings.useHeaders ? 'bg-blue-500' : 'bg-neutral-700'
                     }`}
                 >
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform ${aiSettings.useHeaders ? 'translate-x-5' : 'translate-x-0'
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${aiSettings.useHeaders ? 'translate-x-5' : 'translate-x-0'
                     }`} />
                 </button>
               </div>
@@ -258,10 +258,10 @@ export default function SettingsTab({
               </div>
               <button
                 onClick={() => setAiSettings({ ...aiSettings, profileEnabled: !aiSettings.profileEnabled })}
-                className={`relative w-11 h-6 rounded-full transition-colors ${aiSettings.profileEnabled ? 'bg-white' : 'bg-neutral-800'
+                className={`relative w-11 h-6 rounded-full transition-colors ${aiSettings.profileEnabled ? 'bg-blue-500' : 'bg-neutral-700'
                   }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform ${aiSettings.profileEnabled ? 'translate-x-5' : 'translate-x-0'
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${aiSettings.profileEnabled ? 'translate-x-5' : 'translate-x-0'
                   }`} />
               </button>
             </div>

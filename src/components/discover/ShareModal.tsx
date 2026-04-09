@@ -109,51 +109,51 @@ export default function ShareModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-white rounded-xl shadow-2xl max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+          <h2 className="text-xl font-semibold text-white">
             Share {contentType === 'POST' ? 'Post' : 'Community'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-800 transition-colors"
             disabled={sharing}
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-neutral-400" />
           </button>
         </div>
 
         {/* Content Title */}
         {contentTitle && (
-          <div className="px-4 py-3 bg-gray-50 border-b">
-            <p className="text-sm text-gray-600 line-clamp-2">{contentTitle}</p>
+          <div className="px-4 py-3 bg-neutral-800/50 border-b border-neutral-800">
+            <p className="text-sm text-neutral-400 line-clamp-2">{contentTitle}</p>
           </div>
         )}
 
         {/* Search */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b border-neutral-800">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
             <input
               type="text"
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-neutral-500"
             />
           </div>
         </div>
 
         {/* Optional Message */}
-        <div className="px-4 py-3 border-b">
+        <div className="px-4 py-3 border-b border-neutral-800">
           <textarea
             placeholder="Add a message (optional)..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-neutral-500"
             disabled={sharing}
           />
         </div>
@@ -162,20 +162,20 @@ export default function ShareModal({
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
           ) : error ? (
-            <div className="p-4 text-center text-red-600">
+            <div className="p-4 text-center text-red-400">
               <p>{error}</p>
               <button
                 onClick={loadConversations}
-                className="mt-2 text-sm text-blue-600 hover:underline"
+                className="mt-2 text-sm text-blue-400 hover:underline"
               >
                 Try again
               </button>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-neutral-500">
               <p>
                 {searchQuery
                   ? 'No conversations found'
@@ -183,14 +183,14 @@ export default function ShareModal({
               </p>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-neutral-800">
               {filteredConversations.map((conv) => (
                 <button
                   key={conv.id}
                   onClick={() => toggleConversation(conv.id)}
                   disabled={sharing}
-                  className={`w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${
-                    selectedConversations.has(conv.id) ? 'bg-blue-50' : ''
+                  className={`w-full flex items-center gap-3 p-4 hover:bg-neutral-800/60 transition-colors ${
+                    selectedConversations.has(conv.id) ? 'bg-blue-500/10' : ''
                   } ${sharing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {/* Avatar */}
@@ -212,10 +212,10 @@ export default function ShareModal({
                     )}
                     {/* Checkbox */}
                     <div
-                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${
+                      className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-neutral-900 flex items-center justify-center ${
                         selectedConversations.has(conv.id)
                           ? 'bg-blue-600'
-                          : 'bg-gray-200'
+                          : 'bg-neutral-700'
                       }`}
                     >
                       {selectedConversations.has(conv.id) && (
@@ -238,8 +238,8 @@ export default function ShareModal({
 
                   {/* Info */}
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-gray-900">{conv.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-medium text-white">{conv.name}</p>
+                    <p className="text-sm text-neutral-500">
                       {conv.isGroup ? `${conv.memberCount} members` : 'Direct message'}
                     </p>
                   </div>
@@ -250,11 +250,11 @@ export default function ShareModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50">
+        <div className="p-4 border-t border-neutral-800 bg-neutral-900/50">
           <button
             onClick={handleShare}
             disabled={sharing || selectedConversations.size === 0}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {sharing ? (
               <>

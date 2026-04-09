@@ -19,10 +19,10 @@ export default function SavedPosts() {
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
             ) : posts.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                <div className="text-center py-12 bg-neutral-900 border border-neutral-800 rounded-lg">
                     <div className="text-6xl mb-4">📌</div>
-                    <p className="text-xl font-semibold text-gray-700 mb-2">No saved posts</p>
-                    <p className="text-gray-500">Posts you save will appear here</p>
+                    <p className="text-xl font-semibold text-neutral-300 mb-2">No saved posts</p>
+                    <p className="text-neutral-500">Posts you save will appear here</p>
                 </div>
             ) : (
                 <div className="space-y-4">

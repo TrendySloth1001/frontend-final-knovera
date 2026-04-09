@@ -51,7 +51,7 @@ export default function CommunityPage() {
   if (!community) {
     return (
       <div className="text-center py-12">
-        <p className="text-xl text-gray-500">Community not found</p>
+        <p className="text-xl text-neutral-500">Community not found</p>
       </div>
     );
   }
@@ -70,28 +70,28 @@ export default function CommunityPage() {
       )}
 
       {/* Community Header */}
-      <div className="bg-white shadow-md p-6 mb-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 mb-6">
         <div className="flex items-start gap-4">
           {/* Avatar */}
           {community.avatarUrl && (
             <img
               src={community.avatarUrl}
               alt={community.name}
-              className="w-20 h-20 rounded-full border-4 border-white shadow-lg"
+              className="w-20 h-20 rounded-full border-4 border-neutral-700 shadow-lg"
             />
           )}
 
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">{community.name}</h1>
             {community.description && (
-              <p className="text-gray-600 mb-3">{community.description}</p>
+              <p className="text-neutral-400 mb-3">{community.description}</p>
             )}
 
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-4 text-sm text-neutral-500">
               <span>{community.memberCount.toLocaleString()} members</span>
               <span>{community.postCount.toLocaleString()} posts</span>
               {community.userRole && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30">
                   {community.userRole}
                 </span>
               )}
@@ -102,9 +102,9 @@ export default function CommunityPage() {
           <button
             onClick={handleJoinToggle}
             disabled={isJoining}
-            className={`px-6 py-2 rounded-lg font-medium ${
+            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
               community.isMember
-                ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
@@ -114,9 +114,9 @@ export default function CommunityPage() {
 
         {/* Community Rules */}
         {community.rules && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-4 p-4 bg-neutral-800/50 rounded-lg border border-neutral-700/50">
             <h3 className="font-semibold mb-2">Community Rules</h3>
-            <p className="text-sm text-gray-600 whitespace-pre-line">{community.rules}</p>
+            <p className="text-sm text-neutral-400 whitespace-pre-line">{community.rules}</p>
           </div>
         )}
       </div>
@@ -124,17 +124,17 @@ export default function CommunityPage() {
       {/* Posts */}
       <div className="px-6">
         <h2 className="text-2xl font-bold mb-4">Posts</h2>
-        
+
         {postsLoading ? (
           <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         ) : posts.length > 0 ? (
           posts.map((post) => (
             <PostCard key={post.id} post={post} onPostUpdate={refresh} />
           ))
         ) : (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-neutral-500">
             <p className="text-xl mb-2">No posts yet</p>
             {community.isMember && <p>Be the first to post in this community!</p>}
           </div>

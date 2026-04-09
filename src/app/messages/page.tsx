@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { Search, Users, MessageCircle, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { resolveMediaUrl, avatarFallbackUrl } from '@/utils/mediaUrl';
 
 export default function MessagesPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -179,17 +180,12 @@ export default function MessagesPage() {
                     <div className="flex items-start gap-3">
                       {/* Avatar */}
                       <div className="relative flex-shrink-0">
-                        {getConversationAvatar(conv) ? (
-                          <img
-                            src={getConversationAvatar(conv)}
-                            alt=""
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                            {getConversationName(conv).charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        <img
+                          src={resolveMediaUrl(getConversationAvatar(conv)) || avatarFallbackUrl(getConversationName(conv))}
+                          alt=""
+                          className="w-12 h-12 rounded-full object-cover"
+                          onError={(e) => { e.currentTarget.src = avatarFallbackUrl(getConversationName(conv)); }}
+                        />
                         {conv.unreadCount && conv.unreadCount > 0 && (
                           <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                             {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
@@ -246,17 +242,12 @@ export default function MessagesPage() {
                       <div className="flex items-center gap-3">
                         {/* Avatar */}
                         <div className="relative flex-shrink-0">
-                          {chatUser.avatarUrl ? (
-                            <img
-                              src={chatUser.avatarUrl}
-                              alt=""
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                              {(chatUser.displayName?.charAt(0)?.toUpperCase() || chatUser.username?.charAt(0)?.toUpperCase() || '?')}
-                            </div>
-                          )}
+                          <img
+                            src={resolveMediaUrl(chatUser.avatarUrl) || avatarFallbackUrl(chatUser.displayName || chatUser.username || '?')}
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover"
+                            onError={(e) => { e.currentTarget.src = avatarFallbackUrl(chatUser.displayName || chatUser.username || '?'); }}
+                          />
                           {chatUser.isOnline && (
                             <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900" />
                           )}

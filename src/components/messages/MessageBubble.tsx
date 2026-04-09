@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { FileText, Reply, Trash2, Check, CheckCheck, FileIcon, Video, Music, Image as ImageIcon, Star, Pin, Megaphone } from 'lucide-react';
+import { resolveMediaUrl, avatarFallbackUrl } from '@/utils/mediaUrl';
 import { ChatMessage } from '@/types/chat';
 import VideoPlayer from './VideoPlayer';
 import AudioPlayer from './AudioPlayer';
@@ -122,13 +123,12 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
           className="flex-shrink-0 self-end mb-1 order-1"
         >
           <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden hover:border-zinc-500 transition-colors">
-            {msg.user?.avatarUrl ? (
-              <img src={msg.user.avatarUrl} alt={msg.user.displayName} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xs font-semibold text-zinc-500">
-                {msg.user?.displayName ? msg.user.displayName.substring(0, 2).toUpperCase() : 'U'}
-              </span>
-            )}
+            <img
+              src={resolveMediaUrl(msg.user?.avatarUrl) || avatarFallbackUrl(msg.user?.displayName || 'U')}
+              alt={msg.user?.displayName || 'User'}
+              className="w-full h-full object-cover"
+              onError={(e) => { e.currentTarget.src = avatarFallbackUrl(msg.user?.displayName || 'U'); }}
+            />
           </div>
         </button>
       )}
@@ -194,49 +194,30 @@ export default function MessageBubble({ msg, isOwn, currentUserId, isGroup, onAv
           {msg.mediaUrls && msg.mediaUrls.length > 0 ? (
             <MediaGrid mediaUrls={msg.mediaUrls} mediaTypes={msg.mediaTypes || []} />
           ) : msg.mediaUrl && (() => {
-            // Single media (backward compatibility)
-            // Validate URL before rendering
-            try {
-              const url = new URL(msg.mediaUrl, window.location.origin);
-              const isValidUrl = url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'blob:';
-
-              if (!isValidUrl) {
-                console.error('[MessageBubble] Invalid URL protocol:', msg.mediaUrl);
-                return null;
-              }
-            } catch (error) {
-              console.error('[MessageBubble] Invalid media URL:', msg.mediaUrl, error);
-              return null;
-            }
+            const resolvedUrl = resolveMediaUrl(msg.mediaUrl);
+            if (!resolvedUrl) return null;
 
             return (
               <div className="mb-2">
                 {msg.mediaType === 'image' || msg.mediaType?.startsWith('image/') ? (
                   <img
-                    src={msg.mediaUrl}
+                    src={resolvedUrl}
                     alt="Media"
                     className="max-w-full max-h-96 rounded-lg object-contain"
-                    onError={(e) => {
-                      console.error('[MessageBubble] Image load failed:', msg.mediaUrl);
-                      e.currentTarget.style.display = 'none';
-                    }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 ) : msg.mediaType === 'video' || msg.mediaType?.startsWith('video/') ? (
                   <VideoPlayer
-                    src={msg.mediaUrl}
+                    src={resolvedUrl}
                     className="max-w-full max-h-96 rounded-lg"
                   />
                 ) : msg.mediaType === 'audio' || msg.mediaType?.startsWith('audio/') ? (
-                  <AudioPlayer
-                    src={msg.mediaUrl}
-                  />
+                  <AudioPlayer src={resolvedUrl} />
                 ) : msg.mediaType?.startsWith('application/') || msg.mediaType?.includes('document') ? (
-                  <DocumentViewer
-                    src={msg.mediaUrl}
-                  />
+                  <DocumentViewer src={resolvedUrl} />
                 ) : (
                   <a
-                    href={msg.mediaUrl}
+                    href={resolvedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:underline flex items-center gap-1"

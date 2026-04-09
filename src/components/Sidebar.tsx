@@ -13,9 +13,13 @@ import {
     ChevronLeft,
     User,
     LogOut,
-    Compass
+    Compass,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '@/contexts/ThemeContext';
+import { resolveMediaUrl, avatarFallbackUrl } from '@/utils/mediaUrl';
 
 interface SidebarProps {
     activeTab: string;
@@ -84,6 +88,7 @@ export default function Sidebar({
     onLogout
 }: SidebarProps) {
     const router = useRouter();
+    const { theme, toggleTheme } = useTheme();
     const [showUserMenu, setShowUserMenu] = useState(false);
 
     const handleNavClick = (tab: string) => {
@@ -216,17 +221,36 @@ export default function Sidebar({
 
                 {/* User Profile */}
                 <div className="p-4 border-t border-neutral-800">
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                        className={`flex items-center ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-3'} py-2.5 mb-2 rounded-lg w-full transition-all duration-200 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900 group relative`}
+                    >
+                        {theme === 'dark' ? <Sun size={18} className="shrink-0" /> : <Moon size={18} className="shrink-0" />}
+                        {!isCollapsed && (
+                            <span className="text-sm font-medium">
+                                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                            </span>
+                        )}
+                        {isCollapsed && (
+                            <div className="absolute left-full ml-2 px-2 py-1 bg-neutral-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+                                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                            </div>
+                        )}
+                    </button>
                     <div className="relative">
                         <button
                             className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} w-full p-2 rounded-lg hover:bg-neutral-900 transition-colors cursor-pointer group`}
                             onClick={() => setShowUserMenu(!showUserMenu)}
                         >
                             <div className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs overflow-hidden shrink-0">
-                                {user?.user?.avatarUrl ? (
-                                    <img src={user.user.avatarUrl} alt={user.user.displayName} className="w-full h-full object-cover" />
-                                ) : (
-                                    user?.user?.displayName?.substring(0, 2).toUpperCase() || 'U'
-                                )}
+                                <img
+                                    src={resolveMediaUrl(user?.user?.avatarUrl) || avatarFallbackUrl(user?.user?.displayName || 'U')}
+                                    alt={user?.user?.displayName || 'User'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = avatarFallbackUrl(user?.user?.displayName || 'U'); }}
+                                />
                             </div>
 
                             {!isCollapsed && (

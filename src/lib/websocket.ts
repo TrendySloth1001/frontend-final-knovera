@@ -46,22 +46,23 @@ class WebSocketService {
         }
       };
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+      this.ws.onerror = () => {
+        // WebSocket Event objects have no serializable detail — log a plain string instead
+        console.warn('[WebSocket] Connection error — will retry if not intentional close');
       };
 
       this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
         this.disconnectHandlers.forEach(handler => handler());
 
         if (!this.isIntentionalClose && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          console.log(`Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+          // Exponential backoff: 3s, 6s, 12s, 24s, 48s
+          const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
           setTimeout(() => {
             if (this.userId) {
               this.connect(this.userId);
             }
-          }, this.reconnectDelay);
+          }, delay);
         }
       };
     } catch (error) {
